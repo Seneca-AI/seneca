@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+
+// Primary Key: (id)
+// Stored in DB.
+message Hardware {
+    string id = 1;
+
+    enum HardwareType {
+        CAMERA = 1;
+    }
+
+    HardwareType hardware_type = 2;
+}

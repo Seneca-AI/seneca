@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+
+// Primary Key: (id)
+// Stored in DB.
+message User {
+    string id = 1;
+    string email = 2;
+    string phone_number = 3;
+    // Milliseconds from epoch.
+    int64 birthdate = 4;
+    // The UUIDs of the vehicles associated with this driver.
+    repeated string vehicle_ids = 5;
+    // The UUIDs of the cameras associated with this driver.
+    repeated string hardware_ids = 6;
+}
