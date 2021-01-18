@@ -2,16 +2,15 @@ syntax = "proto3";
 
 import "common.proto";
 
-// Primary Key: (hardware_id, id)
+// Primary Key: (camera_id, id)
 // Stored in DB, but should be reconstructable
-// given Trip and data associated with it (e.g.
-// camera video).
+// given a set of videos.
 message Event {
-    // The vehicle associated with this event.
-    string vehicle_id = 1;
+    // The camera associated with this event.
+    string camera_id = 1;
     // The ID for this event unique to this vehicle.
     string id = 2;
-    // The time period when which this evenet took place.
+    // The time period when which this event took place.
     TimePeriod time_period = 3;
 
     // A subevent may only have one tag.
@@ -20,7 +19,6 @@ message Event {
         TimePeriod time_period = 2;
         repeated Location locations = 3;
         int64 value = 4;
-        Source source = 5;
     }
 
     repeated SubEvent sub_events = 4;
