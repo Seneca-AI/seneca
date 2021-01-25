@@ -3,23 +3,14 @@ syntax = "proto3";
 import "common.proto";
 
 
-// Primary Key: (vehicle_id, id)
+// Primary Key: (hardware_id, id)
 // Stored in DB.
 message Trip {
-    // This is used for associating hardware
-    // data with a driver/vehicle.
-    // A trip should begin and end when the vehicle is stationary 
-    // for some period of time to account for drivers potentially
-    // switching in a vehicle.
-    string vehicle_id = 1;
-    // Unique to this vehicle.
+    string hardware_id = 1;
+    // Unique to this hardware.
     string id = 2;
-    // Which pieces of hardware took part in 
-    // analyzing this trip?
-    repeated string hardware_ids = 3;
-    string driver_id = 4;
-    TimePeriod time_period = 5;
-    repeated Location locations = 6;
+    TimePeriod time_period = 3;
+    repeated Location locations = 4;
 }
 
 // Primary Key: (id)
@@ -27,5 +18,5 @@ message Trip {
 message Vehicle {
     string id = 1;
     string friendly_name = 2;
-    repeated string_driver_ids = 3;
+    repeated string driver_id = 3;
 }

@@ -13,19 +13,6 @@ message Location {
     // Milliseconds.
     int64 timestamp = 3;
 }
-
-message Source {
-    // The ID associated with this source,
-    // if applicable.
-    string id = 1;
-    
-    enum SourceType {
-        CAMERA = 0;
-    }
-
-    SourceType type = 2;
-}
-
 enum Tag {
     // Values: [0, 1000]
     TRAFFIC = 1;
