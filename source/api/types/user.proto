@@ -1,10 +1,9 @@
 syntax = "proto3";
 
 
-// Primary Key: (id)
-// Stored in DB.
+// key(uuid)
 message User {
-    string id = 1;
+    string uuid = 1;
     string email = 2;
     string phone_number = 3;
     // Milliseconds from epoch.
