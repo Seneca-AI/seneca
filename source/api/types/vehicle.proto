@@ -2,21 +2,10 @@ syntax = "proto3";
 
 import "common.proto";
 
-
-// Primary Key: (hardware_id, id)
-// Stored in DB.
-message Trip {
-    string hardware_id = 1;
-    // Unique to this hardware.
-    string id = 2;
-    TimePeriod time_period = 3;
-    repeated Location locations = 4;
-}
-
-// Primary Key: (id)
-// Stored in DB.
+// key(uuid)
 message Vehicle {
-    string id = 1;
+    string uuid = 1;
     string friendly_name = 2;
-    repeated string driver_id = 3;
+    string primary_driver_id = 3;
+    repeated string secondary_driver_id = 4;
 }

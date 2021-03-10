@@ -1,18 +1,16 @@
 syntax = "proto3";
 
 message TimePeriod {
-    // Milliseconds.
-    int64 start_time = 1;
-    // Milliseconds.
-    int64 end_time = 2;
+    int64 start_time_ms = 1;
+    int64 end_time_ms = 2;
 }
 
 message Location {
     double latitude = 1;
     double longitude = 2;
-    // Milliseconds.
-    int64 timestamp = 3;
+    int64 timestamp_ms = 3;
 }
+
 enum Tag {
     // Values: [0, 1000]
     TRAFFIC = 1;
