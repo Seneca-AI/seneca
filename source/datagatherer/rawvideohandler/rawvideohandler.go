@@ -10,6 +10,11 @@ import (
 // The video itself is stored in simple storage and the metadata is stored in
 // firestore.  If the video does not contain timestamp info, the server
 // returns a 400 error.
+// Params:
+// 		http.ResponseWriter w: the response to write to
+// 		*http.Request r: the request
+// Returns:
+//		none
 func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 	video_name, err := getVideoName(r)
 	if err != nil {

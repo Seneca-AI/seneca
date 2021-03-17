@@ -10,4 +10,6 @@ message User {
     int64 birthdate = 4;
     repeated string vehicle_id = 5;
     repeated string camera_id = 6;
+    // standard tz abbreviation
+    string time_zone = 7;
 }
