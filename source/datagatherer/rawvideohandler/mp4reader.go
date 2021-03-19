@@ -26,33 +26,30 @@ type VideoMetadata struct {
 }
 
 func (vmd *VideoMetadata) String() string {
-	x := make(map[string]interface{})
-	x["CreationTime"] = vmd.CreationTime.String()
-	x["Duration"] = vmd.Duration.String()
-
 	// TODO: handle this error with a logger
-	b, _ := json.MarshalIndent(x, "", " ")
-
+	b, _ := json.MarshalIndent(vmd, "", "\t")
 	return fmt.Sprint(string(b))
 }
 
 // GetMetadata extracts VideoMetadata from the video at the given path.
 // Params:
-// 		string path_to_video: path to video to get metadata from
+// 		string pathToVideo: path to video to get metadata from
 // Returns:
 // 		*VideoMetadata: the VideoMetadata object
 //		error
-func GetMetadata(path_to_video string) (*VideoMetadata, error) {
-	video_meta_data := &VideoMetadata{}
+func GetMetadata(pathToVideo string) (*VideoMetadata, error) {
+	fmt.Printf("Getting metadata for video %q\n", pathToVideo)
+
+	videoMetadata := &VideoMetadata{}
 
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating exiftool - err: %v", err)
 	}
 
-	fileInfoList := et.ExtractMetadata(path_to_video)
+	fileInfoList := et.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
-		return nil, fmt.Errorf("fileInfoList for %q is empty", path_to_video)
+		return nil, fmt.Errorf("fileInfoList for %q is empty", pathToVideo)
 	}
 
 	fileInfo := fileInfoList[0]
@@ -70,7 +67,7 @@ func GetMetadata(path_to_video string) (*VideoMetadata, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error parsing CreationTime - err: %v", err)
 			}
-			video_meta_data.CreationTime = t
+			videoMetadata.CreationTime = t
 		}
 		if k == durationKey {
 			durationString := strings.Replace(value, ":", "h", 1)
@@ -80,8 +77,8 @@ func GetMetadata(path_to_video string) (*VideoMetadata, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error parsing Duration - err: %v", err)
 			}
-			video_meta_data.Duration = duration
+			videoMetadata.Duration = duration
 		}
 	}
-	return video_meta_data, nil
+	return videoMetadata, nil
 }
