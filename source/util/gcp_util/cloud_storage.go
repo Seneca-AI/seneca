@@ -1,4 +1,4 @@
-package main
+package gcp_util
 
 import (
 	"context"
@@ -14,9 +14,18 @@ import (
 )
 
 const (
-	rawVideoBucketName = "seneca_raw_videos"
+	// RawVideoBucketName is the name of the GCS bucket for raw videos.
+	RawVideoBucketName = "seneca_raw_videos"
+	// QuickTimeOut is the time out used for operations that should be quick,
+	// like reading metadata or creating a bucket.
+	QuickTimeOut = time.Second * 10
+	// LongTimeOut is the time out used for operations that may take some time,
+	// like uploading a file.
+	LongTimeOut = time.Minute
 )
 
+// GoogleCloudStorageClient is the client used to for interfacing with
+// Google Cloud Storage across Seneca.
 type GoogleCloudStorageClient struct {
 	client       *storage.Client
 	projectID    string
@@ -24,6 +33,15 @@ type GoogleCloudStorageClient struct {
 	longTimeOut  time.Duration
 }
 
+// NewGoogleCloudStorageClient initializes a new Google storage.Client with the given parameters.
+// Params:
+// 		ctx context.Context
+// 		projectID string: the project
+// 		quickTimeOut time.Duration: the time out used for operations that should be quick, like reading metadata or creating a bucket.
+// 		longTimeOut time.Duration: the time out used for operations that may take some time, like uploading a file.
+// Returns:
+//		*GoogleCloudStorageClient: the client
+// 		error
 func NewGoogleCloudStorageClient(ctx context.Context, projectID string, quickTimeOut, longTimeOut time.Duration) (*GoogleCloudStorageClient, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
