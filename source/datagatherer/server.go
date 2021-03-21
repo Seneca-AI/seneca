@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"datagatherer/rawvideohandler"
+	"seneca/source/datagatherer/rawvideohandler"
 )
 
 func main() {

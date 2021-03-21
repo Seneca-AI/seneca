@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"seneca/source/util"
 )
 
 const (
@@ -60,7 +62,7 @@ func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := GetMetadata(path)
+	metadata, err := util.GetMetadata(path)
 	if err != nil {
 		w.WriteHeader(400)
 		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
