@@ -1,2 +1,4 @@
 /file_dump
 **/.DS_Store
+go.sum
+credentials/
