@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"seneca/source/util"
+	"seneca/source/util/gcp_util"
 )
 
 const (
@@ -18,6 +20,35 @@ const (
 	fileDumpPath        = "../../file_dump"
 	maxFileSizeMB int64 = 250
 )
+
+// RawVideoHandler implements all logic for handling raw video requests.
+type RawVideoHandler struct {
+	gcsc             *gcp_util.GoogleCloudStorageClient
+	localStoragePath string
+	projectID        string
+}
+
+// NewRawVideoHandler initializes a new RawVideoHandler with the given params.
+// Params:
+//		storageClient *gcp_util.GoogleCloudStorageClient: client for interfacing with GCP storage
+// 		localStoragePath string: 	the path where local files will be staged before
+// 									upload to Google Cloud Storage.  If empty, temp directories will be used.
+// 									If the directory does not exist, requests will fail.
+// Returns:
+//		*RawVideoHandler: the handler
+//		error if localStoragePath does not exist
+func NewRawVideoHandler(storageClient *gcp_util.GoogleCloudStorageClient, localStoragePath, projectID string) (*RawVideoHandler, error) {
+	if localStoragePath != "" {
+		if _, err := os.Stat(localStoragePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("localStoragePath %q does not exist", localStoragePath)
+		}
+	}
+	return &RawVideoHandler{
+		gcsc:             storageClient,
+		localStoragePath: localStoragePath,
+		projectID:        projectID,
+	}, nil
+}
 
 // HandleRawVideoPostRequest accepts POST requests that include mp4 data and
 // parses the metadata to gather timestamp info and, if possible, location info.
@@ -29,7 +60,7 @@ const (
 // 		*http.Request r: the request
 // Returns:
 //		none
-func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
+func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 	var err error
 	mp4Buffer, mp4Name, err := getMP4Bytes(r)
 	if err != nil {
@@ -40,10 +71,10 @@ func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 	mp4Name = mp4Name + ".mp4"
 
 	var mp4File *os.File
-	path := ""
+	mp4Path := ""
 	defer mp4File.Close()
 	if storeLocally {
-		path = strings.Join([]string{fileDumpPath, mp4Name}, "/")
+		mp4Path = strings.Join([]string{fileDumpPath, mp4Name}, "/")
 		mp4File, err = createLocalMP4File(mp4Name, fileDumpPath)
 		if err != nil {
 			fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
@@ -53,7 +84,7 @@ func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
 		}
-		path = mp4File.Name()
+		mp4Path = mp4File.Name()
 	}
 
 	if _, err := mp4File.Write(mp4Buffer); err != nil {
@@ -62,15 +93,46 @@ func HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := util.GetMetadata(path)
+	metadata, err := util.GetMetadata(mp4Path)
 	if err != nil {
 		w.WriteHeader(400)
 		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
 		return
 	}
 
+	if err := rvh.writeMP4ToGCS(mp4Path); err != nil {
+		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+	}
+
 	w.WriteHeader(200)
 	fmt.Fprintf(w, "The video's metadata is %q", metadata.String())
+}
+
+func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path string) error {
+	if bucketExists, err := rvh.gcsc.BucketExists(gcp_util.RawVideoBucketName); err != nil {
+		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, gcp_util.RawVideoBucketName, err)
+	} else if !bucketExists {
+		if err := rvh.gcsc.CreateBucket(gcp_util.RawVideoBucketName); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("created bucket: %q\n", gcp_util.RawVideoBucketName)
+	} else {
+		fmt.Printf("bucket %q already exists\n", gcp_util.RawVideoBucketName)
+	}
+
+	bucketFileName, err := util.GetFileNameFromPath(mp4Path)
+	if err != nil {
+		return fmt.Errorf("error parsing localFileName - err: %v", err)
+	}
+	if bucketFileExists, err := rvh.gcsc.BucketFileExists(gcp_util.RawVideoBucketName, bucketFileName); !bucketFileExists {
+		fmt.Printf("bucketFileExists(_, %s, %s) returns err %v, assuming bucket file does not exist", gcp_util.RawVideoBucketName, mp4Path, err)
+		if err := rvh.gcsc.WriteBucketFile(gcp_util.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
+			return fmt.Errorf("writeBucketFile(_, %s, %s) returns err: %v", gcp_util.RawVideoBucketName, mp4Path, err)
+		}
+	} else {
+		fmt.Printf("bucketFile %q alreadty exists, not overwriting", bucketFileName)
+	}
+	return nil
 }
 
 func getMP4Bytes(r *http.Request) ([]byte, string, error) {
