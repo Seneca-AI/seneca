@@ -9,8 +9,8 @@ message RawVideo {
     string simple_storage_url = 3;
     // When the video begins.
     int64 timestamp_ms = 4;
-    repeated Location locations = 5;
-    repeated string cut_video_id = 6;
+    repeated string cut_video_id = 5;
+    string mp4_original_name = 6;
 }
 
 // key(user_id, id)
@@ -21,6 +21,7 @@ message CutVideo {
     // When the video begins.
     int64 timestamp_ms = 4;
     string raw_video_id = 5;
+    repeated Location locations = 6;
 }
 
 // key(user_id, id)
