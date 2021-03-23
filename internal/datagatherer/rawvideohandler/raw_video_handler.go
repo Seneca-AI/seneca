@@ -22,8 +22,8 @@ const (
 
 // RawVideoHandler implements all logic for handling raw video requests.
 type RawVideoHandler struct {
-	ssi              gcp_util.SimpleStorageInterface
-	nsdi             gcp_util.NoSQLDatabaseInterface
+	simpleStorage    gcp_util.SimpleStorageInterface
+	noSqlDB          gcp_util.NoSQLDatabaseInterface
 	localStoragePath string
 	projectID        string
 }
@@ -44,15 +44,15 @@ func NewRawVideoHandler(simpleStorageInterface gcp_util.SimpleStorageInterface, 
 		}
 	}
 	return &RawVideoHandler{
-		ssi:              simpleStorageInterface,
-		nsdi:             noSQLDatabaseInterface,
+		simpleStorage:    simpleStorageInterface,
+		noSqlDB:          noSQLDatabaseInterface,
 		localStoragePath: localStoragePath,
 		projectID:        projectID,
 	}, nil
 }
 
 // HandleRawVideoPostRequest accepts POST requests that include mp4 data and
-// parses the metadata to gather timestamp info and, if possible, location info.
+// parses the metadata to gather timestamp info and, if posimpleStorageble, location info.
 // The video itself is stored in simple storage and the metadata is stored in
 // firestore.  If the video does not contain timestamp info, the server
 // returns a 400 error.
@@ -118,7 +118,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 
 	// Upload cloud storage data.
 	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
-		if err := rvh.nsdi.DeleteRawVideoByID(rawVideo.Id); err != nil {
+		if err := rvh.noSqlDB.DeleteRawVideoByID(rawVideo.Id); err != nil {
 			fmt.Printf("Error cleaning up rawVideo with ID %q on failed request\n", rawVideo.Id)
 		}
 
@@ -139,7 +139,7 @@ func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string,
 		CreateTimeMs:         util.TimeToMilliseconds(metadata.CreationTime),
 	}
 
-	id, err := rvh.nsdi.InsertUniqueRawVideo(rawVideo)
+	id, err := rvh.noSqlDB.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
 		return nil, fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %v", err)
 	}
@@ -149,10 +149,10 @@ func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string,
 }
 
 func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error {
-	if bucketExists, err := rvh.ssi.BucketExists(gcp_util.RawVideoBucketName); err != nil {
+	if bucketExists, err := rvh.simpleStorage.BucketExists(gcp_util.RawVideoBucketName); err != nil {
 		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, gcp_util.RawVideoBucketName, err)
 	} else if !bucketExists {
-		if err := rvh.ssi.CreateBucket(gcp_util.RawVideoBucketName); err != nil {
+		if err := rvh.simpleStorage.CreateBucket(gcp_util.RawVideoBucketName); err != nil {
 			log.Fatal(err)
 		}
 		fmt.Printf("created bucket: %q\n", gcp_util.RawVideoBucketName)
@@ -160,9 +160,9 @@ func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error 
 		fmt.Printf("bucket %q already exists\n", gcp_util.RawVideoBucketName)
 	}
 
-	if bucketFileExists, err := rvh.ssi.BucketFileExists(gcp_util.RawVideoBucketName, bucketFileName); !bucketFileExists {
+	if bucketFileExists, err := rvh.simpleStorage.BucketFileExists(gcp_util.RawVideoBucketName, bucketFileName); !bucketFileExists {
 		fmt.Printf("bucketFileExists(_, %s, %s) returns err %v, assuming bucket file does not exist\n", gcp_util.RawVideoBucketName, bucketFileName, err)
-		if err := rvh.ssi.WriteBucketFile(gcp_util.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
+		if err := rvh.simpleStorage.WriteBucketFile(gcp_util.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
 			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", gcp_util.RawVideoBucketName, bucketFileName, mp4Path, err)
 		}
 	} else {
