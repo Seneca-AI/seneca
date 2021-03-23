@@ -3,6 +3,7 @@ package gcp_util
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"seneca/source/api/types"
@@ -13,11 +14,9 @@ import (
 
 const (
 	// The "kind" of raw videos in Cloud Datstore.
-	rawVideoKind    = "RawVideo"
-	rawVideoDirName = "RawVideos"
-	directoryKind   = "Directory"
-	// queryOffset is the offset we allow for querying the CreatTime of the video.
-	queryOffset         = time.Second
+	rawVideoKind        = "RawVideo"
+	rawVideoDirName     = "RawVideos"
+	directoryKind       = "Directory"
 	createTimeFieldName = "CreateTimeMs"
 	userIDFieldName     = "UserId"
 )
@@ -29,11 +28,21 @@ var (
 	}
 )
 
-// GoogleCloudStorageClient is the client used for interfacing with
-// Google Cloud Storage across Seneca.
+// NoSQLDatabaseInterface is the interface used for interacting with
+// NoSQL Databases across Seneca.
+type NoSQLDatabaseInterface interface {
+	InsertRawVideo(rawVideo *types.RawVideo) (string, error)
+	GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error)
+	InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error)
+	DeleteRawVideoByID(id string) error
+}
+
+// GoogleCloudStorageClient implements NoSQLDatabaseInterface using the real
+// Google Cloud Datastore.
 type GoogleCloudDatastoreClient struct {
-	client    *datastore.Client
-	projectID string
+	client                *datastore.Client
+	projectID             string
+	createTimeQueryOffset time.Duration
 }
 
 // GoogleCloudDatastoreClient initializes a new Google datastore.Client with the given parameters.
@@ -43,14 +52,15 @@ type GoogleCloudDatastoreClient struct {
 // Returns:
 //		*GoogleCloudDatastoreClient: the client
 // 		error
-func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string) (*GoogleCloudDatastoreClient, error) {
+func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string, createTimeQueryOffset time.Duration) (*GoogleCloudDatastoreClient, error) {
 	client, err := datastore.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new GoogleCloudDatastoreClient - err: %v", err)
 	}
 	return &GoogleCloudDatastoreClient{
-		client:    client,
-		projectID: projectID,
+		client:                client,
+		projectID:             projectID,
+		createTimeQueryOffset: createTimeQueryOffset,
 	}, nil
 }
 
@@ -58,15 +68,15 @@ func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string) (*Goog
 // Params:
 // 		rawVideo *types.RawVideo: the rawVideo
 // Returns:
-//		int64: the newly generated datastore ID for the rawVideo
+//		string: the newly generated datastore ID for the rawVideo
 //		error
-func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo) (int64, error) {
+func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
 	key := datastore.IncompleteKey(rawVideoKind, &RawVideoKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawVideo)
 	if err != nil {
-		return 0, fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err)
+		return "", fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err)
 	}
-	return completeKey.ID, nil
+	return strconv.FormatInt(completeKey.ID, 64), nil
 }
 
 // GetRawVideo gets the *types.RawVideo for the given user around the specified createTime.
@@ -78,8 +88,8 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo)
 //		*types.RawVideo: the raw video object
 //		error
 func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error) {
-	beginTimeQuery := createTime.Add(-queryOffset)
-	endTimeQuery := createTime.Add(queryOffset)
+	beginTimeQuery := createTime.Add(-gcdc.createTimeQueryOffset)
+	endTimeQuery := createTime.Add(gcdc.createTimeQueryOffset)
 
 	query := datastore.NewQuery(
 		rawVideoKind,
@@ -114,21 +124,26 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 // Params:
 // 		rawVideo *types.RawVideo: the rawVideo
 // Returns:
-//		int64: the newly generated datastore ID for the rawVideo
+//		string: the newly generated datastore ID for the rawVideo
 //		error
-func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (int64, error) {
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error) {
 	existingRawVideo, err := gcdc.GetRawVideo(rawVideo.UserId, util.MillisecondsToTime(rawVideo.CreateTimeMs))
 	if err != nil {
-		return 0, fmt.Errorf("error checking if raw video already exists - err: %v", err)
+		return "", fmt.Errorf("error checking if raw video already exists - err: %v", err)
 	}
 	if existingRawVideo != nil {
-		return 0, fmt.Errorf("raw video for user %q with CreateTimeMs %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs)
+		return "", fmt.Errorf("raw video for user %q with CreateTimeMs %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs)
 	}
 	return gcdc.InsertRawVideo(rawVideo)
 }
 
-func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id int64) error {
-	key := datastore.IDKey(rawVideoKind, id, &RawVideoKey)
+func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return fmt.Errorf("error converting id to int64 - err: %v", err)
+	}
+
+	key := datastore.IDKey(rawVideoKind, idInt, &RawVideoKey)
 	if err := gcdc.client.Delete(context.Background(), key); err != nil {
 		return fmt.Errorf("error deleting raw video by key - err: %v", err)
 	}

@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 
-	gcsd, err := gcp_util.NewGoogleCloudDatastoreClient(ctx, projectID)
+	gcsd, err := gcp_util.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
 	if err != nil {
 		fmt.Printf("NewGoogleCloudDatastoreClient() returns - err: %v", err)
 		return

@@ -22,8 +22,17 @@ const (
 	LongTimeOut = time.Minute
 )
 
-// GoogleCloudStorageClient is the client used for interfacing with
+// GoogleCloudStorageClient is the interface used for interacting with
 // Google Cloud Storage across Seneca.
+type SimpleStorageInterface interface {
+	CreateBucket(bucketName string) error
+	BucketExists(bucketName string) (bool, error)
+	BucketFileExists(bucketName, bucketFileName string) (bool, error)
+	WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error
+}
+
+// GoogleCloudStorageClient implements SimpleStorageInterface with
+// Google Cloud Storage.
 type GoogleCloudStorageClient struct {
 	client       *storage.Client
 	projectID    string
