@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "common.proto";
+
+// key(uuid)
+message Vehicle {
+    string uuid = 1;
+    string friendly_name = 2;
+    string primary_driver_id = 3;
+    repeated string secondary_driver_id = 4;
+}

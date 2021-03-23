@@ -1,7 +1,0 @@
-indexes:
-
-- kind: RawVideo
-  properties:
-  - name: UserId
-  - name: CreateTimeMs
-  
