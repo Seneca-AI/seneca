@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	"seneca/source/util"
-
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 )
@@ -24,7 +22,7 @@ const (
 	LongTimeOut = time.Minute
 )
 
-// GoogleCloudStorageClient is the client used to for interfacing with
+// GoogleCloudStorageClient is the client used for interfacing with
 // Google Cloud Storage across Seneca.
 type GoogleCloudStorageClient struct {
 	client       *storage.Client
@@ -142,10 +140,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameA
 	}
 
 	if bucketFileName == "" {
-		bucketFileName, err = util.GetFileNameFromPath(localFileNameAndPath)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("received empty bucketFileName")
 	}
 
 	ctx := context.Background()

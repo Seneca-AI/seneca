@@ -12,6 +12,10 @@ import (
 	"seneca/source/util/gcp_util"
 )
 
+const (
+	port = "8080"
+)
+
 func main() {
 	// Initialize storage client and RawVideoHandler.
 	ctx := context.Background()
@@ -28,7 +32,13 @@ func main() {
 		return
 	}
 
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, "", projectID)
+	gcsd, err := gcp_util.NewGoogleCloudDatastoreClient(ctx, projectID)
+	if err != nil {
+		fmt.Printf("NewGoogleCloudDatastoreClient() returns - err: %v", err)
+		return
+	}
+
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, "", projectID)
 	if err != nil {
 		fmt.Printf("NewRawVideoHandler() returns - err: %v", err)
 		return
@@ -37,7 +47,7 @@ func main() {
 	http.HandleFunc("/rawvideo", rawVideoHandler.HandleRawVideoPostRequest)
 
 	fmt.Printf("Starting server at port 8080\n")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
 		log.Fatal(err)
 	}
 }
