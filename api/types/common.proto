@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+message TimePeriod {
+    int64 start_time_ms = 1;
+    int64 end_time_ms = 2;
+}
+
+message Location {
+    double latitude = 1;
+    double longitude = 2;
+    int64 timestamp_ms = 3;
+}
+
+enum Tag {
+    // Values: [0, 1000]
+    TRAFFIC = 1;
+    // Values: [0.0, 1000.0] hours
+    LONG_DURATION = 2;
+    // Values: [0, 1000] mph
+    SPEED = 3;
+    /// Values: [-1000, 1000] feet/s/s
+    ACCELERATION = 4;
+    // Values: [0, 1000] feet
+    FOLLOWING_DISTANCE = 5;
+    // Values: [0, 1000]
+    NIGHT = 6;
+    // Values: true, false
+    WEEKEND = 7;
+    // Values: [0, 1000]
+    SNOW = 8;
+    // Values: [0, 1000]
+    RAIN = 9;
+    // Values: [0, 1000]
+    ICE = 10;
+    // Values: [0, 1000]
+    CITY = 11;
+    // Values: [0, 1000]
+    HIGH_WAY = 12;
+}

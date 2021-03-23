@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+
+// key(id)
+message Camera {
+    string id = 1;
+    // The vehicle this camera is associated with at this current time.
+    string vehicle_id = 2;
+}

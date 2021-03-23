@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "common.proto";
+
+// key(user_id, id)
+message AggregatedTrip {
+    string user_id = 1;
+    string id = 2;
+    TimePeriod time_period = 3;
+    repeated string event_ids = 4;
+}
