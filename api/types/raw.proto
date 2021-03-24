@@ -3,7 +3,7 @@ package api;
 
 // import "common.proto";
 
-option go_package ="seneca/source/api/types";
+option go_package ="seneca/api/types";
 
 // key(user_id, id)
 message RawVideo {
