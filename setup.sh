@@ -42,5 +42,6 @@ sudo env "PATH=$PATH" "GOPATH=$GOPATH" go get -u github.com/golang/protobuf/prot
 sudo env "PATH=$PATH" "GOPATH=$GOPATH" protoc raw.proto --go_out=../../..
 cd ../..
 
-echo "_________________"
-echo $PATH
+echo "Installing golang libraries"
+sudo env "PATH=$PATH" "GOPATH=$GOPATH" go mod tidy
+
