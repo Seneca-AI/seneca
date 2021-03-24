@@ -11,3 +11,11 @@ Requirements:
     1. `cd seneca`
 1. Run the setup script
     1. `./setup.sh`
+1. Start the server!
+    1. export GOPATH=$HOME/go
+    1. export PATH=$PATH:$HOME/go/bin
+    1. export GOOGLE_CLOUD_PROJECT="senecacam-sandbox"
+    1. export CREDENTIALS_JSON="your_file.json"
+    1. export GOOGLE_APPLICATION_CREDENTIALS="$PWD/configs/credentials/$CREDENTIALS_JSON"
+    1. cd cmd/datagatherer
+    1. sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" go run .

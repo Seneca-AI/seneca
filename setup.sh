@@ -14,6 +14,18 @@ export GOPATH=$HOME/go
 export PATH=$PATH:$HOME/go/bin
 rm go$GO_VERSION*
 
+echo "Installing Exiftool"
+sudo apt-get install build-essential -y > setup.log
+wget -c https://exiftool.org/Image-ExifTool-12.22.tar.gz > setup.log
+gzip -dc Image-ExifTool-12.22.tar.gz | tar -xf - > setup.log
+cd Image-ExifTool-12.22 > setup.log
+perl Makefile.PL > setup.log
+make test > setup.log
+sudo make install > setup.log
+cd .. > setup.log
+sudo rm -r Image-ExifTool-12.22 
+rm Image-ExifTool-12.22.tar.gz 
+
 echo "Installing unzip"
 sudo apt-get install -y unzip > setup.log
 
@@ -26,11 +38,8 @@ rm -f $PROTOC_ZIP
 
 echo "Generating protobuf golang code"
 cd api/types
-go get -u github.com/golang/protobuf/protoc-gen-go > ../../setup.log
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin
-sudo protoc raw.proto --go_out=../../..
-
+sudo env "PATH=$PATH" "GOPATH=$GOPATH" go get -u github.com/golang/protobuf/protoc-gen-go > ../../setup.log
+sudo env "PATH=$PATH" "GOPATH=$GOPATH" protoc raw.proto --go_out=../../..
 cd ../..
 
 echo "_________________"
