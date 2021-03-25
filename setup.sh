@@ -73,7 +73,7 @@ setup() {
 # Open a port to allow incoming traffic.
 open_port() {
 	read -p "Enter the port: " PORT
-	read 0p "Enter the VM instance name: " VM_INSTANCE
+	read -p "Enter the VM instance name: " VM_INSTANCE
 	gcloud compute firewall-rules create rule-allow-tcp-$PORT --source-ranges 0.0.0.0/0 --target-tags allow-tcp-$PORT --allow tcp:$PORT
 	gcloud compute instances add-tags $VM_INSTANCE --tags allow-tcp-$PORT
 	echo "Done"
@@ -89,13 +89,13 @@ start_datagatherer() {
 	sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" go run .
 }
 
-if [[ $1 -q 0 ]]; then 
+if [ -z "$1" ]; then 
 	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer ]."
 	exit 1
 fi
 
 if [ $1 == "help" ]; then
-	if [[ $2 -q 0 ]]; then
+	if [ -z "$2" ]; then
 		echo "Options are [ setup, open_port, start_datagatherer ]. Type 'bash setup.sh help <command> to learn more."
 	else
 		if [ $2 == "setup" ]; then
@@ -104,6 +104,8 @@ if [ $1 == "help" ]; then
 			echo "Open a port to allow incoming traffic."
 		elif [ $2 == "start_datagatherer" ]; then
 			echo "Start the datagatherer."
+		else 
+			echo "Invalid argument."
 		fi
 	fi
 	exit 1
@@ -114,10 +116,13 @@ if [ $1 == "setup" ]; then
 	spin &
 	SPIN_PID=$!
 	trap "kill -9 $SPIN_PID" `seq 0 15`
+	# Run setup.
 	setup
 	kill -9 $SPIN_PID
 elif [ $1 == "open_port" ]; then 
 	open_port
 elif [ $1 == "start_datagatherer" ]; then
 	start_datagatherer
+else
+	echo "Invalid argument."
 fi
