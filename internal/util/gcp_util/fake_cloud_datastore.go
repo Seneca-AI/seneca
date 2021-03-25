@@ -24,7 +24,7 @@ func NewFakeNoSQLDatabaseClient(createTimeQueryOffset time.Duration) *FakeNoSQLD
 
 func (fnsdc *FakeNoSQLDatabaseClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
 	id := rand.Int63()
-	stringID := strconv.FormatInt(id, 64)
+	stringID := strconv.FormatInt(id, 10)
 
 	rawVideo.Id = stringID
 

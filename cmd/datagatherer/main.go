@@ -10,12 +10,14 @@ import (
 
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util/gcp_util"
+	"seneca/internal/util/logging"
 )
 
 const (
 	port = "8080"
 )
 
+// TODO: make this configurable in different envs
 func main() {
 	// Initialize storage client and RawVideoHandler.
 	ctx := context.Background()
@@ -26,21 +28,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger, err := logging.NewGCPLogger(ctx, "datagatherer", projectID)
+	if err != nil {
+		fmt.Printf("logging.NewGCPLogger() returns - err: %v", err)
+		return
+	}
+
 	gcsc, err := gcp_util.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
 	if err != nil {
-		fmt.Printf("NewGoogleCloudStorageClient() returns - err: %v", err)
+		logger.Critical(fmt.Sprintf("gcp_util.NewGoogleCloudStorageClient() returns - err: %v", err))
 		return
 	}
 
 	gcsd, err := gcp_util.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
 	if err != nil {
-		fmt.Printf("NewGoogleCloudDatastoreClient() returns - err: %v", err)
+		logger.Critical(fmt.Sprintf("gcp_util.NewGoogleCloudDatastoreClient() returns - err: %v", err))
 		return
 	}
 
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, "", projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, logger, "", projectID)
 	if err != nil {
-		fmt.Printf("NewRawVideoHandler() returns - err: %v", err)
+		logger.Critical(fmt.Sprintf("gcp_util.NewRawVideoHandler() returns - err: %v", err))
 		return
 	}
 

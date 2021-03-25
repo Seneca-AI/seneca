@@ -13,6 +13,7 @@ import (
 	"seneca/api/types"
 	"seneca/internal/util"
 	"seneca/internal/util/gcp_util"
+	"seneca/internal/util/logging"
 )
 
 const (
@@ -24,20 +25,20 @@ const (
 type RawVideoHandler struct {
 	simpleStorage    gcp_util.SimpleStorageInterface
 	noSqlDB          gcp_util.NoSQLDatabaseInterface
+	logger           logging.LoggingInterface
 	localStoragePath string
 	projectID        string
 }
 
 // NewRawVideoHandler initializes a new RawVideoHandler with the given params.
+//
 // Params:
 //		storageClient *gcp_util.GoogleCloudStorageClient: client for interfacing with GCP storage
-// 		localStoragePath string: 	the path where local files will be staged before
-// 									upload to Google Cloud Storage.  If empty, temp directories will be used.
-// 									If the directory does not exist, requests will fail.
+// 		localStoragePath string: the path where local files will be staged before upload to Google Cloud Storage.  If empty, temp directories will be used. If the directory does not exist, requests will fail.
 // Returns:
 //		*RawVideoHandler: the handler
 //		error if localStoragePath does not exist
-func NewRawVideoHandler(simpleStorageInterface gcp_util.SimpleStorageInterface, noSQLDatabaseInterface gcp_util.NoSQLDatabaseInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(simpleStorageInterface gcp_util.SimpleStorageInterface, noSQLDatabaseInterface gcp_util.NoSQLDatabaseInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
 	if localStoragePath != "" {
 		if _, err := os.Stat(localStoragePath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("localStoragePath %q does not exist", localStoragePath)
@@ -46,6 +47,7 @@ func NewRawVideoHandler(simpleStorageInterface gcp_util.SimpleStorageInterface, 
 	return &RawVideoHandler{
 		simpleStorage:    simpleStorageInterface,
 		noSqlDB:          noSQLDatabaseInterface,
+		logger:           logger,
 		localStoragePath: localStoragePath,
 		projectID:        projectID,
 	}, nil
@@ -65,20 +67,23 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	// Extract request data.
 	userID := r.FormValue("user_id")
 	if userID == "" {
+		errorString := "Error handling RawVideoRequest, no user_id specified"
+		rvh.logger.Log(errorString)
 		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest, no user_id specified")
+		fmt.Fprintf(w, errorString)
 		return
 	}
 	var err error
 	mp4Buffer, mp4Name, err := getMP4Bytes(r)
 	if err != nil {
+		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
 		return
 	}
 	mp4Name = mp4Name + ".mp4"
 
-	// Stage mp4 and extract metadata..
+	// Stage mp4 and extract metadata.
 	var mp4File *os.File
 	mp4Path := ""
 	defer mp4File.Close()
@@ -86,24 +91,30 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		mp4Path = strings.Join([]string{rvh.localStoragePath, mp4Name}, "/")
 		mp4File, err = createLocalMP4File(mp4Name, rvh.localStoragePath)
 		if err != nil {
-			fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
 		}
 	} else {
 		mp4File, err = createTempMP4File(mp4Name)
 		if err != nil {
-			fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
 		}
 		mp4Path = mp4File.Name()
 	}
 	if _, err := mp4File.Write(mp4Buffer); err != nil {
+		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
 		return
 	}
 	metadata, err := util.GetMetadata(mp4Path)
 	if err != nil {
+		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
 		return
 	}
 
@@ -111,24 +122,26 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	bucketFileName := fmt.Sprintf("%s.%d.RAW_VIDEO.mp4", userID, util.TimeToMilliseconds(metadata.CreationTime))
 	rawVideo, err := rvh.writeMP4MetadataToGCD(userID, bucketFileName, metadata)
 	if err != nil {
+		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+		fmt.Fprintf(w, "Error handling RawVideoRequest - invalid")
 		return
 	}
 
 	// Upload cloud storage data.
 	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
 		if err := rvh.noSqlDB.DeleteRawVideoByID(rawVideo.Id); err != nil {
-			fmt.Printf("Error cleaning up rawVideo with ID %q on failed request\n", rawVideo.Id)
+			rvh.logger.Warning(fmt.Sprintf("Error cleaning up rawVideo with ID %q on failed request", rawVideo.Id))
 		}
-
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - err: %v", err)
+		rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
 		return
 	}
 
+	rvh.logger.Log(fmt.Sprintf("Successfully processed video %q for user %q", bucketFileName, userID))
 	w.WriteHeader(200)
-	fmt.Fprintf(w, "Stored video %q", rawVideo.String())
+	fmt.Fprintf(w, "Successfully proccessed %q", mp4Name)
 }
 
 func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string, metadata *util.VideoMetadata) (*types.RawVideo, error) {
