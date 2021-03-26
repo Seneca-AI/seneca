@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"seneca/api/types"
 	"seneca/internal/util"
-	"seneca/internal/util/gcp_util"
+	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
+	"seneca/internal/util/mp4"
 	"testing"
 	"time"
 )
@@ -20,7 +21,7 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
-	fileMetdata := util.VideoMetadata{
+	fileMetdata := mp4.VideoMetadata{
 		CreationTime: &creationTime,
 		Duration:     &duration,
 	}
@@ -71,7 +72,7 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
-	fileMetdata := util.VideoMetadata{
+	fileMetdata := mp4.VideoMetadata{
 		CreationTime: &creationTime,
 		Duration:     &duration,
 	}
@@ -88,8 +89,8 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 }
 
 func newRawVideoHandlerForTests() (*RawVideoHandler, error) {
-	fakeSimpleStorageClient := gcp_util.NewFakeSimpleStorageClient()
-	fakeFakeNoSQLDBClient := gcp_util.NewFakeNoSQLDatabaseClient(time.Second * 2)
+	fakeSimpleStorageClient := cloud.NewFakeSimpleStorageClient()
+	fakeFakeNoSQLDBClient := cloud.NewFakeNoSQLDatabaseClient(time.Second * 2)
 	localLogger := logging.NewLocalLogger()
 
 	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, localLogger, "", "")

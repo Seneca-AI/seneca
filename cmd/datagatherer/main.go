@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"seneca/internal/datagatherer/rawvideohandler"
-	"seneca/internal/util/gcp_util"
+	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
 )
 
@@ -34,21 +34,21 @@ func main() {
 		return
 	}
 
-	gcsc, err := gcp_util.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
+	gcsc, err := cloud.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
 	if err != nil {
-		logger.Critical(fmt.Sprintf("gcp_util.NewGoogleCloudStorageClient() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudStorageClient() returns - err: %v", err))
 		return
 	}
 
-	gcsd, err := gcp_util.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
+	gcsd, err := cloud.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
 	if err != nil {
-		logger.Critical(fmt.Sprintf("gcp_util.NewGoogleCloudDatastoreClient() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudDatastoreClient() returns - err: %v", err))
 		return
 	}
 
 	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, logger, "", projectID)
 	if err != nil {
-		logger.Critical(fmt.Sprintf("gcp_util.NewRawVideoHandler() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return
 	}
 

@@ -1,4 +1,4 @@
-package gcp_util
+package cloud
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package util
+package mp4
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestGetMetadataHasExpectedData(t *testing.T) {
-	pathToTestMp4 := "../../test/testdata/dad_example.MP4"
+	pathToTestMp4 := "../../../test/testdata/dad_example.MP4"
 	expectedCreationTime := time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC)
 	expectedDuration := time.Minute
 
