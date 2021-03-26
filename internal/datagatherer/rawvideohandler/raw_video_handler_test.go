@@ -17,7 +17,7 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
 	}
 
-	userId := "user_id"
+	userID := "user_id"
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
@@ -27,14 +27,14 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 	}
 
 	expectedRawVideo := &types.RawVideo{
-		UserId:       userId,
+		UserId:       userID,
 		CreateTimeMs: util.TimeToMilliseconds(&creationTime),
 	}
 
 	// Verify value.
-	returnedRawVideo, err := rawVideoHandler.writeMP4MetadataToGCD(userId, bucketFileName, &fileMetdata)
+	returnedRawVideo, err := rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata)
 	if err != nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userId, bucketFileName, err)
+		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
 	}
 	if expectedRawVideo.UserId != returnedRawVideo.UserId {
 		t.Errorf("Got returned RawVideo.UserId %q, want %q", returnedRawVideo.UserId, expectedRawVideo.UserId)
@@ -47,9 +47,9 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 	}
 
 	// Verify exists in store.
-	gotRawVideo, err := rawVideoHandler.noSqlDB.GetRawVideo(userId, creationTime)
+	gotRawVideo, err := rawVideoHandler.noSQLDB.GetRawVideo(userID, creationTime)
 	if err != nil {
-		t.Errorf("fakeFakeNoSQLDBClient.GetRawVideo(%q, _) returns err: %v", userId, err)
+		t.Errorf("fakeFakeNoSQLDBClient.GetRawVideo(%q, _) returns err: %v", userID, err)
 	}
 	if expectedRawVideo.UserId != gotRawVideo.UserId {
 		t.Errorf("Got returned RawVideo.UserId %q, want %q", gotRawVideo.UserId, expectedRawVideo.UserId)
@@ -68,7 +68,7 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
 	}
 
-	userId := "user_id"
+	userID := "user_id"
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
@@ -77,14 +77,14 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 		Duration:     &duration,
 	}
 
-	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userId, bucketFileName, &fileMetdata); err != nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userId, bucketFileName, err)
+	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata); err != nil {
+		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
 	}
 	// Write twice but add an extra second, should still fail.
 	newTime := fileMetdata.CreationTime.Add(time.Second)
 	fileMetdata.CreationTime = &newTime
-	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userId, bucketFileName, &fileMetdata); err == nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned err for duplicate, but did not", userId, bucketFileName)
+	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata); err == nil {
+		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned err for duplicate, but did not", userID, bucketFileName)
 	}
 }
 

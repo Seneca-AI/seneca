@@ -28,7 +28,7 @@ var (
 	}
 )
 
-// GoogleCloudStorageClient implements NoSQLDatabaseInterface using the real
+// GoogleCloudDatastoreClient implements NoSQLDatabaseInterface using the real
 // Google Cloud Datastore.
 type GoogleCloudDatastoreClient struct {
 	client                *datastore.Client
@@ -36,7 +36,7 @@ type GoogleCloudDatastoreClient struct {
 	createTimeQueryOffset time.Duration
 }
 
-// GoogleCloudDatastoreClient initializes a new Google datastore.Client with the given parameters.
+// NewGoogleCloudDatastoreClient initializes a new Google datastore.Client with the given parameters.
 // Params:
 // 		ctx context.Context
 // 		projectID string: the project
@@ -128,6 +128,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.Raw
 	return gcdc.InsertRawVideo(rawVideo)
 }
 
+// DeleteRawVideoByID deletes the rawVideoo with the given ID from the datastore.
 func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

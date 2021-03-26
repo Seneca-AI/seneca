@@ -22,11 +22,11 @@ type MP4ToolInterface interface {
 type VideoMetadata struct {
 	CreationTime *time.Time
 	Duration     *time.Duration
-	Locations    []location
+	Locations    []Location
 	SpeedsMPH    []int64
 }
 
-type location struct {
+type Location struct {
 	lat       string
 	long      string
 	timestamp time.Time

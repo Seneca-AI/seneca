@@ -9,12 +9,14 @@ import (
 	"time"
 )
 
+// FakeNoSQLDatabaseClient implements a fake version of the NoSQLDatabaseInterface
 type FakeNoSQLDatabaseClient struct {
 	// keyed by an ID
 	rawVideos             map[string]*types.RawVideo
 	createTimeQueryOffset time.Duration
 }
 
+// NewFakeNoSQLDatabaseClient returns an instance of FakeNoSQLDatabaseClient.
 func NewFakeNoSQLDatabaseClient(createTimeQueryOffset time.Duration) *FakeNoSQLDatabaseClient {
 	return &FakeNoSQLDatabaseClient{
 		rawVideos:             make(map[string]*types.RawVideo),
@@ -22,6 +24,7 @@ func NewFakeNoSQLDatabaseClient(createTimeQueryOffset time.Duration) *FakeNoSQLD
 	}
 }
 
+// InsertRawVideo inserts the given *types.RawVideo into the internal rawVideos map.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
 	id := rand.Int63()
 	stringID := strconv.FormatInt(id, 10)
@@ -32,6 +35,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertRawVideo(rawVideo *types.RawVideo) (
 	return stringID, nil
 }
 
+// GetRawVideo returns the *types.RawVideo for the given user at the given create time.
 func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error) {
 	beginTimeQuery := createTime.Add(-fnsdc.createTimeQueryOffset)
 	endTimeQuery := createTime.Add(fnsdc.createTimeQueryOffset)
@@ -56,6 +60,8 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time
 	return rawVideos[0], nil
 }
 
+// InsertUniqueRawVideo inserts the given *types.RawVideo into the internal rawVideos map, making
+// sure it doesn't already exist.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error) {
 	createTime := util.MillisecondsToTime(rawVideo.CreateTimeMs)
 
@@ -71,6 +77,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawVideo(rawVideo *types.RawVi
 	return fnsdc.InsertRawVideo(rawVideo)
 }
 
+// DeleteRawVideoByID deletes the rawVideo with the given ID from the internal rawVideos map.
 func (fnsdc *FakeNoSQLDatabaseClient) DeleteRawVideoByID(id string) error {
 	delete(fnsdc.rawVideos, id)
 	return nil
