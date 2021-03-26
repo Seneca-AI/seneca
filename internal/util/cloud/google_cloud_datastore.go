@@ -22,20 +22,11 @@ const (
 )
 
 var (
-	RawVideoKey = datastore.Key{
+	rawVideoKey = datastore.Key{
 		Kind: directoryKind,
 		Name: rawVideoDirName,
 	}
 )
-
-// NoSQLDatabaseInterface is the interface used for interacting with
-// NoSQL Databases across Seneca.
-type NoSQLDatabaseInterface interface {
-	InsertRawVideo(rawVideo *types.RawVideo) (string, error)
-	GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error)
-	InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error)
-	DeleteRawVideoByID(id string) error
-}
 
 // GoogleCloudStorageClient implements NoSQLDatabaseInterface using the real
 // Google Cloud Datastore.
@@ -71,7 +62,7 @@ func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string, create
 //		string: the newly generated datastore ID for the rawVideo
 //		error
 func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
-	key := datastore.IncompleteKey(rawVideoKind, &RawVideoKey)
+	key := datastore.IncompleteKey(rawVideoKind, &rawVideoKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawVideo)
 	if err != nil {
 		return "", fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err)
@@ -143,7 +134,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 		return fmt.Errorf("error converting id to int64 - err: %v", err)
 	}
 
-	key := datastore.IDKey(rawVideoKind, idInt, &RawVideoKey)
+	key := datastore.IDKey(rawVideoKind, idInt, &rawVideoKey)
 	if err := gcdc.client.Delete(context.Background(), key); err != nil {
 		return fmt.Errorf("error deleting raw video by key - err: %v", err)
 	}
