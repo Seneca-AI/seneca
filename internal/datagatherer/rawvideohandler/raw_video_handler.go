@@ -12,8 +12,9 @@ import (
 
 	"seneca/api/types"
 	"seneca/internal/util"
-	"seneca/internal/util/gcp_util"
+	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
+	"seneca/internal/util/mp4"
 )
 
 const (
@@ -23,8 +24,8 @@ const (
 
 // RawVideoHandler implements all logic for handling raw video requests.
 type RawVideoHandler struct {
-	simpleStorage    gcp_util.SimpleStorageInterface
-	noSqlDB          gcp_util.NoSQLDatabaseInterface
+	simpleStorage    cloud.SimpleStorageInterface
+	noSqlDB          cloud.NoSQLDatabaseInterface
 	logger           logging.LoggingInterface
 	localStoragePath string
 	projectID        string
@@ -33,12 +34,12 @@ type RawVideoHandler struct {
 // NewRawVideoHandler initializes a new RawVideoHandler with the given params.
 //
 // Params:
-//		storageClient *gcp_util.GoogleCloudStorageClient: client for interfacing with GCP storage
+//		storageClient *cloud.GoogleCloudStorageClient: client for interfacing with GCP storage
 // 		localStoragePath string: the path where local files will be staged before upload to Google Cloud Storage.  If empty, temp directories will be used. If the directory does not exist, requests will fail.
 // Returns:
 //		*RawVideoHandler: the handler
 //		error if localStoragePath does not exist
-func NewRawVideoHandler(simpleStorageInterface gcp_util.SimpleStorageInterface, noSQLDatabaseInterface gcp_util.NoSQLDatabaseInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
 	if localStoragePath != "" {
 		if _, err := os.Stat(localStoragePath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("localStoragePath %q does not exist", localStoragePath)
@@ -110,7 +111,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
 		return
 	}
-	metadata, err := util.GetMetadata(mp4Path)
+	metadata, err := mp4.GetMetadata(mp4Path)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
@@ -144,7 +145,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	fmt.Fprintf(w, "Successfully proccessed %q", mp4Name)
 }
 
-func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string, metadata *util.VideoMetadata) (*types.RawVideo, error) {
+func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string, metadata *mp4.VideoMetadata) (*types.RawVideo, error) {
 	rawVideo := &types.RawVideo{
 		UserId:               userID,
 		Id:                   "",
@@ -162,21 +163,21 @@ func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string,
 }
 
 func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error {
-	if bucketExists, err := rvh.simpleStorage.BucketExists(gcp_util.RawVideoBucketName); err != nil {
-		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, gcp_util.RawVideoBucketName, err)
+	if bucketExists, err := rvh.simpleStorage.BucketExists(cloud.RawVideoBucketName); err != nil {
+		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, cloud.RawVideoBucketName, err)
 	} else if !bucketExists {
-		if err := rvh.simpleStorage.CreateBucket(gcp_util.RawVideoBucketName); err != nil {
+		if err := rvh.simpleStorage.CreateBucket(cloud.RawVideoBucketName); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("created bucket: %q\n", gcp_util.RawVideoBucketName)
+		fmt.Printf("created bucket: %q\n", cloud.RawVideoBucketName)
 	} else {
-		fmt.Printf("bucket %q already exists\n", gcp_util.RawVideoBucketName)
+		fmt.Printf("bucket %q already exists\n", cloud.RawVideoBucketName)
 	}
 
-	if bucketFileExists, err := rvh.simpleStorage.BucketFileExists(gcp_util.RawVideoBucketName, bucketFileName); !bucketFileExists {
-		fmt.Printf("bucketFileExists(_, %s, %s) returns err %v, assuming bucket file does not exist\n", gcp_util.RawVideoBucketName, bucketFileName, err)
-		if err := rvh.simpleStorage.WriteBucketFile(gcp_util.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
-			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", gcp_util.RawVideoBucketName, bucketFileName, mp4Path, err)
+	if bucketFileExists, err := rvh.simpleStorage.BucketFileExists(cloud.RawVideoBucketName, bucketFileName); !bucketFileExists {
+		fmt.Printf("bucketFileExists(_, %s, %s) returns err %v, assuming bucket file does not exist\n", cloud.RawVideoBucketName, bucketFileName, err)
+		if err := rvh.simpleStorage.WriteBucketFile(cloud.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
+			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", cloud.RawVideoBucketName, bucketFileName, mp4Path, err)
 		}
 	} else {
 		fmt.Printf("bucketFile %q already exists, not overwriting\n", bucketFileName)

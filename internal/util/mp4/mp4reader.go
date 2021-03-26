@@ -1,4 +1,4 @@
-package util
+package mp4
 
 import (
 	"encoding/json"
