@@ -91,9 +91,10 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 func newRawVideoHandlerForTests() (*RawVideoHandler, error) {
 	fakeSimpleStorageClient := cloud.NewFakeSimpleStorageClient()
 	fakeFakeNoSQLDBClient := cloud.NewFakeNoSQLDatabaseClient(time.Second * 2)
+	fakeMP4Tool := mp4.NewFakeMP4Tool()
 	localLogger := logging.NewLocalLogger()
 
-	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, localLogger, "", "")
+	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, fakeMP4Tool, localLogger, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
 	}

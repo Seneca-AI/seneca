@@ -11,6 +11,7 @@ import (
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
+	"seneca/internal/util/mp4"
 )
 
 const (
@@ -46,7 +47,13 @@ func main() {
 		return
 	}
 
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, logger, "", projectID)
+	mp4Tool, err := mp4.NewExitMP4Tool()
+	if err != nil {
+		logger.Critical(fmt.Sprintf("mp4.NewExitMP4Tool() returns - err: %v", err))
+		return
+	}
+
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, mp4Tool, logger, "", projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return

@@ -26,6 +26,7 @@ const (
 type RawVideoHandler struct {
 	simpleStorage    cloud.SimpleStorageInterface
 	noSqlDB          cloud.NoSQLDatabaseInterface
+	mp4Tool          mp4.MP4ToolInterface
 	logger           logging.LoggingInterface
 	localStoragePath string
 	projectID        string
@@ -34,12 +35,16 @@ type RawVideoHandler struct {
 // NewRawVideoHandler initializes a new RawVideoHandler with the given params.
 //
 // Params:
-//		storageClient *cloud.GoogleCloudStorageClient: client for interfacing with GCP storage
+//		simpleStorageInterface cloud.SimpleStorageInterface
+//		noSQLDatabaseInterface cloud.NoSQLDatabaseInterface
+//		mp4ToolInterface mp4.MP4ToolInterface
+//		logger logging.LoggingInterface
 // 		localStoragePath string: the path where local files will be staged before upload to Google Cloud Storage.  If empty, temp directories will be used. If the directory does not exist, requests will fail.
+// 		projectID string
 // Returns:
 //		*RawVideoHandler: the handler
 //		error if localStoragePath does not exist
-func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, mp4ToolInterface mp4.MP4ToolInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
 	if localStoragePath != "" {
 		if _, err := os.Stat(localStoragePath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("localStoragePath %q does not exist", localStoragePath)
@@ -48,6 +53,7 @@ func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noS
 	return &RawVideoHandler{
 		simpleStorage:    simpleStorageInterface,
 		noSqlDB:          noSQLDatabaseInterface,
+		mp4Tool:          mp4ToolInterface,
 		logger:           logger,
 		localStoragePath: localStoragePath,
 		projectID:        projectID,
@@ -84,7 +90,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	}
 	mp4Name = mp4Name + ".mp4"
 
-	// Stage mp4 and extract metadata.
+	// Stage mp4 locally.
 	var mp4File *os.File
 	mp4Path := ""
 	defer mp4File.Close()
@@ -111,7 +117,9 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
 		return
 	}
-	metadata, err := mp4.GetMetadata(mp4Path)
+
+	// Extract metadata.
+	metadata, err := rvh.mp4Tool.GetMetadata(mp4Path)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		w.WriteHeader(400)
