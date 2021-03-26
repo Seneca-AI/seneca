@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetMetadataHasExpectedData(t *testing.T) {
-	if os.Getenv("ENV") == "GITHUB" {
+	if os.Getenv("CI") == "true" {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
@@ -35,7 +35,7 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 }
 
 func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
-	if os.Getenv("ENV") == "GITHUB" {
+	if os.Getenv("CI") == "true" {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
