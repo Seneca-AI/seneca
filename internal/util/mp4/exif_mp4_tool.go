@@ -1,7 +1,6 @@
 package mp4
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -31,42 +30,26 @@ var (
 	exifToolMainMetdataKeys = []string{exifToolMetadataCreateDateKey, exifToolMetadataDurationKey}
 )
 
-type location struct {
-	lat       string
-	long      string
-	timestamp time.Time
+type ExitMP4Tool struct {
+	exiftool *exiftool.Exiftool
 }
 
-type VideoMetadata struct {
-	CreationTime *time.Time
-	Duration     *time.Duration
-	Locations    []location
-	SpeedsMPH    []int64
-}
-
-func (vmd *VideoMetadata) String() string {
-	// TODO: handle this error with a logger
-	b, _ := json.MarshalIndent(vmd, "", "\t")
-	return fmt.Sprint(string(b))
-}
-
-// GetMetadata extracts VideoMetadata from the video at the given path.
-// Params:
-// 		string pathToVideo: path to video to get metadata from
-// Returns:
-// 		*VideoMetadata: the VideoMetadata object
-//		error
-func GetMetadata(pathToVideo string) (*VideoMetadata, error) {
-	fmt.Printf("Getting metadata for video %q\n", pathToVideo)
-
-	videoMetadata := &VideoMetadata{}
-
+func NewExitMP4Tool() (*ExitMP4Tool, error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating exiftool - err: %v", err)
 	}
+	return &ExitMP4Tool{
+		exiftool: et,
+	}, nil
+}
 
-	fileInfoList := et.ExtractMetadata(pathToVideo)
+// GetMetadata extracts VideoMetadata from the video at the given path.
+func (emt *ExitMP4Tool) GetMetadata(pathToVideo string) (*VideoMetadata, error) {
+	var err error
+	videoMetadata := &VideoMetadata{}
+
+	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
 		return nil, fmt.Errorf("fileInfoList for %q is empty", pathToVideo)
 	}
