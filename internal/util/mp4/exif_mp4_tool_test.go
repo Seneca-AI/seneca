@@ -1,11 +1,16 @@
 package mp4
 
 import (
+	"os"
 	"testing"
 	"time"
 )
 
 func TestGetMetadataHasExpectedData(t *testing.T) {
+	if os.Getenv("ENV") == "GITHUB" {
+		t.Skip("Skipping exiftool test in GitHub env.")
+	}
+
 	exifMP4Tool, err := NewExitMP4Tool()
 	if err != nil {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
@@ -15,21 +20,25 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 	expectedCreationTime := time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC)
 	expectedDuration := time.Minute
 
-	video_meta_data, err := exifMP4Tool.GetMetadata(pathToTestMp4)
+	videoMetaData, err := exifMP4Tool.GetMetadata(pathToTestMp4)
 	if err != nil {
 		t.Errorf("GetMetadata(%s) returns err: %v", pathToTestMp4, err)
 		return
 	}
 
-	if *video_meta_data.CreationTime != expectedCreationTime {
-		t.Errorf("video_meta_data.CreationTime incorrect. got %v, want %v", video_meta_data.CreationTime, expectedCreationTime)
+	if *videoMetaData.CreationTime != expectedCreationTime {
+		t.Errorf("videoMetaData.CreationTime incorrect. got %v, want %v", videoMetaData.CreationTime, expectedCreationTime)
 	}
-	if *video_meta_data.Duration != expectedDuration {
-		t.Errorf("video_meta_data.Duration incorrect. got %v, want %v", video_meta_data.Duration, expectedDuration)
+	if *videoMetaData.Duration != expectedDuration {
+		t.Errorf("videoMetaData.Duration incorrect. got %v, want %v", videoMetaData.Duration, expectedDuration)
 	}
 }
 
 func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
+	if os.Getenv("ENV") == "GITHUB" {
+		t.Skip("Skipping exiftool test in GitHub env.")
+	}
+
 	exifMP4Tool, err := NewExitMP4Tool()
 	if err != nil {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)

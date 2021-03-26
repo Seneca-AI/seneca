@@ -18,7 +18,7 @@ const (
 	port = "8080"
 )
 
-// TODO: make this configurable in different envs
+// TODO: make this configurable in different envs.
 func main() {
 	// Initialize storage client and RawVideoHandler.
 	ctx := context.Background()

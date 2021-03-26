@@ -8,6 +8,7 @@ import (
 
 // MP4ToolInterface defines the interface for interacting with MP4 files
 // throughout Seneca.
+//nolint
 type MP4ToolInterface interface {
 	// GetMetadata extracts VideoMetadata from the video at the given path.
 	// Params:
