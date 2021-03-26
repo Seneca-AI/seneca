@@ -1,0 +1,13 @@
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - asciicheck
+    - bodyclose
+    - goconst
+    - godot
+    - golint
+
+# To consider enabling soon: 
+#   gocritic
+#   More: https://golangci-lint.run/usage/linters/

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// FakeNoSQLDatabaseClient implements a fake version of the NoSQLDatabaseInterface
+// FakeNoSQLDatabaseClient implements a fake version of the NoSQLDatabaseInterface.
 type FakeNoSQLDatabaseClient struct {
 	// keyed by an ID
 	rawVideos             map[string]*types.RawVideo
