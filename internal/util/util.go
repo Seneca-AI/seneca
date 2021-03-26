@@ -28,7 +28,7 @@ func TimeToMilliseconds(t *time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// TimeToMilliseconds gets the unix time in milliseconds from the give time.Time.
+// MillisecondsToTime gets the unix time in milliseconds from the give time.Time.
 // Params:
 //		ms int64
 // Returns:

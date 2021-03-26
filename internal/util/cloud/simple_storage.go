@@ -1,7 +1,7 @@
 package cloud
 
-// GoogleCloudStorageClient is the interface used for interacting with
-// Google Cloud Storage across Seneca.
+// SimpleStorageInterface is the interface used for interacting with
+// S3 like files across Seneca.
 type SimpleStorageInterface interface {
 	CreateBucket(bucketName string) error
 	BucketExists(bucketName string) (bool, error)

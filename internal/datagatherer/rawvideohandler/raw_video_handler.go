@@ -25,7 +25,7 @@ const (
 // RawVideoHandler implements all logic for handling raw video requests.
 type RawVideoHandler struct {
 	simpleStorage    cloud.SimpleStorageInterface
-	noSqlDB          cloud.NoSQLDatabaseInterface
+	noSQLDB          cloud.NoSQLDatabaseInterface
 	mp4Tool          mp4.MP4ToolInterface
 	logger           logging.LoggingInterface
 	localStoragePath string
@@ -52,7 +52,7 @@ func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noS
 	}
 	return &RawVideoHandler{
 		simpleStorage:    simpleStorageInterface,
-		noSqlDB:          noSQLDatabaseInterface,
+		noSQLDB:          noSQLDatabaseInterface,
 		mp4Tool:          mp4ToolInterface,
 		logger:           logger,
 		localStoragePath: localStoragePath,
@@ -77,7 +77,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		errorString := "Error handling RawVideoRequest, no user_id specified"
 		rvh.logger.Log(errorString)
 		w.WriteHeader(400)
-		fmt.Fprintf(w, errorString)
+		fmt.Fprint(w, errorString)
 		return
 	}
 	var err error
@@ -139,7 +139,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 
 	// Upload cloud storage data.
 	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
-		if err := rvh.noSqlDB.DeleteRawVideoByID(rawVideo.Id); err != nil {
+		if err := rvh.noSQLDB.DeleteRawVideoByID(rawVideo.Id); err != nil {
 			rvh.logger.Warning(fmt.Sprintf("Error cleaning up rawVideo with ID %q on failed request", rawVideo.Id))
 		}
 		rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
@@ -161,7 +161,7 @@ func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string,
 		CreateTimeMs:         util.TimeToMilliseconds(metadata.CreationTime),
 	}
 
-	id, err := rvh.noSqlDB.InsertUniqueRawVideo(rawVideo)
+	id, err := rvh.noSQLDB.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
 		return nil, fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %v", err)
 	}
@@ -216,7 +216,9 @@ func getMP4Bytes(r *http.Request) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("error parsing form for mp4 - no Filename in header")
 	}
 
-	io.Copy(&buf, mp4)
+	if _, err := io.Copy(&buf, mp4); err != nil {
+		return nil, "", fmt.Errorf("error copying bytes - err: %v", err)
+	}
 
 	return buf.Bytes(), mp4NameList[0], nil
 }

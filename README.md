@@ -8,6 +8,9 @@
 * [Exiftool](https://exiftool.org/install.html#Unix) must be installed on the server
 * [Protoc](https://grpc.io/docs/protoc-installation/)
 
+### Tools
+* [golangci-lint](https://golangci-lint.run/usage/install/#local-installation)
+
 ## Setup
 
 ### Setup from a fresh VM

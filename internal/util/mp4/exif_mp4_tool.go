@@ -109,8 +109,8 @@ func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (*time.Dura
 	return &duration, nil
 }
 
-func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]location, error) {
-	locations := []location{}
+func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]Location, error) {
+	locations := []Location{}
 	var err error
 	for k, v := range fileMetadata.Fields {
 		if strings.Contains(k, "Doc") {
@@ -119,7 +119,7 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]locatio
 				fmt.Printf("value is of type: %q\n", reflect.TypeOf(v))
 				continue
 			}
-			location := location{}
+			location := Location{}
 
 			var tempErr error
 			if location.lat, tempErr = interfaceToString(m[exifToolMetadataGPSLatKey]); tempErr != nil {
