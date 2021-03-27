@@ -1,6 +1,9 @@
 package mp4
 
-import "fmt"
+import (
+	"fmt"
+	"seneca/api/senecaerror"
+)
 
 type FakeMP4Tool struct {
 	// (key: path, value: VideoMetadata for video at that path)
@@ -17,7 +20,7 @@ func NewFakeMP4Tool() *FakeMP4Tool {
 func (fakeMP4Tool *FakeMP4Tool) GetMetadata(pathToVideo string) (*VideoMetadata, error) {
 	fileMetadata, ok := fakeMP4Tool.fileMetadataMap[pathToVideo]
 	if !ok {
-		return nil, fmt.Errorf("file at path %q does not exist", pathToVideo)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("file at path %q does not exist", pathToVideo))
 	}
 	return fileMetadata, nil
 }

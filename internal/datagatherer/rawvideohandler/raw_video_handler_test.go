@@ -1,7 +1,9 @@
 package rawvideohandler
 
 import (
+	"errors"
 	"fmt"
+	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
 	"seneca/internal/util/cloud"
@@ -83,8 +85,13 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 	// Write twice but add an extra second, should still fail.
 	newTime := fileMetdata.CreationTime.Add(time.Second)
 	fileMetdata.CreationTime = &newTime
-	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata); err == nil {
+	_, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata)
+	if err == nil {
 		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned err for duplicate, but did not", userID, bucketFileName)
+	}
+	var ue *senecaerror.UserError
+	if !errors.As(err, &ue) {
+		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned UserError, but got %w", userID, bucketFileName, err)
 	}
 }
 

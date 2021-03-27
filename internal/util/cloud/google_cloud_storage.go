@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"seneca/api/senecaerror"
+
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 )
@@ -43,7 +45,7 @@ type GoogleCloudStorageClient struct {
 func NewGoogleCloudStorageClient(ctx context.Context, projectID string, quickTimeOut, longTimeOut time.Duration) (*GoogleCloudStorageClient, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing NewGoogleCloudStorageClient - err: %v", err)
+		return nil, senecaerror.NewCloudError(fmt.Errorf("error initializing NewGoogleCloudStorageClient - err: %v", err))
 	}
 	return &GoogleCloudStorageClient{
 		client:       client,
@@ -64,7 +66,7 @@ func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName string) error {
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
 	if err := gcsc.client.Bucket(bucketName).Create(ctx, gcsc.projectID, nil); err != nil {
-		return err
+		return senecaerror.NewCloudError(err)
 	}
 	return nil
 }
@@ -88,7 +90,7 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, err
 			break
 		}
 		if err != nil {
-			return false, fmt.Errorf("failed to list buckets - err: %v", err)
+			return false, senecaerror.NewCloudError(fmt.Errorf("failed to list buckets - err: %v", err))
 		}
 		buckets = append(buckets, battrs.Name)
 	}
@@ -119,7 +121,7 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileNam
 
 	// If there is an error, we assume the file does not exist.
 	if _, err := object.Attrs(ctx); err != nil {
-		return false, err
+		return false, senecaerror.NewCloudError(err)
 	}
 
 	return true, nil
@@ -136,17 +138,17 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileNam
 func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error {
 	var err error
 	if localFileNameAndPath == "" {
-		return fmt.Errorf("received empty localFileName")
+		return senecaerror.NewBadStateError(fmt.Errorf("received empty localFileName"))
 	}
 
 	if bucketFileName == "" {
-		return fmt.Errorf("received empty bucketFileName")
+		return senecaerror.NewBadStateError(fmt.Errorf("received empty bucketFileName"))
 	}
 
 	ctx := context.Background()
 	f, err := os.Open(localFileNameAndPath)
 	if err != nil {
-		return fmt.Errorf("error opening local file %q - err: %v", localFileNameAndPath, err)
+		return senecaerror.NewBadStateError(fmt.Errorf("error opening local file %q - err: %v", localFileNameAndPath, err))
 	}
 	defer f.Close()
 
@@ -154,10 +156,10 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameA
 	defer cancel()
 	wc := gcsc.client.Bucket(bucketName).Object(bucketFileName).NewWriter(ctx)
 	if _, err = io.Copy(wc, f); err != nil {
-		return err
+		return senecaerror.NewBadStateError(err)
 	}
 	if err := wc.Close(); err != nil {
-		return err
+		return senecaerror.NewBadStateError(err)
 	}
 	return nil
 }

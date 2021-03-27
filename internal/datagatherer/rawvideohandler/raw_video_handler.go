@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
 	"seneca/internal/util/cloud"
@@ -74,18 +75,16 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	// Extract request data.
 	userID := r.FormValue("user_id")
 	if userID == "" {
-		errorString := "Error handling RawVideoRequest, no user_id specified"
-		rvh.logger.Log(errorString)
-		w.WriteHeader(400)
-		fmt.Fprint(w, errorString)
+		userError := senecaerror.NewUserError("", fmt.Errorf("Error handling RawVideoRequest, no user_id specified"), "No user_id specified in request.")
+		rvh.logger.Log(userError.Error())
+		senecaerror.WriteErrorToHTTPResponse(w, userError)
 		return
 	}
 	var err error
 	mp4Buffer, mp4Name, err := getMP4Bytes(r)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
+		senecaerror.WriteErrorToHTTPResponse(w, err)
 		return
 	}
 	mp4Name = mp4Name + ".mp4"
@@ -99,22 +98,21 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		mp4File, err = createLocalMP4File(mp4Name, rvh.localStoragePath)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
+			senecaerror.WriteErrorToHTTPResponse(w, err)
+			return
 		}
 	} else {
 		mp4File, err = createTempMP4File(mp4Name)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
+			senecaerror.WriteErrorToHTTPResponse(w, err)
+			return
 		}
 		mp4Path = mp4File.Name()
 	}
 	if _, err := mp4File.Write(mp4Buffer); err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
+		senecaerror.WriteErrorToHTTPResponse(w, err)
 		return
 	}
 
@@ -122,8 +120,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	metadata, err := rvh.mp4Tool.GetMetadata(mp4Path)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - error parsing mp4 bytes")
+		senecaerror.WriteErrorToHTTPResponse(w, err)
 		return
 	}
 
@@ -132,8 +129,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 	rawVideo, err := rvh.writeMP4MetadataToGCD(userID, bucketFileName, metadata)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - invalid")
+		senecaerror.WriteErrorToHTTPResponse(w, err)
 		return
 	}
 
@@ -143,8 +139,7 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 			rvh.logger.Warning(fmt.Sprintf("Error cleaning up rawVideo with ID %q on failed request", rawVideo.Id))
 		}
 		rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error handling RawVideoRequest - internal")
+		senecaerror.WriteErrorToHTTPResponse(w, err)
 		return
 	}
 
@@ -163,7 +158,7 @@ func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string,
 
 	id, err := rvh.noSQLDB.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %v", err)
+		return nil, fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
 
 	rawVideo.Id = id
