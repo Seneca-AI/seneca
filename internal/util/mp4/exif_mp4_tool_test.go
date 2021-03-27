@@ -1,7 +1,9 @@
 package mp4
 
 import (
+	"errors"
 	"os"
+	"seneca/api/senecaerror"
 	"testing"
 	"time"
 )
@@ -44,7 +46,12 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
 	}
 
-	if _, err := exifMP4Tool.GetMetadata("../idontexist"); err == nil {
-		t.Errorf("Expected non-nil error from bogus input file, got nil")
+	_, err = exifMP4Tool.GetMetadata("../idontexist")
+	if err == nil {
+		t.Errorf("Want non-nil error from bogus input file, got nil")
+	}
+	var bse *senecaerror.BadStateError
+	if !errors.As(err, &bse) {
+		t.Errorf("Want BadStateError, got %v", err)
 	}
 }

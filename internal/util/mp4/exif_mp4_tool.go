@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"seneca/api/senecaerror"
+
 	"github.com/barasher/go-exiftool"
 )
 
@@ -37,7 +39,7 @@ type ExitMP4Tool struct {
 func NewExitMP4Tool() (*ExitMP4Tool, error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
-		return nil, fmt.Errorf("error instantiating exiftool - err: %v", err)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error instantiating exiftool - err: %v", err))
 	}
 	return &ExitMP4Tool{
 		exiftool: et,
@@ -51,20 +53,20 @@ func (emt *ExitMP4Tool) GetMetadata(pathToVideo string) (*VideoMetadata, error) 
 
 	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
-		return nil, fmt.Errorf("fileInfoList for %q is empty", pathToVideo)
+		return nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), fmt.Sprintf("MP4 is missing metadata."))
 	}
 
 	fileInfo := fileInfoList[0]
 	if fileInfo.Err != nil {
-		return nil, fmt.Errorf("error in fileInfo - err: %v", fileInfo.Err)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error in fileInfo - err: %v", fileInfo.Err))
 	}
 
 	if videoMetadata.CreationTime, err = getCreationTimeFromFileMetadata(fileInfo); err != nil {
-		return nil, fmt.Errorf("error parsing CreationTime - err: %v", err)
+		return nil, fmt.Errorf("error parsing CreationTime - err: %w", err)
 	}
 
 	if videoMetadata.Duration, err = getDurationFromFileMetadata(fileInfo); err != nil {
-		return nil, fmt.Errorf("error parsing Duration - err: %v", err)
+		return nil, fmt.Errorf("error parsing Duration - err: %w", err)
 	}
 
 	return videoMetadata, nil
@@ -73,17 +75,17 @@ func (emt *ExitMP4Tool) GetMetadata(pathToVideo string) (*VideoMetadata, error) 
 func getCreationTimeFromFileMetadata(fileMetadata exiftool.FileMetadata) (*time.Time, error) {
 	mainMap, err := getMainMetadata(fileMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("error constructing mainMap - err: %v", err)
+		return nil, fmt.Errorf("error constructing mainMap - err: %w", err)
 	}
 
 	timeString, ok := mainMap[exifToolMetadataCreateDateKey]
 	if !ok {
-		return nil, fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataCreateDateKey)
+		return nil, senecaerror.NewUserError("", fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataCreateDateKey), "MP4 is missing CreationTime metadata.")
 	}
 
 	t, err := time.Parse(timeParserLayout, timeString)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing CreationTime - err: %v", err)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error parsing CreationTime - err: %v", err))
 	}
 	return &t, nil
 }
@@ -91,12 +93,12 @@ func getCreationTimeFromFileMetadata(fileMetadata exiftool.FileMetadata) (*time.
 func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (*time.Duration, error) {
 	mainMap, err := getMainMetadata(fileMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("error constructing mainMap - err: %v", err)
+		return nil, fmt.Errorf("error constructing mainMap - err: %w", err)
 	}
 
 	durationString, ok := mainMap[exifToolMetadataDurationKey]
 	if !ok {
-		return nil, fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataDurationKey)
+		return nil, senecaerror.NewUserError("", fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataDurationKey), "MP4 is missing Duration metadata.")
 	}
 
 	durationString = strings.Replace(durationString, ":", "h", 1)
@@ -104,7 +106,7 @@ func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (*time.Dura
 	durationString = durationString + "s"
 	duration, err := time.ParseDuration(durationString)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing Duration - err: %v", err)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error parsing Duration - err: %v", err))
 	}
 	return &duration, nil
 }
@@ -116,7 +118,8 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]Locatio
 		if strings.Contains(k, "Doc") {
 			m, ok := v.(map[string]interface{})
 			if !ok {
-				fmt.Printf("value is of type: %q\n", reflect.TypeOf(v))
+				// TODO: handle this with the logger
+				fmt.Printf("Value is of type: %q\n", reflect.TypeOf(v))
 				continue
 			}
 			location := Location{}
@@ -137,7 +140,7 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]Locatio
 			}
 
 			if err != nil {
-				return nil, fmt.Errorf("error parsing GPS Data - err: %v", err)
+				return nil, senecaerror.NewBadStateError(fmt.Errorf("error parsing GPS Data - err: %v", err))
 			}
 
 			locations = append(locations, location)
@@ -151,23 +154,23 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]Locatio
 func getMainMetadata(fileMetadata exiftool.FileMetadata) (map[string]string, error) {
 	mainMapObj, ok := fileMetadata.Fields[exifToolMetadataMainKey]
 	if !ok {
-		return nil, fmt.Errorf("could not find main file metadata")
+		return nil, senecaerror.NewUserError("", fmt.Errorf("could not find main file metadata"), "MP4 metadata is malformed.")
 	}
 
 	mainMap, ok := mainMapObj.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("want type map[string]interface{} for mainMap in file metadata, got %T", mainMapObj)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("want type map[string]interface{} for mainMap in file metadata, got %T", mainMapObj))
 	}
 
 	mainMapOut := map[string]string{}
 	for _, key := range exifToolMainMetdataKeys {
 		valueObj, ok := mainMap[key]
 		if !ok {
-			return nil, fmt.Errorf("could not find value for key %q in mainMap", key)
+			return nil, senecaerror.NewUserError("", fmt.Errorf("could not find value for key %q in mainMap", key), fmt.Sprintf("MP4 metadata is malformed and missing %q.", key))
 		}
 		valueString, err := interfaceToString(valueObj)
 		if err != nil {
-			return nil, fmt.Errorf("error converting value for key %q to string - err: %v", key, err)
+			return nil, senecaerror.NewUserError("", fmt.Errorf("error converting value for key %q to string - err: %v", key, err), fmt.Sprintf("MP4 metadata is malformed at key %q.", key))
 		}
 		mainMapOut[key] = valueString
 	}

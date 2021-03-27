@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
 
@@ -46,7 +47,7 @@ type GoogleCloudDatastoreClient struct {
 func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string, createTimeQueryOffset time.Duration) (*GoogleCloudDatastoreClient, error) {
 	client, err := datastore.NewClient(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing new GoogleCloudDatastoreClient - err: %v", err)
+		return nil, senecaerror.NewCloudError(fmt.Errorf("error initializing new GoogleCloudDatastoreClient - err: %v", err))
 	}
 	return &GoogleCloudDatastoreClient{
 		client:                client,
@@ -65,7 +66,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo)
 	key := datastore.IncompleteKey(rawVideoKind, &rawVideoKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawVideo)
 	if err != nil {
-		return "", fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err)
+		return "", senecaerror.NewCloudError(fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err))
 	}
 	return strconv.FormatInt(completeKey.ID, 64), nil
 }
@@ -96,11 +97,11 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &rawVideoOut)
 	if err != nil {
-		return nil, fmt.Errorf("error querying datastore for RawVideo entity for user ID %q and createTime %v - err: %v", userID, createTime, err)
+		return nil, senecaerror.NewCloudError(fmt.Errorf("error querying datastore for RawVideo entity for user ID %q and createTime %v - err: %v", userID, createTime, err))
 	}
 
 	if len(rawVideoOut) > 1 {
-		return nil, fmt.Errorf("error querying datastore for RawVideo entity for user ID %q and createTime %v, more than one value returned", userID, createTime)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error querying datastore for RawVideo entity for user ID %q and createTime %v, more than one value returned", userID, createTime))
 	}
 
 	if len(rawVideoOut) < 1 {
@@ -120,10 +121,10 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error) {
 	existingRawVideo, err := gcdc.GetRawVideo(rawVideo.UserId, util.MillisecondsToTime(rawVideo.CreateTimeMs))
 	if err != nil {
-		return "", fmt.Errorf("error checking if raw video already exists - err: %v", err)
+		return "", fmt.Errorf("error checking if raw video already exists - err: %w", err)
 	}
 	if existingRawVideo != nil {
-		return "", fmt.Errorf("raw video for user %q with CreateTimeMs %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs)
+		return "", senecaerror.NewUserError(rawVideo.UserId, fmt.Errorf("rawVideo with CreateTimeMs %d already exists", rawVideo.CreateTimeMs), fmt.Sprintf("Video at time %v already exists.", util.MillisecondsToTime(rawVideo.CreateTimeMs)))
 	}
 	return gcdc.InsertRawVideo(rawVideo)
 }
@@ -132,12 +133,12 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.Raw
 func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		return fmt.Errorf("error converting id to int64 - err: %v", err)
+		return senecaerror.NewBadStateError(fmt.Errorf("error converting id to int64 - err: %v", err))
 	}
 
 	key := datastore.IDKey(rawVideoKind, idInt, &rawVideoKey)
 	if err := gcdc.client.Delete(context.Background(), key); err != nil {
-		return fmt.Errorf("error deleting raw video by key - err: %v", err)
+		return senecaerror.NewCloudError(fmt.Errorf("error deleting raw video by key - err: %v", err))
 	}
 	return nil
 }

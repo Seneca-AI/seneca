@@ -3,6 +3,7 @@ package cloud
 import (
 	"fmt"
 	"os"
+	"seneca/api/senecaerror"
 )
 
 // FakeSimpleStorageClient implements a fake SimpleStorageInterface for testing.
@@ -51,25 +52,25 @@ func (fssc *FakeSimpleStorageClient) BucketFileExists(bucketName, bucketFileName
 // and simple checks whether the localFileNameAndPath is not "".
 func (fssc *FakeSimpleStorageClient) WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error {
 	if localFileNameAndPath == "" {
-		return fmt.Errorf("received empty localFileName")
+		return senecaerror.NewBadStateError(fmt.Errorf("received empty localFileName"))
 	}
 
 	if bucketFileName == "" {
-		return fmt.Errorf("received empty bucketFileName")
+		return senecaerror.NewBadStateError(fmt.Errorf("received empty bucketFileName"))
 	}
 
 	f, err := os.Open(localFileNameAndPath)
 	if err != nil {
-		return fmt.Errorf("error opening local file %q - err: %v", localFileNameAndPath, err)
+		return senecaerror.NewBadStateError(fmt.Errorf("error opening local file %q - err: %v", localFileNameAndPath, err))
 	}
 	defer f.Close()
 
 	bucketExists, err := fssc.BucketExists(bucketName)
 	if err != nil {
-		return fmt.Errorf("error checking if bucket exists - err: %v", err)
+		return senecaerror.NewBadStateError(fmt.Errorf("error checking if bucket exists - err: %v", err))
 	}
 	if !bucketExists {
-		return fmt.Errorf("cannot insert file into non-existant bucket %q", bucketName)
+		return senecaerror.NewBadStateError(fmt.Errorf("cannot insert file into non-existant bucket %q", bucketName))
 	}
 	fssc.files[bucketName][bucketFileName] = true
 	return nil

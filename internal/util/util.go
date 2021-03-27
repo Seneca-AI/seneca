@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"seneca/api/senecaerror"
 	"strings"
 	"time"
 )
@@ -13,7 +14,7 @@ import (
 //		error if path is an empty string
 func GetFileNameFromPath(path string) (string, error) {
 	if path == "" {
-		return "", fmt.Errorf("received empty string")
+		return "", senecaerror.NewBadStateError(fmt.Errorf("received empty string"))
 	}
 	pathSplit := strings.Split(path, "/")
 	return pathSplit[len(pathSplit)-1], nil

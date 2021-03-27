@@ -3,6 +3,7 @@ package cloud
 import (
 	"fmt"
 	"math/rand"
+	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
 	"strconv"
@@ -50,7 +51,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time
 	}
 
 	if len(rawVideos) > 1 {
-		return nil, fmt.Errorf("more than one value for rawVideo for user ID %q and createTime %v", userID, createTime)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one value for rawVideo for user ID %q and createTime %v", userID, createTime))
 	}
 
 	if len(rawVideos) == 0 {
@@ -67,11 +68,11 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawVideo(rawVideo *types.RawVi
 
 	existingRawVideo, err := fnsdc.GetRawVideo(rawVideo.UserId, createTime)
 	if err != nil {
-		return "", fmt.Errorf("error checking if rawVideo alreadying exists - err: %v", err)
+		return "", fmt.Errorf("error checking if rawVideo alreadying exists - err: %w", err)
 	}
 
 	if existingRawVideo != nil {
-		return "", fmt.Errorf("raw video with createTimeMs %d and user ID %q already exists", rawVideo.CreateTimeMs, rawVideo.UserId)
+		return "", senecaerror.NewUserError(rawVideo.UserId, fmt.Errorf("raw video with createTimeMs %d already exists", rawVideo.CreateTimeMs), fmt.Sprintf("Video at time %v already exists.", util.MillisecondsToTime(rawVideo.CreateTimeMs)))
 	}
 
 	return fnsdc.InsertRawVideo(rawVideo)

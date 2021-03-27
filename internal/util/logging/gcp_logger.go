@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"seneca/api/senecaerror"
+
 	"cloud.google.com/go/logging"
 )
 
@@ -24,7 +26,7 @@ type GCPLogger struct {
 func NewGCPLogger(ctx context.Context, logName, projectID string) (*GCPLogger, error) {
 	client, err := logging.NewClient(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing new GCP logging client - err: %v", err)
+		return nil, senecaerror.NewCloudError(fmt.Errorf("error initializing new GCP logging client - err: %v", err))
 	}
 	return &GCPLogger{
 		client: client,
