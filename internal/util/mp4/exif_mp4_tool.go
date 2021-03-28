@@ -3,9 +3,11 @@ package mp4
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
+	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
@@ -20,6 +22,8 @@ const (
 	exifToolMetadataGPSLatKey      = "GPSLatitude"
 	exifToolMetadataGPSLongKey     = "GPSLongitude"
 	exifToolMetadataGPSDateTimeKey = "GPSDateTime"
+	exifToolMetadataGPSSpeedKey    = "GPSSpeed"
+	exifToolMetadataGPSSpeedRefKey = "GPSSpeedRef"
 	// time.Parse requires the first arugment to be a string
 	// representing what the datetime 15:04 on 1/2/2006 would be.
 	// This is the format that exiftool gives.
@@ -110,10 +114,17 @@ func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, err
 	return util.DurationToMilliseconds(duration), nil
 }
 
+// Used for sorting by time.
+type locationMotionTime struct {
+	location *types.Location
+	motion   *types.Motion
+	gpsTime  time.Time
+}
+
 //nolint
-func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]types.Location, error) {
-	locations := []types.Location{}
-	var err error
+func getLocationDataFileMetadata(fileMetadata exiftool.FileMetadata) ([]*types.Location, []*types.Motion, []*time.Time, error) {
+	locationsMotionsTimes := []*locationMotionTime{}
+
 	for k, v := range fileMetadata.Fields {
 		if strings.Contains(k, "Doc") {
 			m, ok := v.(map[string]interface{})
@@ -122,33 +133,101 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]types.L
 				fmt.Printf("Value is of type: %q\n", reflect.TypeOf(v))
 				continue
 			}
-			location := types.Location{}
 
-			var tempErr error
-			if _, tempErr := interfaceToString(m[exifToolMetadataGPSLatKey]); tempErr != nil {
-				err = tempErr
-			}
-			if _, tempErr := interfaceToString(m[exifToolMetadataGPSLongKey]); tempErr != nil {
-				err = tempErr
-			}
-			var dateTimeString string
-			if dateTimeString, tempErr = interfaceToString(m[exifToolMetadataGPSDateTimeKey]); tempErr != nil {
-				err = tempErr
-			}
-			if _, tempErr := time.Parse(gpsDateTimeParseLayout, dateTimeString); tempErr != nil {
-				err = tempErr
-			}
-
+			locationMotionTime, err := getLocationMotionTimeFromFileMetadataMap(m)
 			if err != nil {
-				return nil, senecaerror.NewBadStateError(fmt.Errorf("error parsing GPS Data - err: %v", err))
+				return nil, nil, nil, fmt.Errorf("error parsing GPS metadata map - err: %w", err)
 			}
 
-			locations = append(locations, location)
+			locationsMotionsTimes = append(locationsMotionsTimes, locationMotionTime)
 		}
 	}
-	// sort.Slice(locations, func(i, j int) bool { return locations[i].TimestampMs < locations[j].TimestampMs })
+	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
+	locations := []*types.Location{}
+	motions := []*types.Motion{}
+	times := []*time.Time{}
+	for _, lmt := range locationsMotionsTimes {
+		locations = append(locations, lmt.location)
+		motions = append(motions, lmt.motion)
+		times = append(times, &lmt.gpsTime)
+	}
+	populateAccelerations(motions)
 
-	return locations, nil
+	return locations, motions, times, nil
+}
+
+func populateAccelerations(motions []*types.Motion) {
+	if len(motions) == 0 {
+		return
+	}
+
+	motions[0].AccelerationMphS = 0
+
+	for i := 1; i < len(motions); i++ {
+		motions[i].AccelerationMphS = motions[i].VelocityMph - motions[i-1].VelocityMph
+	}
+}
+
+func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locationMotionTime, error) {
+	var err error
+	var tempErr error
+	var latString, longString, dateTimeString, speedRefString string
+	lmt := locationMotionTime{
+		location: &types.Location{},
+		motion:   &types.Motion{},
+	}
+	if latString, tempErr = interfaceToString(m[exifToolMetadataGPSLatKey]); tempErr != nil {
+		err = tempErr
+	}
+	if longString, tempErr = interfaceToString(m[exifToolMetadataGPSLongKey]); tempErr != nil {
+		err = tempErr
+	}
+	if dateTimeString, tempErr = interfaceToString(m[exifToolMetadataGPSDateTimeKey]); tempErr != nil {
+		err = tempErr
+	}
+
+	speed, ok := m[exifToolMetadataGPSSpeedKey].(float64)
+	if !ok {
+		err = fmt.Errorf("error parsing GPS Speed. Want float64, got %T", m[exifToolMetadataGPSSpeedKey])
+	}
+	if speedRefString, tempErr = interfaceToString(m[exifToolMetadataGPSSpeedRefKey]); tempErr != nil {
+		err = tempErr
+	}
+
+	if err != nil {
+		if err != nil {
+			return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "MP4 GPS data malformed.")
+		}
+	}
+
+	err = nil
+	var locLat *types.Latitude
+	var locLong *types.Longitude
+	if locLat, tempErr = StringToLatitude(latString); tempErr != nil {
+		err = tempErr
+	}
+	if locLong, tempErr = StringToLongitude(longString); tempErr != nil {
+		err = tempErr
+	}
+	lmt.location.Lat = locLat
+	lmt.location.Long = locLong
+
+	if lmt.gpsTime, tempErr = time.Parse(gpsDateTimeParseLayout, dateTimeString); tempErr != nil {
+		err = tempErr
+	}
+	switch speedRefString {
+	case "mph":
+		lmt.motion.VelocityMph = speed
+	case "km/h":
+		lmt.motion.VelocityMph = speed / constants.KilometersToMiles
+	default:
+		return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "Only mph or km/h are supported speeds.")
+	}
+
+	if err != nil {
+		return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "MP4 GPS data malformed.")
+	}
+	return &lmt, nil
 }
 
 func getMainMetadata(fileMetadata exiftool.FileMetadata) (map[string]string, error) {

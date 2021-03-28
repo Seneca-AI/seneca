@@ -2,7 +2,9 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"seneca/api/senecaerror"
+	"seneca/api/types"
 	"strings"
 	"time"
 )
@@ -84,4 +86,33 @@ func DurationToString(dur time.Duration) string {
 	}
 
 	return fmt.Sprintf("%s:%s:%s", hourString, minuteString, secondString)
+}
+
+// LocationsEquals compares the degrees and direction of the locations.
+// Params:
+//		l1 *types.Location
+//		l2 *types.Location
+// Returns:
+//		bool
+func LocationsEquals(l1 *types.Location, l2 *types.Location) bool {
+	if l1 == nil || l2 == nil {
+		return l1 == l2
+	}
+	if l1.Lat == nil || l2.Lat == nil {
+		return l1.Lat == l2.Lat
+	}
+	if l1.Long == nil || l2.Long == nil {
+		return l1.Long == l2.Long
+	}
+	return l1.Lat.Degrees == l2.Lat.Degrees && l1.Lat.DegreeMinutes == l2.Lat.DegreeMinutes && l1.Lat.DegreeSeconds == l2.Lat.DegreeSeconds && l1.Lat.LatDirection == l2.Lat.LatDirection &&
+		l1.Long.Degrees == l2.Long.Degrees && l1.Long.DegreeMinutes == l2.Long.DegreeMinutes && l1.Long.DegreeSeconds == l2.Long.DegreeSeconds && l1.Long.LongDirection == l2.Long.LongDirection
+}
+
+// IsCIEnv returns true if the env variable "CI" is set to "true".
+func IsCIEnv() bool {
+	val, ok := os.LookupEnv("CI")
+	if ok && val == "true" {
+		return true
+	}
+	return false
 }
