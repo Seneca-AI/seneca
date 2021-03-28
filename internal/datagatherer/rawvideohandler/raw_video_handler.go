@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	mp4FormKey          = "mp4"
-	maxFileSizeMB int64 = 250
+	mp4FormKey                             = "mp4"
+	rawVideoBucketFileNameIdentifier       = "RAW_VIDEO"
+	userIDPostFormKey                      = "user_id"
+	maxFileSizeMB                    int64 = 250
 )
 
 // RawVideoHandler implements all logic for handling raw video requests.
@@ -61,31 +63,45 @@ func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noS
 	}, nil
 }
 
-// HandleRawVideoPostRequest accepts POST requests that include mp4 data and
-// parses the metadata to gather timestamp info and, if posimpleStorageble, location info.
-// The video itself is stored in simple storage and the metadata is stored in
-// firestore.  If the video does not contain timestamp info, the server
-// returns a 400 error.
+// HandleRawVideoPostRequest handles the raw video post request and writes the response.
 // Params:
-// 		http.ResponseWriter w: the response to write to
+//		w http.ResponseWriter" the response
 // 		*http.Request r: the request
 // Returns:
 //		none
 func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *http.Request) {
+	if err := rvh.InsertRawVideoFromRequest(r); err != nil {
+		senecaerror.WriteErrorToHTTPResponse(w, err)
+		return
+	}
+	w.WriteHeader(200)
+}
+
+// HandleRawVideoPostRequest accepts POST requests that include mp4 data and
+// parses the metadata.  The metadata is stored in NoSQL DB and the video is stored in simple storage.
+// Params:
+// 		*http.Request r: the request
+// Returns:
+//		error
+func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	// Extract request data.
-	userID := r.FormValue("user_id")
+	if r.Method != "POST" {
+		userError := senecaerror.NewUserError("", fmt.Errorf("Error handling RawVideoRequest, method %q not supported", r.Method), fmt.Sprintf("Error: %q requests are not supported at this endpoint. Supported methods are: [POST]", r.Method))
+		rvh.logger.Log(userError.Error())
+		return userError
+	}
+
+	userID := r.PostFormValue(userIDPostFormKey)
 	if userID == "" {
 		userError := senecaerror.NewUserError("", fmt.Errorf("Error handling RawVideoRequest, no user_id specified"), "No user_id specified in request.")
 		rvh.logger.Log(userError.Error())
-		senecaerror.WriteErrorToHTTPResponse(w, userError)
-		return
+		return userError
 	}
 	var err error
-	mp4Buffer, mp4Name, err := getMP4Bytes(r)
+	mp4Buffer, mp4Name, err := getMP4Bytes(userID, r)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		senecaerror.WriteErrorToHTTPResponse(w, err)
-		return
+		return err
 	}
 	mp4Name = mp4Name + ".mp4"
 
@@ -98,39 +114,34 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 		mp4File, err = createLocalMP4File(mp4Name, rvh.localStoragePath)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			senecaerror.WriteErrorToHTTPResponse(w, err)
-			return
+			return err
 		}
 	} else {
-		mp4File, err = createTempMP4File(mp4Name)
+		mp4File, err = createTempMP4File(userID, mp4Name)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			senecaerror.WriteErrorToHTTPResponse(w, err)
-			return
+			return err
 		}
 		mp4Path = mp4File.Name()
 	}
 	if _, err := mp4File.Write(mp4Buffer); err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		senecaerror.WriteErrorToHTTPResponse(w, err)
-		return
+		return err
 	}
 
 	// Extract metadata.
 	metadata, err := rvh.mp4Tool.GetMetadata(mp4Path)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		senecaerror.WriteErrorToHTTPResponse(w, err)
-		return
+		return err
 	}
 
 	// Upload firestore data.
-	bucketFileName := fmt.Sprintf("%s.%d.RAW_VIDEO.mp4", userID, util.TimeToMilliseconds(metadata.CreationTime))
+	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", userID, util.TimeToMilliseconds(metadata.CreationTime), rawVideoBucketFileNameIdentifier)
 	rawVideo, err := rvh.writeMP4MetadataToGCD(userID, bucketFileName, metadata)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		senecaerror.WriteErrorToHTTPResponse(w, err)
-		return
+		return err
 	}
 
 	// Upload cloud storage data.
@@ -139,13 +150,10 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 			rvh.logger.Warning(fmt.Sprintf("Error cleaning up rawVideo with ID %q on failed request", rawVideo.Id))
 		}
 		rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-		senecaerror.WriteErrorToHTTPResponse(w, err)
-		return
+		return err
 	}
-
 	rvh.logger.Log(fmt.Sprintf("Successfully processed video %q for user %q", bucketFileName, userID))
-	w.WriteHeader(200)
-	fmt.Fprintf(w, "Successfully proccessed %q", mp4Name)
+	return nil
 }
 
 func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string, metadata *mp4.VideoMetadata) (*types.RawVideo, error) {
@@ -188,46 +196,46 @@ func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error 
 	return nil
 }
 
-func getMP4Bytes(r *http.Request) ([]byte, string, error) {
-	maxFileSizeBytes := maxFileSizeMB * 1024 * 1024
-
-	if err := r.ParseMultipartForm(maxFileSizeBytes); err != nil {
-		return nil, "", fmt.Errorf("error parsing form for mp4 - err: %v", err)
-	}
+func getMP4Bytes(userID string, r *http.Request) ([]byte, string, error) {
 	var buf bytes.Buffer
+	maxFileSizeBytes := maxFileSizeMB * 1024 * 1024
 
 	mp4, header, err := r.FormFile(mp4FormKey)
 	if err != nil {
-		return nil, "", fmt.Errorf("error parsing form for mp4 - err: %v", err)
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - err: %v", err), fmt.Sprintf("%q not found in request body.", mp4FormKey))
 	}
 	defer mp4.Close()
 
 	if header.Size > maxFileSizeBytes {
-		return nil, "", fmt.Errorf("error parsing form for mp4 - file too large")
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file too large"), fmt.Sprintf("File too large. Max file size is %d MB.", maxFileSizeMB))
+	}
+
+	if err := r.ParseMultipartForm(maxFileSizeBytes); err != nil {
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - err: %v", err), "Malformed mp4 file.")
 	}
 
 	mp4NameList := strings.Split(header.Filename, ".")
-	if len(mp4NameList) < 1 {
-		return nil, "", fmt.Errorf("error parsing form for mp4 - no Filename in header")
+	if len(mp4NameList) != 2 {
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - no file name not in the form (name.mp4)"), "MP4 file not in format (name.mp4).")
 	}
 
 	if _, err := io.Copy(&buf, mp4); err != nil {
-		return nil, "", fmt.Errorf("error copying bytes - err: %v", err)
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error copying bytes - err: %v", err), fmt.Sprintf("Corrupted file: %q.", header.Filename))
 	}
 
 	return buf.Bytes(), mp4NameList[0], nil
 }
 
-func createTempMP4File(name string) (*os.File, error) {
+func createTempMP4File(userID, name string) (*os.File, error) {
 	nameParts := strings.Split(name, ".")
 	if len(nameParts) != 2 {
-		return nil, fmt.Errorf("name %q malformed for mp4 file", name)
+		return nil, senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - no file name not in the form (name.mp4)"), "MP4 file not in format (name.mp4).")
 	}
 	tempName := strings.Join([]string{nameParts[0], "*", nameParts[1]}, ".")
 
 	tempFile, err := ioutil.TempFile("", tempName)
 	if err != nil {
-		return nil, fmt.Errorf("error creating temp file - err: %v", err)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error creating temp file - err: %v", err))
 	}
 
 	return tempFile, nil
