@@ -1,4 +1,7 @@
 syntax = "proto3";
+package api;
+
+option go_package ="seneca/api/types";
 
 message TimePeriod {
     int64 start_time_ms = 1;
@@ -12,6 +15,7 @@ message Location {
 }
 
 enum Tag {
+    UNKNOWN = 0;
     // Values: [0, 1000]
     TRAFFIC = 1;
     // Values: [0.0, 1000.0] hours

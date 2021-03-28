@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func TestWriteMP4MetadataToGCD(t *testing.T) {
+func TestWritePartialRawVideoToGCD(t *testing.T) {
 	rawVideoHandler, err := newRawVideoHandlerForTests()
 	if err != nil {
 		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
@@ -24,29 +24,19 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
-	fileMetdata := mp4.VideoMetadata{
-		CreationTime: &creationTime,
-		Duration:     &duration,
-	}
 
-	expectedRawVideo := &types.RawVideo{
-		UserId:       userID,
-		CreateTimeMs: util.TimeToMilliseconds(&creationTime),
+	partialRawVideo := &types.RawVideo{
+		CreateTimeMs: util.TimeToMilliseconds(creationTime),
+		DurationMs:   util.DurationToMilliseconds(duration),
 	}
 
 	// Verify value.
-	returnedRawVideo, err := rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata)
+	err = rawVideoHandler.writePartialRawVideoToGCD(userID, bucketFileName, partialRawVideo)
 	if err != nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
+		t.Errorf("rawVideoHandler.writePartialRawVideoToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
 	}
-	if expectedRawVideo.UserId != returnedRawVideo.UserId {
-		t.Errorf("Got returned RawVideo.UserId %q, want %q", returnedRawVideo.UserId, expectedRawVideo.UserId)
-	}
-	if expectedRawVideo.CreateTimeMs != returnedRawVideo.CreateTimeMs {
-		t.Errorf("Got returned RawVideo.CreateTimeMs %d, want %d", returnedRawVideo.CreateTimeMs, expectedRawVideo.CreateTimeMs)
-	}
-	if returnedRawVideo.Id == "" {
-		t.Errorf("Return RawVideo.Id is empty, should have been set")
+	if partialRawVideo.Id == "" {
+		t.Errorf("RawVideo passed to writePartialRawVideoToGCD() Id is empty, should have been set")
 	}
 
 	// Verify exists in store.
@@ -54,18 +44,18 @@ func TestWriteMP4MetadataToGCD(t *testing.T) {
 	if err != nil {
 		t.Errorf("fakeFakeNoSQLDBClient.GetRawVideo(%q, _) returns err: %v", userID, err)
 	}
-	if expectedRawVideo.UserId != gotRawVideo.UserId {
-		t.Errorf("Got returned RawVideo.UserId %q, want %q", gotRawVideo.UserId, expectedRawVideo.UserId)
+	if gotRawVideo.UserId != partialRawVideo.UserId {
+		t.Errorf("Got returned RawVideo.UserId %q, want %q", gotRawVideo.UserId, partialRawVideo.UserId)
 	}
-	if expectedRawVideo.CreateTimeMs != gotRawVideo.CreateTimeMs {
-		t.Errorf("Got returned RawVideo.CreateTimeMs %d, want %d", gotRawVideo.CreateTimeMs, expectedRawVideo.CreateTimeMs)
+	if partialRawVideo.CreateTimeMs != gotRawVideo.CreateTimeMs {
+		t.Errorf("Got returned RawVideo.CreateTimeMs %d, want %d", gotRawVideo.CreateTimeMs, partialRawVideo.CreateTimeMs)
 	}
 	if gotRawVideo.Id == "" {
 		t.Errorf("Return RawVideo.Id is empty, should have been set")
 	}
 }
 
-func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
+func TestWritePartialRawVideoToGCDDisallowsDuplicates(t *testing.T) {
 	rawVideoHandler, err := newRawVideoHandlerForTests()
 	if err != nil {
 		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
@@ -75,24 +65,25 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 	bucketFileName := "bucket_file_name"
 	creationTime := time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC)
 	duration := time.Minute * 2
-	fileMetdata := mp4.VideoMetadata{
-		CreationTime: &creationTime,
-		Duration:     &duration,
+
+	partialRawVideo := &types.RawVideo{
+		CreateTimeMs: util.TimeToMilliseconds(creationTime),
+		DurationMs:   util.DurationToMilliseconds(duration),
 	}
 
-	if _, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata); err != nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
+	if err = rawVideoHandler.writePartialRawVideoToGCD(userID, bucketFileName, partialRawVideo); err != nil {
+		t.Errorf("rawVideoHandler.writePartialRawVideoToGCD(%s, %s, _) returns err: %v", userID, bucketFileName, err)
 	}
 	// Write twice but add an extra second, should still fail.
-	newTime := fileMetdata.CreationTime.Add(time.Second)
-	fileMetdata.CreationTime = &newTime
-	_, err = rawVideoHandler.writeMP4MetadataToGCD(userID, bucketFileName, &fileMetdata)
+	newTime := creationTime.Add(time.Second)
+	partialRawVideo.CreateTimeMs = util.TimeToMilliseconds(newTime)
+	err = rawVideoHandler.writePartialRawVideoToGCD(userID, bucketFileName, partialRawVideo)
 	if err == nil {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned err for duplicate, but did not", userID, bucketFileName)
+		t.Errorf("rawVideoHandler.writePartialRawVideoToGCD(%s, %s, _) should have returned err for duplicate, but did not", userID, bucketFileName)
 	}
 	var ue *senecaerror.UserError
 	if !errors.As(err, &ue) {
-		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned UserError, but got %w", userID, bucketFileName, err)
+		t.Errorf("rawVideoHandler.writePartialRawVideoToGCD(%s, %s, _) should have returned UserError, but got %w", userID, bucketFileName, err)
 	}
 }
 

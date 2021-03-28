@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"seneca/api/senecaerror"
+	"seneca/internal/util"
 	"testing"
 	"time"
 )
@@ -19,20 +20,20 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 	}
 
 	pathToTestMp4 := "../../../test/testdata/dad_example.MP4"
-	expectedCreationTime := time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC)
-	expectedDuration := time.Minute
+	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
+	expectedDurationMs := util.DurationToMilliseconds(time.Minute)
 
-	videoMetaData, err := exifMP4Tool.GetMetadata(pathToTestMp4)
+	rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMp4)
 	if err != nil {
 		t.Errorf("GetMetadata(%s) returns err: %v", pathToTestMp4, err)
 		return
 	}
 
-	if *videoMetaData.CreationTime != expectedCreationTime {
-		t.Errorf("videoMetaData.CreationTime incorrect. got %v, want %v", videoMetaData.CreationTime, expectedCreationTime)
+	if rawVideo.GetCreateTimeMs() != expectedCreationTimeMs {
+		t.Errorf("rawVideo.CreateTimeMs incorrect. got %v, want %v", rawVideo.CreateTimeMs, expectedCreationTimeMs)
 	}
-	if *videoMetaData.Duration != expectedDuration {
-		t.Errorf("videoMetaData.Duration incorrect. got %v, want %v", videoMetaData.Duration, expectedDuration)
+	if rawVideo.GetDurationMs() != expectedDurationMs {
+		t.Errorf("rawVideo.GetDurationMs incorrect. got %v, want %v", rawVideo.GetDurationMs(), expectedDurationMs)
 	}
 }
 
@@ -46,7 +47,7 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
 	}
 
-	_, err = exifMP4Tool.GetMetadata("../idontexist")
+	_, err = exifMP4Tool.ParseOutRawVideoMetadata("../idontexist")
 	if err == nil {
 		t.Errorf("Want non-nil error from bogus input file, got nil")
 	}

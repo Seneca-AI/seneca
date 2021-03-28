@@ -1,7 +1,7 @@
 syntax = "proto3";
 package api;
 
-// import "common.proto";
+import "common.proto";
 
 option go_package ="seneca/api/types";
 
@@ -14,18 +14,20 @@ message RawVideo {
     // When the video begins in ms.
     int64 create_time_ms = 4;
     repeated string cut_video_id = 5;
+    int64 duration_ms = 6;
 }
 
 // key(user_id, id)
-// message CutVideo {
-//     string user_id = 1;
-//     string id = 2;
-//     string simple_storage_url = 3;
-//     // When the video begins.
-//     int64 timestamp_ms = 4;
-//     string raw_video_id = 5;
-//     repeated Location locations = 6;
-// }
+message CutVideo {
+    string user_id = 1;
+    string id = 2;
+    // In the form <USER_ID>.<CREATE_TIMESTAMP_MS>.CUT_VIDEO.mp4
+    string cloud_storage_file_name = 3;
+    // When the video begins.
+    int64 create_time_ms = 4;
+    string raw_video_id = 5;
+    repeated api.Location locations = 6;
+}
 
 // // key(user_id, id)
 // message RawLocation {

@@ -40,8 +40,8 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertRawVideo(rawVideo *types.RawVideo) (
 func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error) {
 	beginTimeQuery := createTime.Add(-fnsdc.createTimeQueryOffset)
 	endTimeQuery := createTime.Add(fnsdc.createTimeQueryOffset)
-	beginTimeQueryMs := util.TimeToMilliseconds(&beginTimeQuery)
-	endTimeQueryMs := util.TimeToMilliseconds(&endTimeQuery)
+	beginTimeQueryMs := util.TimeToMilliseconds(beginTimeQuery)
+	endTimeQueryMs := util.TimeToMilliseconds(endTimeQuery)
 
 	rawVideos := []*types.RawVideo{}
 	for _, v := range fnsdc.rawVideos {

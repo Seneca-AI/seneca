@@ -2,6 +2,7 @@ package util
 
 import (
 	"testing"
+	"time"
 )
 
 func TestGetFileNameFromPath(t *testing.T) {
@@ -32,6 +33,37 @@ func TestGetFileNameFromPath(t *testing.T) {
 		}
 		if tc.wantErr == (err == nil) {
 			t.Errorf("wantErr (%t), but got %v", tc.wantErr, err)
+		}
+	}
+}
+
+func TestDurationToString(t *testing.T) {
+	testCases := []struct {
+		dur  time.Duration
+		want string
+	}{
+		{
+			dur:  time.Duration(0),
+			want: "00:00:00",
+		},
+		{
+			dur:  time.Second * 5,
+			want: "00:00:05",
+		},
+		{
+			dur:  ((time.Hour * 5) + (time.Minute * 4) + (time.Second * 3)),
+			want: "05:04:03",
+		},
+		{
+			dur:  ((time.Hour * 15) + (time.Minute * 14) + (time.Second * 13)),
+			want: "15:14:13",
+		},
+	}
+
+	for _, tc := range testCases {
+		got := DurationToString(tc.dur)
+		if got != tc.want {
+			t.Errorf("Got %q from DurationToString(%v), want %q", got, tc.dur, tc.want)
 		}
 	}
 }

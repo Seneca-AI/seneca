@@ -9,4 +9,4 @@ Add your name to a task if you're working on it.
 1. Improve unit testing.
 1. Improve new error system usage and unit test.
 1. Use want/got instead of expected.
-1. Test RawVideoHandler handler function.
+1. [Luca409] ~Test RawVideoHandler handler function.~
