@@ -15,3 +15,10 @@
             #       EventCard:              the event card
             def generate_event_card(time_period, user_id):
                 ...
+3. Branches shall be named with prefixes categorizing the work. For example:
+    * feature/new_thing
+    * cleanup/fix_thing
+4. All custom exported non-primtive typed objects must implement an exported package interface, use protos otherwise. (Exporting objects typed from libraries is fine.)
+    * exported: starts with a capital letter
+    * custom: defined in the package
+    * non-primitive: not string, int, etc

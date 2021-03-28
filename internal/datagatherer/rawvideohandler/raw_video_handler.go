@@ -87,14 +87,14 @@ func (rvh *RawVideoHandler) HandleRawVideoPostRequest(w http.ResponseWriter, r *
 func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	// Extract request data.
 	if r.Method != "POST" {
-		userError := senecaerror.NewUserError("", fmt.Errorf("Error handling RawVideoRequest, method %q not supported", r.Method), fmt.Sprintf("Error: %q requests are not supported at this endpoint. Supported methods are: [POST]", r.Method))
+		userError := senecaerror.NewUserError("", fmt.Errorf("error handling RawVideoRequest, method %q not supported", r.Method), fmt.Sprintf("Error: %q requests are not supported at this endpoint. Supported methods are: [POST]", r.Method))
 		rvh.logger.Log(userError.Error())
 		return userError
 	}
 
 	userID := r.PostFormValue(userIDPostFormKey)
 	if userID == "" {
-		userError := senecaerror.NewUserError("", fmt.Errorf("Error handling RawVideoRequest, no user_id specified"), "No user_id specified in request.")
+		userError := senecaerror.NewUserError("", fmt.Errorf("error handling RawVideoRequest, no user_id specified"), "No user_id specified in request.")
 		rvh.logger.Log(userError.Error())
 		return userError
 	}
