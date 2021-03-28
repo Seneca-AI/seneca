@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
@@ -130,15 +131,21 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	}
 
 	// Extract metadata.
-	metadata, err := rvh.mp4Tool.GetMetadata(mp4Path)
+	rawVideo, err := rvh.mp4Tool.ParseOutRawVideoMetadata(mp4Path)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
 	}
 
+	if rawVideo.DurationMs > util.DurationToMilliseconds(constants.MaxInputVideoDuration) {
+		userError := senecaerror.NewUserError(userID, fmt.Errorf("error handling RawVideoRequest - duration %v is longer than maxVideoDuration %v", util.MillisecondsToDuration(rawVideo.DurationMs), constants.MaxInputVideoDuration), fmt.Sprintf("Max video duration is %v", constants.MaxInputVideoDuration))
+		rvh.logger.Log(userError.Error())
+		return err
+	}
+
 	// Upload firestore data.
-	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", userID, util.TimeToMilliseconds(metadata.CreationTime), rawVideoBucketFileNameIdentifier)
-	rawVideo, err := rvh.writeMP4MetadataToGCD(userID, bucketFileName, metadata)
+	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", userID, rawVideo.CreateTimeMs, rawVideoBucketFileNameIdentifier)
+	err = rvh.writePartialRawVideoToGCD(userID, bucketFileName, rawVideo)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
@@ -156,21 +163,17 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	return nil
 }
 
-func (rvh *RawVideoHandler) writeMP4MetadataToGCD(userID, bucketFileName string, metadata *mp4.VideoMetadata) (*types.RawVideo, error) {
-	rawVideo := &types.RawVideo{
-		UserId:               userID,
-		Id:                   "",
-		CloudStorageFileName: bucketFileName,
-		CreateTimeMs:         util.TimeToMilliseconds(metadata.CreationTime),
-	}
+func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *types.RawVideo) error {
+	rawVideo.UserId = userID
+	rawVideo.CloudStorageFileName = bucketFileName
 
 	id, err := rvh.noSQLDB.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
+		return fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
 
 	rawVideo.Id = id
-	return rawVideo, nil
+	return nil
 }
 
 func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error {

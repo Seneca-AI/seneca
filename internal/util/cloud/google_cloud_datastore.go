@@ -86,9 +86,9 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 	query := datastore.NewQuery(
 		rawVideoKind,
 	).Filter(
-		fmt.Sprintf("%s%s", createTimeFieldName, ">="), util.TimeToMilliseconds(&beginTimeQuery),
+		fmt.Sprintf("%s%s", createTimeFieldName, ">="), util.TimeToMilliseconds(beginTimeQuery),
 	).Filter(
-		fmt.Sprintf("%s%s", createTimeFieldName, "<="), util.TimeToMilliseconds(&endTimeQuery),
+		fmt.Sprintf("%s%s", createTimeFieldName, "<="), util.TimeToMilliseconds(endTimeQuery),
 	).Filter(
 		fmt.Sprintf("%s%s", userIDFieldName, "="), userID,
 	)

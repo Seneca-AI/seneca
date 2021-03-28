@@ -1,40 +1,16 @@
 package mp4
 
-import (
-	"encoding/json"
-	"fmt"
-	"time"
-)
+import "seneca/api/types"
 
 // MP4ToolInterface defines the interface for interacting with MP4 files
 // throughout Seneca.
 //nolint
 type MP4ToolInterface interface {
-	// GetMetadata extracts VideoMetadata from the video at the given path.
+	// ParseOutRawVideoMetadata extracts *types.RawVideo metadata from the mp4 at the given path.
 	// Params:
-	// 		string pathToVideo: path to video to get metadata from
+	// 		string pathToVideo: path to mp4 to get RawVideo metadata from
 	// Returns:
-	// 		*VideoMetadata: the VideoMetadata object
+	// 		*types.RawVideo: the RawVideo object
 	//		error
-	GetMetadata(path string) (*VideoMetadata, error)
-}
-
-// VideoMetadata holds relevant metadata for mp4 videos.
-type VideoMetadata struct {
-	CreationTime *time.Time
-	Duration     *time.Duration
-	Locations    []Location
-	SpeedsMPH    []int64
-}
-
-type Location struct {
-	lat       string
-	long      string
-	timestamp time.Time
-}
-
-func (vmd *VideoMetadata) String() string {
-	// TODO: handle this error with a logger
-	b, _ := json.MarshalIndent(vmd, "", "\t")
-	return fmt.Sprint(string(b))
+	ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error)
 }

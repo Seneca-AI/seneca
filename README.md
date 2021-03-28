@@ -3,6 +3,8 @@
 ## Dev Commands
 * Run all tests (from root repo directory)
     * `$ go test ./...`
+* Run the linter
+    * `$ golangci-lint run`
 
 ### Requirements
 * [Exiftool](https://exiftool.org/install.html#Unix) must be installed on the server
