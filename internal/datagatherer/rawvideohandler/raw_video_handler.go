@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -99,7 +98,7 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 		return userError
 	}
 	var err error
-	mp4Buffer, mp4Name, err := getMP4Bytes(userID, r)
+	mp4Buffer, mp4Name, err := getMP4BytesFromForm(userID, r)
 	if err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
@@ -112,13 +111,13 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	defer mp4File.Close()
 	if rvh.localStoragePath != "" {
 		mp4Path = strings.Join([]string{rvh.localStoragePath, mp4Name}, "/")
-		mp4File, err = createLocalMP4File(mp4Name, rvh.localStoragePath)
+		mp4File, err = mp4.CreateLocalMP4File(mp4Name, rvh.localStoragePath)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 			return err
 		}
 	} else {
-		mp4File, err = createTempMP4File(userID, mp4Name)
+		mp4File, err = mp4.CreateTempMP4File(userID, mp4Name)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 			return err
@@ -199,7 +198,7 @@ func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error 
 	return nil
 }
 
-func getMP4Bytes(userID string, r *http.Request) ([]byte, string, error) {
+func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error) {
 	var buf bytes.Buffer
 	maxFileSizeBytes := maxFileSizeMB * 1024 * 1024
 
@@ -227,28 +226,4 @@ func getMP4Bytes(userID string, r *http.Request) ([]byte, string, error) {
 	}
 
 	return buf.Bytes(), mp4NameList[0], nil
-}
-
-func createTempMP4File(userID, name string) (*os.File, error) {
-	nameParts := strings.Split(name, ".")
-	if len(nameParts) != 2 {
-		return nil, senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - no file name not in the form (name.mp4)"), "MP4 file not in format (name.mp4).")
-	}
-	tempName := strings.Join([]string{nameParts[0], "*", nameParts[1]}, ".")
-
-	tempFile, err := ioutil.TempFile("", tempName)
-	if err != nil {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("error creating temp file - err: %v", err))
-	}
-
-	return tempFile, nil
-}
-
-func createLocalMP4File(name, path string) (*os.File, error) {
-	mp4File, err := os.Create(fmt.Sprintf("%s/%s", path, name))
-	if err != nil {
-		return nil, fmt.Errorf("error creating local file - err: %v", err)
-	}
-
-	return mp4File, nil
 }
