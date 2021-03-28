@@ -3,7 +3,6 @@ package mp4
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"time"
 
@@ -147,7 +146,7 @@ func getLocationsFromFileMetadata(fileMetadata exiftool.FileMetadata) ([]types.L
 			locations = append(locations, location)
 		}
 	}
-	sort.Slice(locations, func(i, j int) bool { return locations[i].TimestampMs < locations[j].TimestampMs })
+	// sort.Slice(locations, func(i, j int) bool { return locations[i].TimestampMs < locations[j].TimestampMs })
 
 	return locations, nil
 }

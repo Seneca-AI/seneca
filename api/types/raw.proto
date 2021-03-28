@@ -26,22 +26,20 @@ message CutVideo {
     // When the video begins.
     int64 create_time_ms = 4;
     string raw_video_id = 5;
-    repeated api.Location locations = 6;
 }
 
-// // key(user_id, id)
-// message RawLocation {
-//     string user_id = 1;
-//     string id = 2;
-//     // Location includes timestamp.
-//     Location location = 3;
-// }
+// key(user_id, id)
+message RawLocation {
+    string user_id = 1;
+    string id = 2;
+    api.Location location = 3;
+    int64 timestamp_ms = 4;
+}
 
-// // key(user_id, id)
-// message RawMotion {
-//     string user_id = 1;
-//     string id = 2;
-//     int64 velocity = 3;
-//     int64 acceleration = 4;
-//     int64 timestamp_ms = 5;
-// }
+// key(user_id, id)
+message RawMotion {
+    string user_id = 1;
+    string id = 2;
+    api.Motion motion = 3;
+    int64 timestamp_ms = 4;
+}

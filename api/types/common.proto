@@ -8,10 +8,42 @@ message TimePeriod {
     int64 end_time_ms = 2;
 }
 
+message Latitude {
+    double degrees = 1;
+    double degree_minutes = 2;
+    double degree_seconds = 3;
+
+    enum LatDirection {
+        UNKNOWN = 0;
+        NORTH = 1;
+        SOUTH = 2;
+    }
+
+    LatDirection lat_direction = 4;
+}
+
+message Longitude {
+    double degrees = 1;
+    double degree_minutes = 2;
+    double degree_seconds = 3;
+
+    enum LongDirection {
+        UNKNOWN = 0;
+        EAST = 1;
+        WEST = 2;
+    }
+
+    LongDirection long_direction = 4;
+}
+
 message Location {
-    double latitude = 1;
-    double longitude = 2;
-    int64 timestamp_ms = 3;
+    Latitude lat = 1;
+    Longitude long = 2;
+}
+
+message Motion {
+    double velocity_mph = 1;
+    double acceleration_mph_s = 2;
 }
 
 enum Tag {
