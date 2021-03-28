@@ -3,6 +3,7 @@ package rawvideohandler
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"seneca/internal/util"
@@ -93,6 +94,47 @@ func TestWriteMP4MetadataToGCDDisallowsDuplicates(t *testing.T) {
 	if !errors.As(err, &ue) {
 		t.Errorf("rawVideoHandler.writeMP4MetadataToGCD(%s, %s, _) should have returned UserError, but got %w", userID, bucketFileName, err)
 	}
+}
+
+func TestInsertRawVideoFromRequestRejectsMalformedRequest(t *testing.T) {
+	var err error
+	var userError *senecaerror.UserError
+
+	rawVideoHandler, err := newRawVideoHandlerForTests()
+	if err != nil {
+		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
+	}
+
+	request := &http.Request{}
+	request.Method = "GET"
+
+	err = rawVideoHandler.InsertRawVideoFromRequest(request)
+	if err == nil {
+		t.Error("Want err from InsertRawVideoFromRequest() with GET method, got nil")
+	}
+	if !errors.As(err, &userError) {
+		t.Errorf("Want UserError from InsertRawVideoFromRequest() GET method, got %v", err)
+	}
+
+	request.Method = "POST"
+	err = rawVideoHandler.InsertRawVideoFromRequest(request)
+	if err == nil {
+		t.Error("Want err from InsertRawVideoFromRequest() without userID, got nil")
+	}
+	if !errors.As(err, &userError) {
+		t.Errorf("Want UserError from InsertRawVideoFromRequest() without userID, got %v", err)
+	}
+
+	request.PostForm.Add("user_id", "user")
+	err = rawVideoHandler.InsertRawVideoFromRequest(request)
+	if err == nil {
+		t.Error("Want err from InsertRawVideoFromRequest() without mp4, got nil")
+	}
+	if !errors.As(err, &userError) {
+		t.Errorf("Want UserError from InsertRawVideoFromRequest() without mp4, got %v", err)
+	}
+
+	// TODO: test malformed mp4 files
 }
 
 func newRawVideoHandlerForTests() (*RawVideoHandler, error) {
