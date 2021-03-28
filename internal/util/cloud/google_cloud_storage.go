@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 
 	"seneca/api/senecaerror"
+	"seneca/internal/util/mp4"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
@@ -56,10 +58,6 @@ func NewGoogleCloudStorageClient(ctx context.Context, projectID string, quickTim
 }
 
 // CreateBucket creates a bucket in the project with the given name.
-// Params:
-// 		bucketName string: the name of the bucket
-// Returns:
-//		error
 func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName string) error {
 	ctx := context.Background()
 
@@ -71,12 +69,7 @@ func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName string) error {
 	return nil
 }
 
-// BucketExists checks if a bucket if the given name already exists.
-// Params:
-// 		bucketName string: the name of the bucket
-// Returns:
-//		bool: true if the bucket exists, false otherwise
-//		error
+// BucketExists checks if a bucket with the given name already exists.
 func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, error) {
 	ctx := context.Background()
 
@@ -106,12 +99,6 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, err
 // BucketFileExists checks if a file with the given name exists in the given bucket.
 // This is done by trying to read the attributes of the file, and if an error is
 // returned, we assume the file does not exist.
-// Params:
-// 		bucketName string: the name of the bucket
-//		bucketFileName string: the name of the file
-// Returns:
-//		bool: true if the file exists, false otherwise
-// 		error
 func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileName string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
@@ -128,13 +115,6 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileNam
 }
 
 // WriteBucketFile writes the given local file to the given bucket with the bucketFileName.
-// If bucketFileName is empty, we parse the localFileName to generate it.
-// Params:
-// 		bucketName string: the name of the bucket
-// 		localFileNameAndPath string: path to the local file to upload
-//		bucketFileName string: the name of the file
-// Returns:
-//		error
 func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error {
 	var err error
 	if localFileNameAndPath == "" {
@@ -162,4 +142,36 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameA
 		return senecaerror.NewBadStateError(err)
 	}
 	return nil
+}
+
+// GetBucketFile downloads the file with the given bucketFileName, stores it in a temp file, and returns bytes.
+func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName, bucketFileName string) (string, error) {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
+	defer cancel()
+
+	rc, err := gcsc.client.Bucket(bucketName).Object(bucketFileName).NewReader(ctx)
+	if err != nil {
+		return "", senecaerror.NewBadStateError(fmt.Errorf("error reading from bucket %q for file %q - err: %w", bucketName, bucketFileName, err))
+	}
+	defer rc.Close()
+
+	data, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return "", senecaerror.NewBadStateError(fmt.Errorf("error extracting bytes from file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
+	}
+
+	tempFile, err := mp4.CreateTempMP4File("", fmt.Sprintf("%s/%s", bucketName, bucketFileName))
+	if err != nil {
+		return "", senecaerror.NewBadStateError(fmt.Errorf("error creating temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
+	}
+
+	if _, err := tempFile.Write(data); err != nil {
+		return "", senecaerror.NewBadStateError(fmt.Errorf("error writing bytes to temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
+	}
+	if err := tempFile.Close(); err != nil {
+		return "", senecaerror.NewBadStateError(fmt.Errorf("error closing temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
+	}
+
+	return tempFile.Name(), nil
 }
