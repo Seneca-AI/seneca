@@ -88,13 +88,13 @@ func DurationToString(dur time.Duration) string {
 	return fmt.Sprintf("%s:%s:%s", hourString, minuteString, secondString)
 }
 
-// LocationsEquals compares the degrees and direction of the locations.
+// LocationsEqual compares the degrees and direction of the locations.
 // Params:
 //		l1 *types.Location
 //		l2 *types.Location
 // Returns:
 //		bool
-func LocationsEquals(l1 *types.Location, l2 *types.Location) bool {
+func LocationsEqual(l1 *types.Location, l2 *types.Location) bool {
 	if l1 == nil || l2 == nil {
 		return l1 == l2
 	}
@@ -108,6 +108,13 @@ func LocationsEquals(l1 *types.Location, l2 *types.Location) bool {
 		l1.Long.Degrees == l2.Long.Degrees && l1.Long.DegreeMinutes == l2.Long.DegreeMinutes && l1.Long.DegreeSeconds == l2.Long.DegreeSeconds && l1.Long.LongDirection == l2.Long.LongDirection
 }
 
+func MotionsEqual(m1 *types.Motion, m2 *types.Motion) bool {
+	if m1 == nil || m2 == nil {
+		return m1 == m2
+	}
+	return m1.VelocityMph == m2.VelocityMph && m1.AccelerationMphS == m2.AccelerationMphS
+}
+
 // IsCIEnv returns true if the env variable "CI" is set to "true".
 func IsCIEnv() bool {
 	val, ok := os.LookupEnv("CI")
@@ -115,4 +122,50 @@ func IsCIEnv() bool {
 		return true
 	}
 	return false
+}
+
+//	ConstructRawLocationDatas construct a list of types.RawLocation from a list of types.Location and time.Time for the given userID.
+//	Params:
+//		userID string
+//		locations []*types.Location
+//		times	[]time.Time
+//	Returns:
+//		[]*types.RawLocation
+//		error
+func ConstructRawLocationDatas(userID string, locations []*types.Location, times []time.Time) ([]*types.RawLocation, error) {
+	if len(locations) != len(times) {
+		return nil, fmt.Errorf("locations has length %d, but times has legth %d", len(locations), len(times))
+	}
+	rawLocations := []*types.RawLocation{}
+	for i := range locations {
+		rawLocations = append(rawLocations, &types.RawLocation{
+			UserId:      userID,
+			Location:    locations[i],
+			TimestampMs: TimeToMilliseconds(times[i]),
+		})
+	}
+	return rawLocations, nil
+}
+
+//	ConstructRawMotionDatas construct a list of types.RawMotion from a list of types.Motion and time.Time for the given userID.
+//	Params:
+//		userID string
+//		motions []*types.Motion
+//		times	[]time.Time
+//	Returns:
+//		[]*types.RawMotion
+//		error
+func ConstructRawMotionDatas(userID string, motions []*types.Motion, times []time.Time) ([]*types.RawMotion, error) {
+	if len(motions) != len(times) {
+		return nil, fmt.Errorf("motions has length %d, but times has legth %d", len(motions), len(times))
+	}
+	rawMotions := []*types.RawMotion{}
+	for i := range motions {
+		rawMotions = append(rawMotions, &types.RawMotion{
+			UserId:      userID,
+			Motion:      motions[i],
+			TimestampMs: TimeToMilliseconds(times[i]),
+		})
+	}
+	return rawMotions, nil
 }

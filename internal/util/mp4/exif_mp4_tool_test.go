@@ -196,7 +196,7 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 				t.Errorf("getLocationMotionTimeFromFileMetadataMap(%v) returns unexpected err %v", tc.inputMap, err)
 				return
 			}
-			if !util.LocationsEquals(tc.want.location, got.location) {
+			if !util.LocationsEqual(tc.want.location, got.location) {
 				t.Errorf("Locations not equal. Got %v, want %v", got.location, tc.want.location)
 			}
 			if got.motion.VelocityMph != tc.want.motion.VelocityMph || got.motion.AccelerationMphS != tc.want.motion.AccelerationMphS {
@@ -220,19 +220,10 @@ func TestGetLocationDataFileMetadata(t *testing.T) {
 	}
 
 	pathToTestMp4 := "../../../test/testdata/dad_example.MP4"
-	fileInfoList := exifTool.exiftool.ExtractMetadata(pathToTestMp4)
-	if len(fileInfoList) < 1 {
-		t.Errorf("FileInfoList for %q is empty", pathToTestMp4)
-	}
-
-	fileInfo := fileInfoList[0]
-	if fileInfo.Err != nil {
-		t.Errorf("Error in fileInfo - err: %v", fileInfo.Err)
-	}
 
 	expectedAccelerations := []float64{0, -2, -2, -2, -2, -3, -1, -2, 0, -5, -2, -2, 0, 3, 4, 2, 3, 2, 1, 0, 0, -1, -1, -3, -2, -3, -2, 0, 0, -1, 1, 2, 1, 2, 1, 1, 1, 9, 2, 1, 0, 0, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}
 
-	_, motions, _, err := getLocationDataFileMetadata(fileInfoList[0])
+	_, motions, _, err := exifTool.ParseOutGPSMetadata(pathToTestMp4)
 	if err != nil {
 		t.Errorf("getLocationDataFileMetadata() returns err - %v", err)
 	}
