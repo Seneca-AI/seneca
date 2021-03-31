@@ -74,3 +74,18 @@ func (bse *BadStateError) Error() string {
 func NewBadStateError(err error) *BadStateError {
 	return &BadStateError{Err: err}
 }
+
+// NotFoundError indicates that whatever the caller asked for was not found.
+type NotFoundError struct {
+	Err error
+}
+
+// Error returns the full error message for a NotFoundError.
+func (nfe *NotFoundError) Error() string {
+	return nfe.Err.Error()
+}
+
+// NewNotFoundError returns a new NotFoundError.
+func NewNotFoundError(err error) *NotFoundError {
+	return &NotFoundError{Err: err}
+}
