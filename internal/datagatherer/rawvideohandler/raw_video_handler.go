@@ -27,39 +27,31 @@ const (
 
 // RawVideoHandler implements all logic for handling raw video requests.
 type RawVideoHandler struct {
-	simpleStorage    cloud.SimpleStorageInterface
-	noSQLDB          cloud.NoSQLDatabaseInterface
-	mp4Tool          mp4.MP4ToolInterface
-	logger           logging.LoggingInterface
-	localStoragePath string
-	projectID        string
+	simpleStorage cloud.SimpleStorageInterface
+	noSQLDB       cloud.NoSQLDatabaseInterface
+	mp4Tool       mp4.MP4ToolInterface
+	logger        logging.LoggingInterface
+	projectID     string
 }
 
-// NewRawVideoHandler initializes a new RawVideoHandler with the given params.
+// NewRawVideoHandler initializes a new RawVideoHandler with the given parameters.
 //
 // Params:
-//		simpleStorageInterface cloud.SimpleStorageInterface
-//		noSQLDatabaseInterface cloud.NoSQLDatabaseInterface
-//		mp4ToolInterface mp4.MP4ToolInterface
+//		simpleStorageInterface cloud.SimpleStorageInterface: client for storing mp4 files
+//		noSQLDatabaseInterface cloud.NoSQLDatabaseInterface: client for storing documents
+//		mp4ToolInterface mp4.MP4ToolInterface: tool for parsing and manipulating mp4 data
 //		logger logging.LoggingInterface
-// 		localStoragePath string: the path where local files will be staged before upload to Google Cloud Storage.  If empty, temp directories will be used. If the directory does not exist, requests will fail.
 // 		projectID string
 // Returns:
 //		*RawVideoHandler: the handler
 //		error if localStoragePath does not exist
-func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, mp4ToolInterface mp4.MP4ToolInterface, logger logging.LoggingInterface, localStoragePath, projectID string) (*RawVideoHandler, error) {
-	if localStoragePath != "" {
-		if _, err := os.Stat(localStoragePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("localStoragePath %q does not exist", localStoragePath)
-		}
-	}
+func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, mp4ToolInterface mp4.MP4ToolInterface, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
 	return &RawVideoHandler{
-		simpleStorage:    simpleStorageInterface,
-		noSQLDB:          noSQLDatabaseInterface,
-		mp4Tool:          mp4ToolInterface,
-		logger:           logger,
-		localStoragePath: localStoragePath,
-		projectID:        projectID,
+		simpleStorage: simpleStorageInterface,
+		noSQLDB:       noSQLDatabaseInterface,
+		mp4Tool:       mp4ToolInterface,
+		logger:        logger,
+		projectID:     projectID,
 	}, nil
 }
 
@@ -109,21 +101,12 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	var mp4File *os.File
 	mp4Path := ""
 	defer mp4File.Close()
-	if rvh.localStoragePath != "" {
-		mp4Path = strings.Join([]string{rvh.localStoragePath, mp4Name}, "/")
-		mp4File, err = mp4.CreateLocalMP4File(mp4Name, rvh.localStoragePath)
-		if err != nil {
-			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			return err
-		}
-	} else {
-		mp4File, err = mp4.CreateTempMP4File(mp4Name)
-		if err != nil {
-			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
-			return err
-		}
-		mp4Path = mp4File.Name()
+	mp4File, err = mp4.CreateTempMP4File(mp4Name)
+	if err != nil {
+		rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
+		return err
 	}
+	mp4Path = mp4File.Name()
 	if _, err := mp4File.Write(mp4Buffer); err != nil {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
