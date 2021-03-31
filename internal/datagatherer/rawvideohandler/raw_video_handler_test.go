@@ -124,15 +124,13 @@ func TestInsertRawVideoFromRequestRejectsMalformedRequest(t *testing.T) {
 	if !errors.As(err, &userError) {
 		t.Errorf("Want UserError from InsertRawVideoFromRequest() without mp4, got %v", err)
 	}
-
-	// TODO: test malformed mp4 files
 }
 
 func newRawVideoHandlerForTests() (*RawVideoHandler, error) {
 	fakeSimpleStorageClient := cloud.NewFakeSimpleStorageClient()
 	fakeFakeNoSQLDBClient := cloud.NewFakeNoSQLDatabaseClient(time.Second * 2)
 	fakeMP4Tool := mp4.NewFakeMP4Tool()
-	localLogger := logging.NewLocalLogger()
+	localLogger := logging.NewLocalLogger(true /* silent */)
 
 	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, fakeMP4Tool, localLogger, "")
 	if err != nil {

@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -133,8 +134,13 @@ func getCreationTimeFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64,
 
 	t, err := time.Parse(timeParserLayout, timeString)
 	if err != nil {
-		return 0, senecaerror.NewBadStateError(fmt.Errorf("error parsing CreationTime - err: %v", err))
+		return 0, senecaerror.NewUserError("", fmt.Errorf("error parsing CreationTime - err: %v", err), "Malformed MP4 metadata.")
 	}
+
+	if t.Equal(time.Unix(0, 0)) {
+		return 0, senecaerror.NewUserError("", errors.New("creationTime of 0 is not allowed"), "mp4 has CreationTime of 0, which is not allowed.")
+	}
+
 	return util.TimeToMilliseconds(t), nil
 }
 
