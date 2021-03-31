@@ -19,7 +19,7 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
 	}
 
-	pathToTestMp4 := "../../../test/testdata/dad_example.MP4"
+	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
 	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
 	expectedDurationMs := util.DurationToMilliseconds(time.Minute)
 
@@ -34,6 +34,27 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 	}
 	if rawVideo.GetDurationMs() != expectedDurationMs {
 		t.Errorf("rawVideo.GetDurationMs incorrect. got %v, want %v", rawVideo.GetDurationMs(), expectedDurationMs)
+	}
+}
+
+func TestGetMetadataHasRejectsFileWithZeroCreationTime(t *testing.T) {
+	if util.IsCIEnv() {
+		t.Skip("Skipping exiftool test in GitHub env.")
+	}
+
+	exifMP4Tool, err := NewExitMP4Tool()
+	if err != nil {
+		t.Errorf("NewExitMP4Tool() returns err: %v", err)
+	}
+
+	pathToTestMp4 := "../../../test/testdata/no_metadata.mp4"
+	_, err = exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMp4)
+	if err == nil {
+		t.Errorf("Expected err from exifMP4Tool.ParseOutRawVideoMetadata(%q), got nil", pathToTestMp4)
+	}
+	var userError *senecaerror.UserError
+	if !errors.As(err, &userError) {
+		t.Errorf("Want UserError from exifMP4Tool.ParseOutRawVideoMetadata(%q), got %v", pathToTestMp4, err)
 	}
 }
 
@@ -219,7 +240,7 @@ func TestGetLocationDataFileMetadata(t *testing.T) {
 		t.Error(err)
 	}
 
-	pathToTestMp4 := "../../../test/testdata/dad_example.MP4"
+	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
 
 	expectedAccelerations := []float64{0, -2, -2, -2, -2, -3, -1, -2, 0, -5, -2, -2, 0, 3, 4, 2, 3, 2, 1, 0, 0, -1, -1, -3, -2, -3, -2, 0, 0, -1, 1, 2, 1, 2, 1, 1, 1, 9, 2, 1, 0, 0, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}
 

@@ -44,7 +44,7 @@ type RawVideoHandler struct {
 // 		projectID string
 // Returns:
 //		*RawVideoHandler: the handler
-//		error if localStoragePath does not exist
+//		error
 func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, mp4ToolInterface mp4.MP4ToolInterface, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
 	return &RawVideoHandler{
 		simpleStorage: simpleStorageInterface,
@@ -95,7 +95,6 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
 	}
-	mp4Name = mp4Name + ".mp4"
 
 	// Stage mp4 locally.
 	var mp4File *os.File
@@ -199,14 +198,18 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - err: %v", err), "Malformed mp4 file.")
 	}
 
-	mp4NameList := strings.Split(header.Filename, ".")
-	if len(mp4NameList) != 2 {
-		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - no file name not in the form (name.mp4)"), "MP4 file not in format (name.mp4).")
+	if header.Filename == "" {
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("mp4 file name empty"), "MP4 file name empty.")
+	}
+
+	mp4PathParts := strings.Split(header.Filename, "/")
+	if !strings.HasSuffix(mp4PathParts[len(mp4PathParts)-1], "mp4") {
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file name %q not in the form (name.mp4)", header.Filename), "MP4 file not in format (name.mp4).")
 	}
 
 	if _, err := io.Copy(&buf, mp4); err != nil {
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error copying bytes - err: %v", err), fmt.Sprintf("Corrupted file: %q.", header.Filename))
 	}
 
-	return buf.Bytes(), mp4NameList[0], nil
+	return buf.Bytes(), mp4PathParts[len(mp4PathParts)-1], nil
 }
