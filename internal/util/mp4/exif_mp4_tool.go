@@ -56,7 +56,7 @@ func (emt *ExitMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.Raw
 
 	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), fmt.Sprintf("MP4 is missing metadata."))
+		return nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")
 	}
 
 	fileInfo := fileInfoList[0]
@@ -73,6 +73,51 @@ func (emt *ExitMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.Raw
 	}
 
 	return rawVideo, nil
+}
+
+// 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
+func (emt *ExitMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
+	if len(fileInfoList) < 1 {
+		return nil, nil, nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")
+	}
+
+	fileMetadata := fileInfoList[0]
+	if fileMetadata.Err != nil {
+		return nil, nil, nil, senecaerror.NewBadStateError(fmt.Errorf("error in fileInfo - err: %v", fileMetadata.Err))
+	}
+
+	locationsMotionsTimes := []*locationMotionTime{}
+
+	for k, v := range fileMetadata.Fields {
+		if strings.Contains(k, "Doc") {
+			m, ok := v.(map[string]interface{})
+			if !ok {
+				// TODO: handle this with the logger
+				fmt.Printf("Value is of type: %q\n", reflect.TypeOf(v))
+				continue
+			}
+
+			locationMotionTime, err := getLocationMotionTimeFromFileMetadataMap(m)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("error parsing GPS metadata map - err: %w", err)
+			}
+
+			locationsMotionsTimes = append(locationsMotionsTimes, locationMotionTime)
+		}
+	}
+	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
+	locations := []*types.Location{}
+	motions := []*types.Motion{}
+	times := []time.Time{}
+	for _, lmt := range locationsMotionsTimes {
+		locations = append(locations, lmt.location)
+		motions = append(motions, lmt.motion)
+		times = append(times, lmt.gpsTime)
+	}
+	populateAccelerations(motions)
+
+	return locations, motions, times, nil
 }
 
 func getCreationTimeFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, error) {
@@ -119,41 +164,6 @@ type locationMotionTime struct {
 	location *types.Location
 	motion   *types.Motion
 	gpsTime  time.Time
-}
-
-//nolint
-func getLocationDataFileMetadata(fileMetadata exiftool.FileMetadata) ([]*types.Location, []*types.Motion, []*time.Time, error) {
-	locationsMotionsTimes := []*locationMotionTime{}
-
-	for k, v := range fileMetadata.Fields {
-		if strings.Contains(k, "Doc") {
-			m, ok := v.(map[string]interface{})
-			if !ok {
-				// TODO: handle this with the logger
-				fmt.Printf("Value is of type: %q\n", reflect.TypeOf(v))
-				continue
-			}
-
-			locationMotionTime, err := getLocationMotionTimeFromFileMetadataMap(m)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("error parsing GPS metadata map - err: %w", err)
-			}
-
-			locationsMotionsTimes = append(locationsMotionsTimes, locationMotionTime)
-		}
-	}
-	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
-	locations := []*types.Location{}
-	motions := []*types.Motion{}
-	times := []*time.Time{}
-	for _, lmt := range locationsMotionsTimes {
-		locations = append(locations, lmt.location)
-		motions = append(motions, lmt.motion)
-		times = append(times, &lmt.gpsTime)
-	}
-	populateAccelerations(motions)
-
-	return locations, motions, times, nil
 }
 
 func populateAccelerations(motions []*types.Motion) {

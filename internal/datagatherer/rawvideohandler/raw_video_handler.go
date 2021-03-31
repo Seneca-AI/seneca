@@ -117,7 +117,7 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 			return err
 		}
 	} else {
-		mp4File, err = mp4.CreateTempMP4File(userID, mp4Name)
+		mp4File, err = mp4.CreateTempMP4File(mp4Name)
 		if err != nil {
 			rvh.logger.Error(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 			return err

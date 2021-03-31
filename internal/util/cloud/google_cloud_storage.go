@@ -161,7 +161,7 @@ func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName, bucketFileName s
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error extracting bytes from file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
 	}
 
-	tempFile, err := mp4.CreateTempMP4File("", fmt.Sprintf("%s/%s", bucketName, bucketFileName))
+	tempFile, err := mp4.CreateTempMP4File(bucketFileName)
 	if err != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error creating temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
 	}

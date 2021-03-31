@@ -264,12 +264,16 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawMotion(rawMotion *types.RawMoti
 // InsertUniqueRawMotion inserts the given *types.RawMotion if a RawMotion with the same creation time doesn't already exist.
 func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawMotion(rawMotion *types.RawMotion) (string, error) {
 	existingRawMotion, err := gcdc.GetRawMotion(rawMotion.UserId, util.MillisecondsToTime(rawMotion.TimestampMs))
-	if err != nil {
-		return "", fmt.Errorf("error checking if RawMotion already exists - err: %w", err)
+
+	var nfe *senecaerror.NotFoundError
+	if err != nil && !errors.As(err, &nfe) {
+		return "", fmt.Errorf("error checking if raw motion already exists - err: %w", err)
 	}
+
 	if existingRawMotion != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("rawMotion with timestamp %d for user %s already exists", rawMotion.TimestampMs, rawMotion.UserId))
 	}
+
 	return gcdc.InsertRawMotion(rawMotion)
 }
 

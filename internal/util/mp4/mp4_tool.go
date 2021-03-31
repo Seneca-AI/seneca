@@ -5,6 +5,7 @@ import (
 	"seneca/api/types"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // MP4ToolInterface defines the interface for interacting with MP4 files
@@ -18,6 +19,15 @@ type MP4ToolInterface interface {
 	// 		*types.RawVideo: the RawVideo object
 	//		error
 	ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error)
+	// 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
+	//	Params:
+	//		 pathToVideo string: the video to analyze
+	//	Returns:
+	//		[]*types.Location
+	//		[]*types.Motion
+	//		[]*time.Time
+	//		error
+	ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error)
 }
 
 // In the form "<deg> deg <deg_mins>' <deg_sconds>\"".

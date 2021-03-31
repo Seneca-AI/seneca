@@ -12,17 +12,19 @@ import (
 
 // CreateTempMP4File creates a temp MP4 file with the given name and returns it.
 // Params:
-//		userID string: used for returnign NewUserError
 //		name string
 // Returns:
 //		*os.File
 //		error
-func CreateTempMP4File(userID, name string) (*os.File, error) {
+func CreateTempMP4File(name string) (*os.File, error) {
 	nameParts := strings.Split(name, ".")
-	if len(nameParts) != 2 {
-		return nil, senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - no file name not in the form (name.mp4)"), "MP4 file not in format (name.mp4).")
+
+	if nameParts[len(nameParts)-1] != "mp4" {
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("file name %q does not end in 'mp4'", name))
 	}
-	tempName := strings.Join([]string{nameParts[0], "*", nameParts[1]}, ".")
+
+	tempNameNoSuffix := strings.Join(nameParts[:len(nameParts)-1], ".")
+	tempName := strings.Join([]string{tempNameNoSuffix, "*", "mp4"}, ".")
 
 	tempFile, err := ioutil.TempFile("", tempName)
 	if err != nil {
