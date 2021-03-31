@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-// FakeNoSQLDatabaseClient implements a fake version of the NoSQLDatabaseInterface.
+//	FakeNoSQLDatabaseClient implements a fake version of the NoSQLDatabaseInterface.
 type FakeNoSQLDatabaseClient struct {
-	// keyed by an ID
+	// keyed by randomly generated ID
 	rawVideos             map[string]*types.RawVideo
 	cutVideos             map[string]*types.CutVideo
 	rawLocations          map[string]*types.RawLocation
@@ -21,7 +21,11 @@ type FakeNoSQLDatabaseClient struct {
 	createTimeQueryOffset time.Duration
 }
 
-// NewFakeNoSQLDatabaseClient returns an instance of FakeNoSQLDatabaseClient.
+//	NewFakeNoSQLDatabaseClient returns an instance of FakeNoSQLDatabaseClient.
+//	Params:
+//		createTimeQueryOffset time.Duration: +/- timespan used for searching RawVideo and CutVideos
+//	Returns:
+//		 *FakeNoSQLDatabaseClient
 func NewFakeNoSQLDatabaseClient(createTimeQueryOffset time.Duration) *FakeNoSQLDatabaseClient {
 	return &FakeNoSQLDatabaseClient{
 		rawVideos:             make(map[string]*types.RawVideo),
@@ -32,14 +36,14 @@ func NewFakeNoSQLDatabaseClient(createTimeQueryOffset time.Duration) *FakeNoSQLD
 	}
 }
 
-// InsertRawVideo inserts the given *types.RawVideo into the internal rawVideos map.
+//	InsertRawVideo inserts the given *types.RawVideo into the internal rawVideos map.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
 	rawVideo.Id = generateUniqueID()
 	fnsdc.rawVideos[rawVideo.Id] = rawVideo
 	return rawVideo.Id, nil
 }
 
-// GetRawVideo returns the *types.RawVideo for the given user at the given create time.
+// 	GetRawVideo returns the *types.RawVideo for the given user at the given create time.
 func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error) {
 	beginTimeQuery := createTime.Add(-fnsdc.createTimeQueryOffset)
 	endTimeQuery := createTime.Add(fnsdc.createTimeQueryOffset)
@@ -64,14 +68,14 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time
 	return rawVideos[0], nil
 }
 
-// DeleteRawVideoByID deletes the rawVideo with the given ID from the internal rawVideos map.
+// 	DeleteRawVideoByID deletes the rawVideo with the given ID from the internal rawVideos map.
 func (fnsdc *FakeNoSQLDatabaseClient) DeleteRawVideoByID(id string) error {
 	delete(fnsdc.rawVideos, id)
 	return nil
 }
 
-// InsertUniqueRawVideo inserts the given *types.RawVideo into the internal rawVideos map, making
-// sure it doesn't already exist.
+// 	InsertUniqueRawVideo inserts the given *types.RawVideo into the internal rawVideos map, making
+// 	sure it doesn't already exist.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error) {
 	createTime := util.MillisecondsToTime(rawVideo.CreateTimeMs)
 
@@ -89,7 +93,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawVideo(rawVideo *types.RawVi
 	return fnsdc.InsertRawVideo(rawVideo)
 }
 
-// GetCutVideo returns the *types.CutVideo for the given user at the given create time.
+// 	GetCutVideo returns the *types.CutVideo for the given user at the given create time.
 func (fnsdc *FakeNoSQLDatabaseClient) GetCutVideo(userID string, createTime time.Time) (*types.CutVideo, error) {
 	beginTimeQuery := createTime.Add(-fnsdc.createTimeQueryOffset)
 	endTimeQuery := createTime.Add(fnsdc.createTimeQueryOffset)
@@ -104,7 +108,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetCutVideo(userID string, createTime time
 	}
 
 	if len(cutVideos) > 1 {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one value for cutVideo for user ID %q and createTime %v", userID, createTime))
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one cutVideo for user ID %q and createTime %v", userID, createTime))
 	}
 
 	if len(cutVideos) == 0 {
@@ -127,8 +131,8 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertCutVideo(cutVideo *types.CutVideo) (
 	return cutVideo.Id, nil
 }
 
-// InsertUniqueCutVideo inserts the given *types.CutVideo into the internal rawVideos map, making
-// sure it doesn't already exist.
+// InsertUniqueCutVideo inserts the given *types.CutVideo into the internal cutVideos map, if
+// it doesn't already exist.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueCutVideo(cutVideo *types.CutVideo) (string, error) {
 	createTime := util.MillisecondsToTime(cutVideo.CreateTimeMs)
 
@@ -158,7 +162,7 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawLocation(userID string, timestamp ti
 	}
 
 	if len(rawLocations) > 1 {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one value for cutVideo for user ID %q and createTime %v", userID, timestamp))
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one rawLocation for user ID %q and timestamp %v", userID, timestamp))
 	}
 
 	if len(rawLocations) == 0 {
@@ -181,8 +185,8 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertRawLocation(rawLocation *types.RawLo
 	return rawLocation.Id, nil
 }
 
-// InsertUniqueRawLocation inserts the given *types.RawLocation into the internal rawLocations map, making
-// sure it doesn't already exist.
+// InsertUniqueRawLocation inserts the given *types.RawLocation into the internal rawLocations map, if
+// it doesn't already exist.
 func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawLocation(rawLocation *types.RawLocation) (string, error) {
 	timestamp := util.MillisecondsToTime(rawLocation.TimestampMs)
 
@@ -212,11 +216,11 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawMotion(userID string, timestamp time
 	}
 
 	if len(rawMotions) > 1 {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one value for cutVideo for user ID %q and createTime %v", userID, timestamp))
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("more than one rawMotion for user ID %q and timestamp %v", userID, timestamp))
 	}
 
 	if len(rawMotions) == 0 {
-		return nil, senecaerror.NewNotFoundError(fmt.Errorf("raw motion with userID %q and createTime %v not found in the store", userID, timestamp))
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("raw motion with userID %q and timestamp %v not found in the store", userID, timestamp))
 	}
 
 	return rawMotions[0], nil

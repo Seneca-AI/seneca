@@ -5,3 +5,18 @@ indexes:
   - name: UserId
   - name: CreateTimeMs
   
+- kind: CutVideo
+  properties:
+  - name: UserId
+  - name: CreateTimeMs
+
+- kind: RawLocation
+  properties:
+  - name: UserId
+  - name: TimestampMs
+
+- kind: RawMotion
+  properties:
+  - name: UserId
+  - name: TimestampMs
+  

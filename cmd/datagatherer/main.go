@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	port = "8080"
+	port                 = "8080"
+	rawVideoEndpointPath = "rawvideo"
 )
 
 // TODO: make this configurable in different envs.
@@ -53,15 +54,15 @@ func main() {
 		return
 	}
 
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, mp4Tool, logger, "", projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, mp4Tool, logger, projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return
 	}
 
-	http.HandleFunc("/rawvideo", rawVideoHandler.HandleRawVideoPostRequest)
+	http.HandleFunc(fmt.Sprintf("/%s", rawVideoEndpointPath), rawVideoHandler.HandleRawVideoPostRequest)
 
-	fmt.Printf("Starting server at port 8080\n")
+	fmt.Printf("Starting server at port %s\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
 		log.Fatal(err)
 	}

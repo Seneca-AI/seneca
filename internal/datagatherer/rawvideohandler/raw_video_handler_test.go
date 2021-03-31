@@ -134,7 +134,7 @@ func newRawVideoHandlerForTests() (*RawVideoHandler, error) {
 	fakeMP4Tool := mp4.NewFakeMP4Tool()
 	localLogger := logging.NewLocalLogger()
 
-	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, fakeMP4Tool, localLogger, "", "")
+	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, fakeMP4Tool, localLogger, "")
 	if err != nil {
 		return nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
 	}
