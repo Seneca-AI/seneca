@@ -67,3 +67,33 @@ func TestDurationToString(t *testing.T) {
 		}
 	}
 }
+
+func TestMillisecondsToDuration(t *testing.T) {
+	testCases := []struct {
+		durms int64
+		want  time.Duration
+	}{
+		{
+			want:  time.Second,
+			durms: 1000,
+		},
+		{
+			want:  time.Minute,
+			durms: 60000,
+		},
+		{
+			want:  time.Hour,
+			durms: 3600000,
+		}, {
+			want:  (time.Millisecond + time.Second + time.Minute + time.Hour),
+			durms: 3661001,
+		},
+	}
+	for _, tc := range testCases {
+		got := MillisecondsToDuration(tc.durms)
+		if got != tc.want {
+			t.Errorf("Got %v for DurationToMilliseconds(%d), want %v", got, tc.durms, tc.want)
+		}
+	}
+
+}

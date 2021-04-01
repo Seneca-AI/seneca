@@ -27,7 +27,7 @@ func TestWritePartialRawVideoToGCD(t *testing.T) {
 
 	partialRawVideo := &types.RawVideo{
 		CreateTimeMs: util.TimeToMilliseconds(creationTime),
-		DurationMs:   util.DurationToMilliseconds(duration),
+		DurationMs:   duration.Milliseconds(),
 	}
 
 	// Verify value.
@@ -68,7 +68,7 @@ func TestWritePartialRawVideoToGCDDisallowsDuplicates(t *testing.T) {
 
 	partialRawVideo := &types.RawVideo{
 		CreateTimeMs: util.TimeToMilliseconds(creationTime),
-		DurationMs:   util.DurationToMilliseconds(duration),
+		DurationMs:   duration.Milliseconds(),
 	}
 
 	if err = rawVideoHandler.writePartialRawVideoToGCD(userID, bucketFileName, partialRawVideo); err != nil {

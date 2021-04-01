@@ -21,7 +21,7 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 
 	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
 	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
-	expectedDurationMs := util.DurationToMilliseconds(time.Minute)
+	expectedDurationMs := time.Minute.Milliseconds()
 
 	rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMp4)
 	if err != nil {

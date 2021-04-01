@@ -31,15 +31,6 @@ func TimeToMilliseconds(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// DurationToMilliseconds converts the time.Duration to milliseconds.
-// Params:
-//		t *time.Duration
-// Returns:
-//		int64: milliseconds
-func DurationToMilliseconds(t time.Duration) int64 {
-	return t.Milliseconds() / int64(time.Millisecond)
-}
-
 // MillisecondsToTime converts milliseconds to a time.Time object.
 // Params:
 //		ms int64
@@ -125,47 +116,3 @@ func IsCIEnv() bool {
 }
 
 //	ConstructRawLocationDatas construct a list of types.RawLocation from a list of types.Location and time.Time for the given userID.
-//	Params:
-//		userID string
-//		locations []*types.Location
-//		times	[]time.Time
-//	Returns:
-//		[]*types.RawLocation
-//		error
-func ConstructRawLocationDatas(userID string, locations []*types.Location, times []time.Time) ([]*types.RawLocation, error) {
-	if len(locations) != len(times) {
-		return nil, fmt.Errorf("locations has length %d, but times has legth %d", len(locations), len(times))
-	}
-	rawLocations := []*types.RawLocation{}
-	for i := range locations {
-		rawLocations = append(rawLocations, &types.RawLocation{
-			UserId:      userID,
-			Location:    locations[i],
-			TimestampMs: TimeToMilliseconds(times[i]),
-		})
-	}
-	return rawLocations, nil
-}
-
-//	ConstructRawMotionDatas construct a list of types.RawMotion from a list of types.Motion and time.Time for the given userID.
-//	Params:
-//		userID string
-//		motions []*types.Motion
-//		times	[]time.Time
-//	Returns:
-//		[]*types.RawMotion
-//		error
-func ConstructRawMotionDatas(userID string, motions []*types.Motion, times []time.Time) ([]*types.RawMotion, error) {
-	if len(motions) != len(times) {
-		return nil, fmt.Errorf("motions has length %d, but times has legth %d", len(motions), len(times))
-	}
-	rawMotions := []*types.RawMotion{}
-	for i := range motions {
-		rawMotions = append(rawMotions, &types.RawMotion{
-			UserId:      userID,
-			Motion:      motions[i],
-			TimestampMs: TimeToMilliseconds(times[i]),
-		})
-	}
-	return rawMotions, nil
-}

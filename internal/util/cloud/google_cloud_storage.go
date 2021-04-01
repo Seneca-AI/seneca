@@ -18,6 +18,8 @@ import (
 const (
 	// RawVideoBucketName is the name of the GCS bucket for raw videos.
 	RawVideoBucketName = "seneca_raw_videos"
+	// CutVideoBucketName is the name of the GCS bucket for cut videos.
+	CutVideoBucketName = "seneca_cut_videos"
 	// QuickTimeOut is the time out used for operations that should be quick,
 	// like reading metadata or creating a bucket.
 	QuickTimeOut = time.Second * 10
