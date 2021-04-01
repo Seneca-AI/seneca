@@ -160,9 +160,12 @@ func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, err
 	durationString = durationString + "s"
 	duration, err := time.ParseDuration(durationString)
 	if err != nil {
-		return 0, senecaerror.NewBadStateError(fmt.Errorf("error parsing Duration - err: %v", err))
+		return 0, senecaerror.NewUserError("", fmt.Errorf("error parsing duration - err: %w", err), "Malformed MP4 metadata.")
 	}
-	return util.DurationToMilliseconds(duration), nil
+	if duration.Milliseconds() == 0 {
+		return 0, senecaerror.NewUserError("", fmt.Errorf("duration from durationString %q is zero", durationString), "Malformed MP4 metadata.")
+	}
+	return duration.Milliseconds(), nil
 }
 
 // Used for sorting by time.

@@ -155,8 +155,6 @@ func (gcdc *GoogleCloudDatastoreClient) GetCutVideo(userID string, createTime ti
 
 	query = addTimeOffsetFilter(createTime, gcdc.createTimeQueryOffset, query)
 
-	fmt.Printf("query: %v\n", query)
-
 	var cutVideoOut []*types.CutVideo
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &cutVideoOut)
@@ -203,8 +201,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertCutVideo(cutVideo *types.CutVideo)
 func (gcdc *GoogleCloudDatastoreClient) InsertUniqueCutVideo(cutVideo *types.CutVideo) (string, error) {
 	existingCutVideo, err := gcdc.GetCutVideo(cutVideo.UserId, util.MillisecondsToTime(cutVideo.CreateTimeMs))
 	var nfe *senecaerror.NotFoundError
-
-	if !errors.As(err, &nfe) {
+	if err != nil && !errors.As(err, &nfe) {
 		return "", fmt.Errorf("error checking if cut video already exists - err: %w", err)
 	}
 

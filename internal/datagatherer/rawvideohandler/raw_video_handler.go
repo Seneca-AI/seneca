@@ -117,8 +117,9 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 		rvh.logger.Warning(fmt.Sprintf("Error handling RawVideoRequest %v - err: %v", r, err))
 		return err
 	}
+	fmt.Printf("RawVideo is: %v\n", rawVideo)
 
-	if rawVideo.DurationMs > util.DurationToMilliseconds(constants.MaxInputVideoDuration) {
+	if rawVideo.DurationMs > constants.MaxInputVideoDuration.Milliseconds() {
 		userError := senecaerror.NewUserError(userID, fmt.Errorf("error handling RawVideoRequest - duration %v is longer than maxVideoDuration %v", util.MillisecondsToDuration(rawVideo.DurationMs), constants.MaxInputVideoDuration), fmt.Sprintf("Max video duration is %v", constants.MaxInputVideoDuration))
 		rvh.logger.Log(userError.Error())
 		return err
@@ -202,8 +203,11 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("mp4 file name empty"), "MP4 file name empty.")
 	}
 
-	mp4PathParts := strings.Split(header.Filename, "/")
-	if !strings.HasSuffix(mp4PathParts[len(mp4PathParts)-1], "mp4") {
+	mp4Name, err := util.GetFileNameFromPath(header.Filename)
+	if err != nil {
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file name %q not in the form (name.mp4)", header.Filename), "MP4 file not in format (name.mp4).")
+	}
+	if !strings.HasSuffix(mp4Name, "mp4") {
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file name %q not in the form (name.mp4)", header.Filename), "MP4 file not in format (name.mp4).")
 	}
 
@@ -211,5 +215,5 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error copying bytes - err: %v", err), fmt.Sprintf("Corrupted file: %q.", header.Filename))
 	}
 
-	return buf.Bytes(), mp4PathParts[len(mp4PathParts)-1], nil
+	return buf.Bytes(), mp4Name, nil
 }
