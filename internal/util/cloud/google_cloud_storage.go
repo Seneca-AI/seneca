@@ -15,11 +15,22 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// BucketName is used for specifying buckets.
+type BucketName string
+
 const (
-	// RawVideoBucketName is the name of the GCS bucket for raw videos.
-	RawVideoBucketName = "seneca_raw_videos"
+	// RawVideoBucketName defines the bucket used for raw videos.
+	RawVideoBucketName BucketName = "seneca_raw_videos"
 	// CutVideoBucketName is the name of the GCS bucket for cut videos.
-	CutVideoBucketName = "seneca_cut_videos"
+	CutVideoBucketName BucketName = "seneca_cut_videos"
+)
+
+func (bn *BucketName) String() string {
+	return string(*bn)
+}
+
+const (
+
 	// QuickTimeOut is the time out used for operations that should be quick,
 	// like reading metadata or creating a bucket.
 	QuickTimeOut = time.Second * 10
@@ -60,19 +71,19 @@ func NewGoogleCloudStorageClient(ctx context.Context, projectID string, quickTim
 }
 
 // CreateBucket creates a bucket in the project with the given name.
-func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName string) error {
+func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName BucketName) error {
 	ctx := context.Background()
 
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
-	if err := gcsc.client.Bucket(bucketName).Create(ctx, gcsc.projectID, nil); err != nil {
+	if err := gcsc.client.Bucket(bucketName.String()).Create(ctx, gcsc.projectID, nil); err != nil {
 		return senecaerror.NewCloudError(err)
 	}
 	return nil
 }
 
 // BucketExists checks if a bucket with the given name already exists.
-func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, error) {
+func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName BucketName) (bool, error) {
 	ctx := context.Background()
 
 	var buckets []string
@@ -91,7 +102,7 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, err
 	}
 
 	for _, b := range buckets {
-		if b == bucketName {
+		if b == bucketName.String() {
 			return true, nil
 		}
 	}
@@ -101,12 +112,12 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName string) (bool, err
 // BucketFileExists checks if a file with the given name exists in the given bucket.
 // This is done by trying to read the attributes of the file, and if an error is
 // returned, we assume the file does not exist.
-func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileName string) (bool, error) {
+func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName BucketName, bucketFileName string) (bool, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
 
-	object := gcsc.client.Bucket(bucketName).Object(bucketFileName)
+	object := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName)
 
 	// If there is an error, we assume the file does not exist.
 	if _, err := object.Attrs(ctx); err != nil {
@@ -117,7 +128,7 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName, bucketFileNam
 }
 
 // WriteBucketFile writes the given local file to the given bucket with the bucketFileName.
-func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error {
+func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName BucketName, localFileNameAndPath, bucketFileName string) error {
 	var err error
 	if localFileNameAndPath == "" {
 		return senecaerror.NewBadStateError(fmt.Errorf("received empty localFileName"))
@@ -136,7 +147,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameA
 
 	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
 	defer cancel()
-	wc := gcsc.client.Bucket(bucketName).Object(bucketFileName).NewWriter(ctx)
+	wc := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName).NewWriter(ctx)
 	if _, err = io.Copy(wc, f); err != nil {
 		return senecaerror.NewBadStateError(err)
 	}
@@ -147,12 +158,12 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName, localFileNameA
 }
 
 // GetBucketFile downloads the file with the given bucketFileName, stores it in a temp file, and returns bytes.
-func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName, bucketFileName string) (string, error) {
+func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName BucketName, bucketFileName string) (string, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
 	defer cancel()
 
-	rc, err := gcsc.client.Bucket(bucketName).Object(bucketFileName).NewReader(ctx)
+	rc, err := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName).NewReader(ctx)
 	if err != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error reading from bucket %q for file %q - err: %w", bucketName, bucketFileName, err))
 	}

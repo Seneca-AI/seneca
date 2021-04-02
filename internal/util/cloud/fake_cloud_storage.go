@@ -11,24 +11,24 @@ import (
 // No file values are actually stored, simple whether or not they exist.
 type FakeSimpleStorageClient struct {
 	// key is bucket, value is files
-	files map[string]map[string][]byte
+	files map[BucketName]map[string][]byte
 }
 
 // NewFakeSimpleStorageClient returns an instance of FakeSimpleStorageClient.
 func NewFakeSimpleStorageClient() *FakeSimpleStorageClient {
 	return &FakeSimpleStorageClient{
-		files: make(map[string]map[string][]byte),
+		files: make(map[BucketName]map[string][]byte),
 	}
 }
 
 // CreateBucket creates a bucket with the given name in the internal bucket and files map.
-func (fssc *FakeSimpleStorageClient) CreateBucket(bucketName string) error {
+func (fssc *FakeSimpleStorageClient) CreateBucket(bucketName BucketName) error {
 	fssc.files[bucketName] = make(map[string][]byte)
 	return nil
 }
 
 // BucketExists checks if a bucket with the given name exists in the internal map.
-func (fssc *FakeSimpleStorageClient) BucketExists(bucketName string) (bool, error) {
+func (fssc *FakeSimpleStorageClient) BucketExists(bucketName BucketName) (bool, error) {
 	_, ok := fssc.files[bucketName]
 	if !ok {
 		return false, nil
@@ -37,7 +37,7 @@ func (fssc *FakeSimpleStorageClient) BucketExists(bucketName string) (bool, erro
 }
 
 // BucketFileExists checks if the given bucket exists, and if it holds the given file.
-func (fssc *FakeSimpleStorageClient) BucketFileExists(bucketName, bucketFileName string) (bool, error) {
+func (fssc *FakeSimpleStorageClient) BucketFileExists(bucketName BucketName, bucketFileName string) (bool, error) {
 	bucketMap, ok := fssc.files[bucketName]
 	if !ok {
 		return false, nil
@@ -51,7 +51,7 @@ func (fssc *FakeSimpleStorageClient) BucketFileExists(bucketName, bucketFileName
 
 // WriteBucketFile sets the internal map value for the given bucket at the given bucketFileName to the bytes,
 // stored at the file path.
-func (fssc *FakeSimpleStorageClient) WriteBucketFile(bucketName, localFileNameAndPath, bucketFileName string) error {
+func (fssc *FakeSimpleStorageClient) WriteBucketFile(bucketName BucketName, localFileNameAndPath, bucketFileName string) error {
 	if localFileNameAndPath == "" {
 		return senecaerror.NewBadStateError(fmt.Errorf("received empty localFileName"))
 	}
@@ -86,7 +86,7 @@ func (fssc *FakeSimpleStorageClient) WriteBucketFile(bucketName, localFileNameAn
 }
 
 // GetBucketFile writes the bytes stored in the map to a temp file and returns the path to the file.
-func (fssc *FakeSimpleStorageClient) GetBucketFile(bucketName, bucketFileName string) (string, error) {
+func (fssc *FakeSimpleStorageClient) GetBucketFile(bucketName BucketName, bucketFileName string) (string, error) {
 	bucketMap, ok := fssc.files[bucketName]
 	if !ok {
 		return "", fmt.Errorf("bucket %q does not exist", bucketName)

@@ -23,11 +23,12 @@ const ffmpegCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
 //		cutVideoDur time.Duration: the duration the cut videos should be
 //		pathToRawVideo string: the path to the mp4 to cut up
 //		rawVideo *types.RawVideo: the RawVideo data to reference
+//		dryRun bool: whether temp files should actually be created, or we just want to generated the output strings
 //	Returns:
 //		[]*types.CutVideo: the cut video data
 //		[]string: the paths to the cut video temp files
 //		error
-func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo, dryRun bool) ([]*types.CutVideo, []string, error) {
 	rawVideoFileName, err := util.GetFileNameFromPath(pathToRawVideo)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error extracting pathToRawVideo %q - err: %v", pathToRawVideo, err)
@@ -59,9 +60,12 @@ func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *typ
 	}
 
 	// Create the temp dir for the CutVideos to be staged.
-	tempDirName, err := ioutil.TempDir("", fmt.Sprintf("%s.CutVideos.*", rawVideo.UserId))
-	if err != nil {
-		return nil, nil, senecaerror.NewBadStateError(fmt.Errorf("error creating default temp dir with pattern %s.CutVideos.* - err: %v", rawVideo.UserId, err))
+	tempDirName := ""
+	if !dryRun {
+		tempDirName, err = ioutil.TempDir("", fmt.Sprintf("%s.CutVideos.*", rawVideo.UserId))
+		if err != nil {
+			return nil, nil, senecaerror.NewBadStateError(fmt.Errorf("error creating default temp dir with pattern %s.CutVideos.* - err: %v", rawVideo.UserId, err))
+		}
 	}
 
 	cutVideoFileNames := []string{}
@@ -79,6 +83,10 @@ func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *typ
 		commandStringParts := strings.Split(commandString, " ")
 		if len(commandStringParts) != 10 {
 			return nil, nil, senecaerror.NewBadStateError(fmt.Errorf("malformed command string for ffmpeg: %q", commandString))
+		}
+
+		if dryRun {
+			continue
 		}
 
 		// Strangely, a first string arg is required, then the rest can come.

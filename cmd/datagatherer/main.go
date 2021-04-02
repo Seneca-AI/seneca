@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"seneca/internal/datagatherer/cutvideohandler"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
@@ -17,6 +18,7 @@ import (
 const (
 	port                 = "8080"
 	rawVideoEndpointPath = "rawvideo"
+	cutVideoEndpointPath = "cutvideo"
 )
 
 // TODO: make this configurable in different envs.
@@ -60,7 +62,14 @@ func main() {
 		return
 	}
 
+	cutVideoHandler, err := cutvideohandler.NewCutVideoHandler(gcsc, gcsd, mp4Tool, logger, projectID)
+	if err != nil {
+		logger.Critical(fmt.Sprintf("cloud.NewCutVideoHandler() returns - err: %v", err))
+		return
+	}
+
 	http.HandleFunc(fmt.Sprintf("/%s", rawVideoEndpointPath), rawVideoHandler.HandleRawVideoPostRequest)
+	http.HandleFunc(fmt.Sprintf("/%s", cutVideoEndpointPath), cutVideoHandler.HandleRawVideoPostRequest)
 
 	fmt.Printf("Starting server at port %s\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {

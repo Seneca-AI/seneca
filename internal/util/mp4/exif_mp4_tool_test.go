@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	pathToTestMP4       = "../../../test/testdata/dad_example.mp4"
+	pathToNoMetadataMP4 = "../../../test/testdata/no_metadata.mp4"
+)
+
 func TestGetMetadataHasExpectedData(t *testing.T) {
 	if util.IsCIEnv() {
 		t.Skip("Skipping exiftool test in GitHub env.")
@@ -19,13 +24,12 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
 	}
 
-	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
 	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
 	expectedDurationMs := time.Minute.Milliseconds()
 
-	rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMp4)
+	rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMP4)
 	if err != nil {
-		t.Errorf("GetMetadata(%s) returns err: %v", pathToTestMp4, err)
+		t.Errorf("GetMetadata(%s) returns err: %v", pathToTestMP4, err)
 		return
 	}
 
@@ -47,14 +51,13 @@ func TestGetMetadataHasRejectsFileWithZeroCreationTime(t *testing.T) {
 		t.Errorf("NewExitMP4Tool() returns err: %v", err)
 	}
 
-	pathToTestMp4 := "../../../test/testdata/no_metadata.mp4"
-	_, err = exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMp4)
+	_, err = exifMP4Tool.ParseOutRawVideoMetadata(pathToNoMetadataMP4)
 	if err == nil {
-		t.Errorf("Expected err from exifMP4Tool.ParseOutRawVideoMetadata(%q), got nil", pathToTestMp4)
+		t.Errorf("Expected err from exifMP4Tool.ParseOutRawVideoMetadata(%q), got nil", pathToNoMetadataMP4)
 	}
 	var userError *senecaerror.UserError
 	if !errors.As(err, &userError) {
-		t.Errorf("Want UserError from exifMP4Tool.ParseOutRawVideoMetadata(%q), got %v", pathToTestMp4, err)
+		t.Errorf("Want UserError from exifMP4Tool.ParseOutRawVideoMetadata(%q), got %v", pathToNoMetadataMP4, err)
 	}
 }
 
@@ -240,11 +243,9 @@ func TestGetLocationDataFileMetadata(t *testing.T) {
 		t.Error(err)
 	}
 
-	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
-
 	expectedAccelerations := []float64{0, -2, -2, -2, -2, -3, -1, -2, 0, -5, -2, -2, 0, 3, 4, 2, 3, 2, 1, 0, 0, -1, -1, -3, -2, -3, -2, 0, 0, -1, 1, 2, 1, 2, 1, 1, 1, 9, 2, 1, 0, 0, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}
 
-	_, motions, _, err := exifTool.ParseOutGPSMetadata(pathToTestMp4)
+	_, motions, _, err := exifTool.ParseOutGPSMetadata(pathToTestMP4)
 	if err != nil {
 		t.Errorf("getLocationDataFileMetadata() returns err - %v", err)
 	}
