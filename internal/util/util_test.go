@@ -27,13 +27,15 @@ func TestGetFileNameFromPath(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got, err := GetFileNameFromPath(tc.path)
-		if got != tc.want {
-			t.Errorf("want file name %q, got %q", tc.want, got)
-		}
-		if tc.wantErr == (err == nil) {
-			t.Errorf("wantErr (%t), but got %v", tc.wantErr, err)
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := GetFileNameFromPath(tc.path)
+			if got != tc.want {
+				t.Errorf("want file name %q, got %q", tc.want, got)
+			}
+			if tc.wantErr == (err == nil) {
+				t.Errorf("wantErr (%t), but got %v", tc.wantErr, err)
+			}
+		})
 	}
 }
 

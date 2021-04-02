@@ -109,6 +109,25 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 	return rawVideoOut[0], nil
 }
 
+// GetRawVideoByID gets the rawVideo with the given ID from the datastore.
+func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*types.RawVideo, error) {
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error converting id to int64 - err: %v", err))
+	}
+
+	rawVideo := &types.RawVideo{}
+
+	if err := gcdc.client.Get(context.Background(), &datastore.Key{
+		Kind:   rawVideoKind,
+		ID:     idInt,
+		Parent: &rawVideoKey,
+	}, rawVideo); err != nil {
+		return nil, senecaerror.NewCloudError(fmt.Errorf("error getting raw video by ID - err: %v", err))
+	}
+	return rawVideo, nil
+}
+
 // InsertRawVideo inserts the given *types.RawVideo into the RawVideos Directory.
 func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
 	key := datastore.IncompleteKey(rawVideoKind, &rawVideoKey)
@@ -125,7 +144,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.Raw
 	existingRawVideo, err := gcdc.GetRawVideo(rawVideo.UserId, util.MillisecondsToTime(rawVideo.CreateTimeMs))
 
 	var nfe *senecaerror.NotFoundError
-	if !errors.As(err, &nfe) {
+	if err != nil && !errors.As(err, &nfe) {
 		return "", fmt.Errorf("error checking if raw video already exists - err: %w", err)
 	}
 
@@ -135,7 +154,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.Raw
 	return gcdc.InsertRawVideo(rawVideo)
 }
 
-// DeleteRawVideoByID deletes the rawVideoo with the given ID from the datastore.
+// DeleteRawVideoByID deletes the rawVideo with the given ID from the datastore.
 func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

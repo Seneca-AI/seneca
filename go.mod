@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/storage v1.14.0
 	github.com/barasher/go-exiftool v1.3.2
 	github.com/golang/protobuf v1.5.1 // indirect
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-cmp v0.5.5
 	google.golang.org/api v0.40.0
 	google.golang.org/protobuf v1.26.0
 )

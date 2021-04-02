@@ -25,6 +25,14 @@ type NoSQLDatabaseInterface interface {
 	//		error
 	DeleteRawVideoByID(id string) error
 
+	// GetRawVideoByID gets the rawVideo with the given ID from the datastore.
+	// Params:
+	//		id string
+	// Returns:
+	//		*types.RawVideo
+	//		error
+	GetRawVideoByID(id string) (*types.RawVideo, error)
+
 	// InsertRawVideo inserts the given *types.RawVideo into the RawVideos Directory.
 	// Params:
 	// 		rawVideo *types.RawVideo: the rawVideo

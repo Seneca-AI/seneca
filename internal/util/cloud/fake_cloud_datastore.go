@@ -68,6 +68,15 @@ func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideo(userID string, createTime time
 	return rawVideos[0], nil
 }
 
+// GetRawVideoByID returns the *types.RawVideo with the given ID from the internal map.
+func (fnsdc *FakeNoSQLDatabaseClient) GetRawVideoByID(id string) (*types.RawVideo, error) {
+	rawVideo, ok := fnsdc.rawVideos[id]
+	if !ok {
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("raw video with ID %q not found in the store", id))
+	}
+	return rawVideo, nil
+}
+
 // 	DeleteRawVideoByID deletes the rawVideo with the given ID from the internal rawVideos map.
 func (fnsdc *FakeNoSQLDatabaseClient) DeleteRawVideoByID(id string) error {
 	delete(fnsdc.rawVideos, id)
