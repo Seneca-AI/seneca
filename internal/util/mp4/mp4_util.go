@@ -28,7 +28,7 @@ func CreateTempMP4File(name string) (*os.File, error) {
 
 	tempFile, err := ioutil.TempFile("", tempName)
 	if err != nil {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("error creating temp file - err: %v", err))
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error creating temp file %q - err: %v", tempName, err))
 	}
 
 	return tempFile, nil
