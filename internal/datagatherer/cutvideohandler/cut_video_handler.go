@@ -1,10 +1,12 @@
 package cutvideohandler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
+	"seneca/internal/util"
 	"seneca/internal/util/cloud"
 	"seneca/internal/util/data"
 	"seneca/internal/util/logging"
@@ -85,8 +87,17 @@ func (cvh *CutVideoHandler) ProcessAndCutRawVideo(rawVideoID string) error {
 		return fmt.Errorf("error getting raw video by ID - err: %w", err)
 	}
 
-	if len(rawVideo.CutVideoId) > 0 {
-		cvh.logger.Log(fmt.Sprintf("RawVideo %v already cut.", rawVideo))
+	cutVideo, err := cvh.noSQLDB.GetCutVideo(rawVideo.UserId, util.MillisecondsToTime(rawVideo.CreateTimeMs))
+	if err != nil {
+		var nfe *senecaerror.NotFoundError
+		if err != nil && !errors.As(err, &nfe) {
+			errToReturn := fmt.Errorf("error getting CutVideoByID: %w", err)
+			cvh.logger.Error(errToReturn.Error())
+			return errToReturn
+		}
+	}
+	if cutVideo != nil {
+		cvh.logger.Log(fmt.Sprintf("CutVideo for user %q with create time ms %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs))
 		return nil
 	}
 

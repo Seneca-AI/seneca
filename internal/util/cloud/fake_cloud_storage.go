@@ -97,7 +97,7 @@ func (fssc *FakeSimpleStorageClient) GetBucketFile(bucketName BucketName, bucket
 		return "", fmt.Errorf("file %q in bucket %q does not exist", bucketFileName, bucketName)
 	}
 
-	tempFile, err := mp4.CreateTempMP4File(fmt.Sprintf("%s/%s", bucketName, bucketFileName))
+	tempFile, err := mp4.CreateTempMP4File(bucketFileName)
 	if err != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error creating temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
 	}
