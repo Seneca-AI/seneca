@@ -38,6 +38,7 @@ func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *types.RawVi
 	return cutVideos
 }
 
+//	ConstructRawLocationDatas construct a list of types.RawLocation from a list of types.Location and time.Time for the given userID.
 //	Params:
 //		userID string
 //		locations []*types.Location

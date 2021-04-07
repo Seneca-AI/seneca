@@ -10,7 +10,7 @@ import (
 
 	"seneca/internal/datagatherer/cutvideohandler"
 	"seneca/internal/datagatherer/rawvideohandler"
-	"seneca/internal/util/cloud"
+	"seneca/internal/util/cloud/gcp"
 	"seneca/internal/util/logging"
 	"seneca/internal/util/mp4"
 )
@@ -38,13 +38,13 @@ func main() {
 		return
 	}
 
-	gcsc, err := cloud.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
+	gcsc, err := gcp.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudStorageClient() returns - err: %v", err))
 		return
 	}
 
-	gcsd, err := cloud.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
+	gcsd, err := gcp.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudDatastoreClient() returns - err: %v", err))
 		return
