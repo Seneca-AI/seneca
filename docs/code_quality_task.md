@@ -3,6 +3,7 @@ Add your name to a task if you're working on it.
 ## Larger Tasks
 1. [Luca409] ~Define an error system~
 1. Figure out how to properly use context.Context.
+    * And use context.TODO() in the mean time
 1. Use the standard log package instead of prints.
 1. Increase test coverage.
 
