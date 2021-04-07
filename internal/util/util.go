@@ -2,9 +2,11 @@ package util
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"seneca/api/senecaerror"
 	"seneca/api/types"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -115,4 +117,7 @@ func IsCIEnv() bool {
 	return false
 }
 
-//	ConstructRawLocationDatas construct a list of types.RawLocation from a list of types.Location and time.Time for the given userID.
+func GenerateRandID() string {
+	id := rand.Int63()
+	return strconv.FormatInt(id, 10)
+}

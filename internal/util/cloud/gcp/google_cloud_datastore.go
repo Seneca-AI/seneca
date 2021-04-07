@@ -1,4 +1,4 @@
-package cloud
+package gcp
 
 import (
 	"context"

@@ -1,5 +1,19 @@
 package cloud
 
+// BucketName is used for specifying buckets.
+type BucketName string
+
+const (
+	// RawVideoBucketName defines the bucket used for raw videos.
+	RawVideoBucketName BucketName = "seneca_raw_videos"
+	// CutVideoBucketName is the name of the GCS bucket for cut videos.
+	CutVideoBucketName BucketName = "seneca_cut_videos"
+)
+
+func (bn *BucketName) String() string {
+	return string(*bn)
+}
+
 // SimpleStorageInterface is the interface used for interacting with
 // S3 like files across Seneca.
 type SimpleStorageInterface interface {
