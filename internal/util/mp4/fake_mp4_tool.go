@@ -2,59 +2,37 @@ package mp4
 
 import (
 	"fmt"
-	"seneca/api/senecaerror"
 	"seneca/api/types"
 	"time"
 )
 
-type locationsMotionsTimes struct {
-	locations []*types.Location
-	motions   []*types.Motion
-	times     []time.Time
-}
-
 type FakeMP4Tool struct {
-	// key: path
-	rawVideosMap map[string]*types.RawVideo
-	// key: path
-	locationsMotionsTimesMap map[string]locationsMotionsTimes
+	ParseOutRawVideoMetadataMock func(pathToVideo string) (*types.RawVideo, error)
+	ParseOutGPSMetadataMock      func(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error)
+	CutRawVideoMock              func(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error)
 }
 
 func NewFakeMP4Tool() *FakeMP4Tool {
-	return &FakeMP4Tool{
-		rawVideosMap:             make(map[string]*types.RawVideo),
-		locationsMotionsTimesMap: make(map[string]locationsMotionsTimes),
-	}
+	return &FakeMP4Tool{}
 }
 
-// ParseOutRawVideoMetadata returns the stored *types.RawVideo from the rawVideosMap for the given path key.
 func (fakeMP4Tool *FakeMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
-	rawVideo, ok := fakeMP4Tool.rawVideosMap[pathToVideo]
-	if !ok {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("file at path %q does not exist", pathToVideo))
+	if fakeMP4Tool.ParseOutRawVideoMetadataMock == nil {
+		return nil, fmt.Errorf("ParseOutRawVideoMetadataMock not set")
 	}
-	return rawVideo, nil
+	return fakeMP4Tool.ParseOutRawVideoMetadataMock(pathToVideo)
 }
 
-// InsertMetadata stores the given *types.RawVideo in the rawVideosMap with key at the given pathToVideo.
-func (fakeMP4Tool *FakeMP4Tool) InsertRawVideoMetadata(pathToVideo string, rawVideo *types.RawVideo) {
-	fakeMP4Tool.rawVideosMap[pathToVideo] = rawVideo
-}
-
-// 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
 func (fakeMP4Tool *FakeMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
-	lmts, ok := fakeMP4Tool.locationsMotionsTimesMap[pathToVideo]
-	if !ok {
-		return nil, nil, nil, senecaerror.NewBadStateError(fmt.Errorf("file at path %q does not exist", pathToVideo))
+	if fakeMP4Tool.ParseOutGPSMetadataMock == nil {
+		return nil, nil, nil, fmt.Errorf("ParseOutGPSMetadataMock not set")
 	}
-	return lmts.locations, lmts.motions, lmts.times, nil
+	return fakeMP4Tool.ParseOutGPSMetadataMock(pathToVideo)
 }
 
-//	InsertGPSMetadata stores the given []*types.Location, []*types.Motion, []time.Time in the locationsMotionsTimesMap with key at the given pathToVideo.
-func (fakeMP4Tool *FakeMP4Tool) InsertGPSMetadata(pathToVideo string, locations []*types.Location, motions []*types.Motion, times []time.Time) {
-	fakeMP4Tool.locationsMotionsTimesMap[pathToVideo] = locationsMotionsTimes{
-		locations: locations,
-		motions:   motions,
-		times:     times,
+func (fakeMP4Tool *FakeMP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+	if fakeMP4Tool.CutRawVideoMock == nil {
+		return nil, nil, fmt.Errorf("CutRawVideoMock not set")
 	}
+	return fakeMP4Tool.CutRawVideoMock(cutVideoDur, pathToRawVideo, rawVideo)
 }
