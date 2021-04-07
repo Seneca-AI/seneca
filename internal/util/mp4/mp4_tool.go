@@ -3,8 +3,6 @@ package mp4
 import (
 	"fmt"
 	"seneca/api/types"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -28,108 +26,41 @@ type MP4ToolInterface interface {
 	//		[]*time.Time
 	//		error
 	ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error)
+	// 	CutRawVideo cuts the raw video mp4 into smaller clips.
+	// 	Params:
+	//		cutVideoDur time.Duration: the duration the cut videos should be
+	//		pathToRawVideo string: the path to the mp4 to cut up
+	//		rawVideo *types.RawVideo: the RawVideo data to reference
+	//	Returns:
+	//		[]*types.CutVideo: the cut video data
+	//		[]string: the paths to the cut video temp files
+	//		error
+	CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error)
 }
 
-// In the form "<deg> deg <deg_mins>' <deg_sconds>\"".
-func parseDegrees(degreesStr string) (float64, float64, float64, error) {
-	degreesStrSplit := strings.Split(degreesStr, " ")
-	if len(degreesStrSplit) != 4 {
-		return 0, 0, 0, fmt.Errorf("invalid length for lat/long degrees string %q", degreesStr)
-	}
-
-	if degreesStrSplit[1] != "deg" {
-		return 0, 0, 0, fmt.Errorf("invalid format for latitude string %q", degreesStr)
-	}
-	degrees, err := strconv.ParseFloat(degreesStrSplit[0], 64)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("error parsing float from deg in %q", degreesStr)
-	}
-
-	if degreesStrSplit[2][len(degreesStrSplit[2])-1:] != "'" {
-		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeMins symbol", degreesStr)
-	}
-	degreeMins, err := strconv.ParseFloat(degreesStrSplit[2][:len(degreesStrSplit[2])-1], 64)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("error parsing float from deg mins in %q", degreesStr)
-	}
-
-	if degreesStrSplit[3][len(degreesStrSplit[3])-1:] != "\"" {
-		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeSecs symbol - %q != %q", degreesStr, degreesStrSplit[3][len(degreesStrSplit[3])-1:], "\\\"")
-	}
-	degreeSecs, err := strconv.ParseFloat(degreesStrSplit[3][:len(degreesStrSplit[3])-1], 64)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("error parsing float from deg secs in %q", degreesStr)
-	}
-
-	return degrees, degreeMins, degreeSecs, nil
+//nolint
+type MP4Tool struct {
+	exifTool *ExifMP4Tool
 }
 
-// StringToLatitude converts a string to a *types.Latitude object.
-// Params:
-//		latString string: string in the form "<deg> deg <deg_mins>' <deg_sconds>\" <[N | S]>"
-// Returns:
-//		*types.Latitude
-//		error
-func StringToLatitude(latString string) (*types.Latitude, error) {
-	latStringSplit := strings.Split(latString, " ")
-	if len(latStringSplit) != 5 {
-		return nil, fmt.Errorf("invalid format for longitude string %q", latString)
-	}
-
-	degrees, degreeMins, degreeSecs, err := parseDegrees(strings.Join(latStringSplit[:4], " "))
+func NewMP4Tool() (*MP4Tool, error) {
+	et, err := NewExifMP4Tool()
 	if err != nil {
-		return nil, fmt.Errorf("error parsing degrees from latString - err: %w", err)
+		return nil, fmt.Errorf("error initializing ExifMP4Tool, err: %w", err)
 	}
-
-	latitude := &types.Latitude{
-		Degrees:       degrees,
-		DegreeMinutes: degreeMins,
-		DegreeSeconds: degreeSecs,
-	}
-
-	switch latStringSplit[4] {
-	case "N":
-		latitude.LatDirection = types.Latitude_NORTH
-	case "S":
-		latitude.LatDirection = types.Latitude_SOUTH
-	default:
-		return nil, fmt.Errorf("error parsing latitude direction from %q", latString)
-	}
-
-	return latitude, nil
+	return &MP4Tool{
+		exifTool: et,
+	}, nil
 }
 
-// StringToLongitude converts a string to a *types.Longitude object.
-// Params:
-//		longString string: string in the form "<deg> deg <deg_mins>' <deg_sconds>\" <[E | W]>"
-// Returns:
-//		*types.Longitude
-//		error
-func StringToLongitude(longString string) (*types.Longitude, error) {
-	longStringSplit := strings.Split(longString, " ")
-	if len(longStringSplit) != 5 {
-		return nil, fmt.Errorf("invalid format for longitude string %q", longString)
-	}
+func (mt *MP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
+	return mt.exifTool.ParseOutRawVideoMetadata(pathToVideo)
+}
 
-	degrees, degreeMins, degreeSecs, err := parseDegrees(strings.Join(longStringSplit[:4], " "))
-	if err != nil {
-		return nil, fmt.Errorf("error parsing degrees from longString - err: %w", err)
-	}
+func (mt *MP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+	return mt.exifTool.ParseOutGPSMetadata(pathToVideo)
+}
 
-	longitude := &types.Longitude{
-		Degrees:       degrees,
-		DegreeMinutes: degreeMins,
-		DegreeSeconds: degreeSecs,
-	}
-
-	switch longStringSplit[4] {
-	case "E":
-		longitude.LongDirection = types.Longitude_EAST
-	case "W":
-		longitude.LongDirection = types.Longitude_WEST
-	default:
-		return nil, fmt.Errorf("error parsing longitude direction from %q", longString)
-	}
-
-	return longitude, nil
+func (mt *MP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+	return CutRawVideo(cutVideoDur, pathToRawVideo, rawVideo, false)
 }

@@ -50,9 +50,9 @@ func main() {
 		return
 	}
 
-	mp4Tool, err := mp4.NewExitMP4Tool()
+	mp4Tool, err := mp4.NewMP4Tool()
 	if err != nil {
-		logger.Critical(fmt.Sprintf("mp4.NewExitMP4Tool() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 		return
 	}
 

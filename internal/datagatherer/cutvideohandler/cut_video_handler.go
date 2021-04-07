@@ -98,7 +98,7 @@ func (cvh *CutVideoHandler) ProcessAndCutRawVideo(rawVideoID string) error {
 	}
 	if cutVideo != nil {
 		cvh.logger.Log(fmt.Sprintf("CutVideo for user %q with create time ms %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs))
-		return nil
+		return senecaerror.NewBadStateError(fmt.Errorf("CutVideo for user %q with create time ms %d already exists", rawVideo.UserId, rawVideo.CreateTimeMs))
 	}
 
 	// Get raw video from simple storage.
@@ -122,7 +122,7 @@ func (cvh *CutVideoHandler) ProcessAndCutRawVideo(rawVideoID string) error {
 		return fmt.Errorf("ConstructRawMotionDatas(%s, %d, %d) returns err: %w", rawVideo.UserId, len(motions), len(times), err)
 	}
 
-	cutVideos, cutVideoPaths, err := mp4.CutRawVideo(constants.CutVideoDuration, filePath, rawVideo, false /* dryRun */)
+	cutVideos, cutVideoPaths, err := cvh.mp4Tool.CutRawVideo(constants.CutVideoDuration, filePath, rawVideo)
 	if err != nil {
 		return fmt.Errorf("CutRawVideo(%v, %s, %v, false) returns err: %w", rawVideo.UserId, filePath, rawVideo, err)
 	}

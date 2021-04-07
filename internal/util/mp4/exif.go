@@ -36,22 +36,22 @@ var (
 	exifToolMainMetdataKeys = []string{exifToolMetadataCreateDateKey, exifToolMetadataDurationKey}
 )
 
-type ExitMP4Tool struct {
+type ExifMP4Tool struct {
 	exiftool *exiftool.Exiftool
 }
 
-func NewExitMP4Tool() (*ExitMP4Tool, error) {
+func NewExifMP4Tool() (*ExifMP4Tool, error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		return nil, senecaerror.NewBadStateError(fmt.Errorf("error instantiating exiftool - err: %v", err))
 	}
-	return &ExitMP4Tool{
+	return &ExifMP4Tool{
 		exiftool: et,
 	}, nil
 }
 
 // ParseOutRawVideoMetadata extracts *types.RawVideo metadata from the mp4 at the given path.
-func (emt *ExitMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
+func (emt *ExifMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
 	var err error
 	rawVideo := &types.RawVideo{}
 
@@ -77,7 +77,7 @@ func (emt *ExitMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.Raw
 }
 
 // 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
-func (emt *ExitMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
 	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
 		return nil, nil, nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")

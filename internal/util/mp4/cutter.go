@@ -17,17 +17,6 @@ import (
 const ffmpegCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
 
 // 	CutRawVideo utilizes ffmpeg to cut the raw video mp4.
-// 	We construct the CutVideos within this function because ffmpeg requires files and their paths to be in a certain
-// 	state (e.g. we don't want to take CutVideos as input incase they're misaligned with the RawVideo).
-// 	Params:
-//		cutVideoDur time.Duration: the duration the cut videos should be
-//		pathToRawVideo string: the path to the mp4 to cut up
-//		rawVideo *types.RawVideo: the RawVideo data to reference
-//		dryRun bool: whether temp files should actually be created, or we just want to generated the output strings
-//	Returns:
-//		[]*types.CutVideo: the cut video data
-//		[]string: the paths to the cut video temp files
-//		error
 func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo, dryRun bool) ([]*types.CutVideo, []string, error) {
 	rawVideoFileName, err := util.GetFileNameFromPath(pathToRawVideo)
 	if err != nil {

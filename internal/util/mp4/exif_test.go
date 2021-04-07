@@ -19,9 +19,9 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExitMP4Tool()
+	exifMP4Tool, err := NewExifMP4Tool()
 	if err != nil {
-		t.Errorf("NewExitMP4Tool() returns err: %v", err)
+		t.Errorf("NewExifMP4Tool() returns err: %v", err)
 	}
 
 	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
@@ -46,9 +46,9 @@ func TestGetMetadataHasRejectsFileWithZeroCreationTime(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExitMP4Tool()
+	exifMP4Tool, err := NewExifMP4Tool()
 	if err != nil {
-		t.Errorf("NewExitMP4Tool() returns err: %v", err)
+		t.Errorf("NewExifMP4Tool() returns err: %v", err)
 	}
 
 	_, err = exifMP4Tool.ParseOutRawVideoMetadata(pathToNoMetadataMP4)
@@ -66,9 +66,9 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExitMP4Tool()
+	exifMP4Tool, err := NewExifMP4Tool()
 	if err != nil {
-		t.Errorf("NewExitMP4Tool() returns err: %v", err)
+		t.Errorf("NewExifMP4Tool() returns err: %v", err)
 	}
 
 	_, err = exifMP4Tool.ParseOutRawVideoMetadata("../idontexist")
@@ -238,7 +238,7 @@ func TestGetLocationDataFileMetadata(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifTool, err := NewExitMP4Tool()
+	exifTool, err := NewExifMP4Tool()
 	if err != nil {
 		t.Error(err)
 	}
