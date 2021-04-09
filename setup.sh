@@ -21,6 +21,7 @@ spin() {
 }
 
 # Download and install all necessary dependencies.
+# TODO: download ffmpeg for cutting videos
 setup() {
 	echo "Output stored in setup.log"
 	touch setup.log
