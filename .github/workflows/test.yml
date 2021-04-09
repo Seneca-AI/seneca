@@ -1,10 +1,8 @@
 on:
-  push:
+  [push, pull_request]:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+      - staging
 
 name: run tests
 jobs:
