@@ -1,5 +1,9 @@
 on:
-  [push, pull_request]:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
     branches:
       - main
       - staging
