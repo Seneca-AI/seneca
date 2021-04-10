@@ -1,6 +1,18 @@
 # seneca
 
-## Dev Commands
+## About
+Seneca's mission is to bridge the gap between data gathered on-vehicle and auto insurance companies that want to use that data to adjust risk assessments.
+
+Seneca.AI/seneca implements all of the infrastucture for this application, aside from Python ML models and a React client.
+
+### Architecture
+![architecture](./docs/architecture.png)
+#### Code Locations
+* ID001: cmd/datagatherer
+
+## Dev Help
+
+### Dev Commands
 * Run all tests (from root repo directory)
     * `$ go test ./...`
 * Run the linter
