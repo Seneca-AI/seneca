@@ -1,3 +1,5 @@
+name: "Install protobuf"
+description: "Install protobuf and copies the protos from the 'common' repo to a dir named 'common'"
 runs:
   using: "composite"
   steps:
