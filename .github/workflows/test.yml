@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install protobuf
-      uses: seneca/install-protobuf@v1
+      uses: internal/install-protobuf@v1
     - name: Install Go
       uses: actions/setup-go@v2
       with:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install protobuf
-      uses: seneca/install-protobuf@v1
+      uses: internal/install-protobuf@v1
     - name: Install Go
       if: success()
       uses: actions/setup-go@v2
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install protobuf
-      uses: seneca/install-protobuf@v1
+      uses: internal/install-protobuf@v1
     - name: Install Go
       if: success()
       uses: actions/setup-go@v2
