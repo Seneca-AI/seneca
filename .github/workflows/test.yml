@@ -10,43 +10,11 @@ on:
 
 name: run tests
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache protobuf library
-        id: cache-protobuf
-        uses: actions/cache@v1
-        with:
-          path: protobuf
-          key: ${{ runner.os }}-protobuf
-      - name: Build protobuf library
-        if: steps.cache-protobuf.outputs.cache-hit != 'true'
-        run: |
-          git clone https://github.com/protocolbuffers/protobuf.git
-          cd protobuf
-          git submodule update --init --recursive
-          ./autogen.sh
-          ./autogen.sh
-          ./configure
-          make
-          make check           
-      - name: Install protobuf library
-        run: |
-          cd protobuf
-          sudo make install
-          sudo ldconfig
-      - name: Copy proto files from common
-        uses: actions/checkout@v2
-        with:
-          path: ./common
-          repository: Seneca-AI/common
-          token: ${{ secrets.CROSS_REPO_TOKEN }}
-
   lint:
-    needs: [build]
     runs-on: ubuntu-latest
     steps:
+    - name: Install protobuf
+      uses: seneca/install-protobuf@v1
     - name: Install Go
       uses: actions/setup-go@v2
       with:
@@ -62,9 +30,10 @@ jobs:
         version: v1.29
 
   test:
-    needs: [build]
     runs-on: ubuntu-latest
     steps:
+    - name: Install protobuf
+      uses: seneca/install-protobuf@v1
     - name: Install Go
       if: success()
       uses: actions/setup-go@v2
@@ -79,9 +48,10 @@ jobs:
       run: go test ./... -v -covermode=count
 
   coverage:
-    needs: [build]
     runs-on: ubuntu-latest
     steps:
+    - name: Install protobuf
+      uses: seneca/install-protobuf@v1
     - name: Install Go
       if: success()
       uses: actions/setup-go@v2
