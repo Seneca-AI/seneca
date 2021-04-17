@@ -39,9 +39,9 @@ jobs:
       - name: Copy proto files from common
         uses: actions/checkout@v2
         with:
-        path: ./common
-        repository: Seneca-AI/common
-        token: ${{ secrets.CROSS_REPO_TOKEN }}
+          path: ./common
+          repository: Seneca-AI/common
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
 
   lint:
     needs: [build]
