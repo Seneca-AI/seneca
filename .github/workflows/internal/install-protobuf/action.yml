@@ -3,7 +3,8 @@ description: "Install protobuf and copies the protos from the 'common' repo to a
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: Cache protobuf library
       id: cache-protobuf
       uses: actions/cache@v1
