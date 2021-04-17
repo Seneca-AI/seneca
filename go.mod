@@ -9,6 +9,8 @@ require (
 	github.com/barasher/go-exiftool v1.3.2
 	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/google/go-cmp v0.5.5
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+	golang.org/x/oauth2 v0.0.0-20210218202405-ba52d332ba99
 	google.golang.org/api v0.40.0
 	google.golang.org/protobuf v1.26.0
 )
