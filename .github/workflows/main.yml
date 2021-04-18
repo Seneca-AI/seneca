@@ -40,6 +40,9 @@ jobs:
       with:
         name: proto-definitions-go
         path: api/type/
+    - name: Display structure of downloaded files
+      run: ls -R
+      working-directory: api/type/
     - name: Run linters
       uses: golangci/golangci-lint-action@v2
       with:
