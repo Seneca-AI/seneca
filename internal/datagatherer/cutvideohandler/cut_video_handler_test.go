@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
@@ -43,11 +43,11 @@ func TestHandleRawVideoPostRequestErrorHandling(t *testing.T) {
 
 func TestProcessAndCutRawVideo(t *testing.T) {
 	cutVideoHandler, fakeNoSQLDBClient, fakeSimpleStorageClient, fakeMP4Tool := newCutVideoHandlerForTests(t)
-	rawVideo := &types.RawVideo{
+	rawVideo := &st.RawVideo{
 		Id:     util.GenerateRandID(),
 		UserId: "user",
 	}
-	cutVideos := []*types.CutVideo{
+	cutVideos := []*st.CutVideo{
 		{
 			Id:         util.GenerateRandID(),
 			UserId:     "user",
@@ -60,31 +60,31 @@ func TestProcessAndCutRawVideo(t *testing.T) {
 		},
 	}
 
-	fakeNoSQLDBClient.GetRawVideoByIDMock = func(id string) (*types.RawVideo, error) {
+	fakeNoSQLDBClient.GetRawVideoByIDMock = func(id string) (*st.RawVideo, error) {
 		return nil, fmt.Errorf("some error")
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when GetRawVideoByID throws err, got nil")
 	}
 
-	fakeNoSQLDBClient.GetRawVideoByIDMock = func(id string) (*types.RawVideo, error) {
+	fakeNoSQLDBClient.GetRawVideoByIDMock = func(id string) (*st.RawVideo, error) {
 		return rawVideo, nil
 	}
-	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*types.CutVideo, error) {
+	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*st.CutVideo, error) {
 		return nil, fmt.Errorf("some error")
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when GetCutVideoMock throws non-NotFoundError err, got nil")
 	}
 
-	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*types.CutVideo, error) {
+	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*st.CutVideo, error) {
 		return cutVideos[0], nil
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when GetCutVideoMock returns non-nil CutVideo, got nil")
 	}
 
-	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*types.CutVideo, error) {
+	fakeNoSQLDBClient.GetCutVideoMock = func(userID string, createTime time.Time) (*st.CutVideo, error) {
 		return nil, senecaerror.NewNotFoundError(nil)
 	}
 	fakeSimpleStorageClient.GetBucketFileMock = func(bucketName cloud.BucketName, bucketFileName string) (string, error) {
@@ -94,26 +94,26 @@ func TestProcessAndCutRawVideo(t *testing.T) {
 		t.Errorf("Expected err when GetBucketFileMock returns err, got nil")
 	}
 
-	locations := []*types.Location{
+	locations := []*st.Location{
 		{
-			Lat: &types.Latitude{
+			Lat: &st.Latitude{
 				Degrees:       1,
 				DegreeMinutes: 2,
 				DegreeSeconds: 3,
-				LatDirection:  types.Latitude_NORTH,
+				LatDirection:  st.Latitude_NORTH,
 			},
 		},
 		{
-			Lat: &types.Latitude{
+			Lat: &st.Latitude{
 				Degrees:       3,
 				DegreeMinutes: 4,
 				DegreeSeconds: 5,
-				LatDirection:  types.Latitude_NORTH,
+				LatDirection:  st.Latitude_NORTH,
 			},
 		},
 	}
 
-	motions := []*types.Motion{
+	motions := []*st.Motion{
 		{
 			VelocityMph:      10,
 			AccelerationMphS: 1,
@@ -131,14 +131,14 @@ func TestProcessAndCutRawVideo(t *testing.T) {
 	fakeSimpleStorageClient.GetBucketFileMock = func(bucketName cloud.BucketName, bucketFileName string) (string, error) {
 		return "path", nil
 	}
-	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
 		return nil, nil, nil, fmt.Errorf("some error")
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when ParseOutGPSMetadataMock returns err, got nil")
 	}
 
-	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
 		return locations, motions, times, nil
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
@@ -146,55 +146,55 @@ func TestProcessAndCutRawVideo(t *testing.T) {
 	}
 
 	times = append(times, time.Date(2021, 4, 6, 7, 8, 10, 0, time.UTC))
-	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
 		return locations, motions, times, nil
 	}
-	fakeMP4Tool.CutRawVideoMock = func(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+	fakeMP4Tool.CutRawVideoMock = func(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error) {
 		return nil, nil, fmt.Errorf("some error")
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when CutRawVideoMock returns err, got nil")
 	}
 
-	fakeMP4Tool.CutRawVideoMock = func(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+	fakeMP4Tool.CutRawVideoMock = func(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error) {
 		return cutVideos, []string{"pathToVideo", "pathToVideo2"}, nil
 	}
 
 	errors := make(chan error, 2)
 	errors <- nil
 	errors <- fmt.Errorf("some error")
-	fakeNoSQLDBClient.InsertUniqueCutVideoMock = func(cutVideo *types.CutVideo) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueCutVideoMock = func(cutVideo *st.CutVideo) (string, error) {
 		return "id", <-errors
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when InsertUniqueCutVideoMock returns err, got nil")
 	}
 
-	fakeNoSQLDBClient.InsertUniqueCutVideoMock = func(cutVideo *types.CutVideo) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueCutVideoMock = func(cutVideo *st.CutVideo) (string, error) {
 		return util.GenerateRandID(), nil
 	}
 	errors <- nil
 	errors <- fmt.Errorf("some error")
-	fakeNoSQLDBClient.InsertUniqueRawLocationMock = func(rawLocation *types.RawLocation) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueRawLocationMock = func(rawLocation *st.RawLocation) (string, error) {
 		return "id", <-errors
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when InsertUniqueRawLocationMock returns err, got nil")
 	}
 
-	fakeNoSQLDBClient.InsertUniqueRawLocationMock = func(rawLocation *types.RawLocation) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueRawLocationMock = func(rawLocation *st.RawLocation) (string, error) {
 		return util.GenerateRandID(), nil
 	}
 	errors <- nil
 	errors <- fmt.Errorf("some error")
-	fakeNoSQLDBClient.InsertUniqueRawMotionMock = func(rawMotion *types.RawMotion) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueRawMotionMock = func(rawMotion *st.RawMotion) (string, error) {
 		return "id", <-errors
 	}
 	if err := cutVideoHandler.ProcessAndCutRawVideo("ID"); err == nil {
 		t.Errorf("Expected err when InsertUniqueRawMotionMock returns err, got nil")
 	}
 
-	fakeNoSQLDBClient.InsertUniqueRawMotionMock = func(rawMotion *types.RawMotion) (string, error) {
+	fakeNoSQLDBClient.InsertUniqueRawMotionMock = func(rawMotion *st.RawMotion) (string, error) {
 		return util.GenerateRandID(), nil
 	}
 	errors <- nil

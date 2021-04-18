@@ -7,15 +7,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
-
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"seneca/internal/util/cloud"
 	"seneca/internal/util/logging"
 	"seneca/internal/util/mp4"
+	"strings"
 )
 
 const (
@@ -145,7 +144,7 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(r *http.Request) error {
 	return nil
 }
 
-func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *types.RawVideo) error {
+func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *st.RawVideo) error {
 	rawVideo.UserId = userID
 	rawVideo.CloudStorageFileName = bucketFileName
 

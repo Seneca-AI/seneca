@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"seneca/api/senecaerror"
+	st "seneca/api/type"
+	"seneca/internal/util"
 	"strconv"
 	"time"
-
-	"seneca/api/senecaerror"
-	"seneca/api/types"
-	"seneca/internal/util"
 
 	"cloud.google.com/go/datastore"
 )
@@ -75,9 +74,9 @@ func NewGoogleCloudDatastoreClient(ctx context.Context, projectID string, create
 	}, nil
 }
 
-// GetRawVideo gets the *types.RawVideo for the given user around the specified createTime.
+// GetRawVideo gets the *st.RawVideo for the given user around the specified createTime.
 // We search datastore for videos +/-createTimeQueryOffset the specified createTime.
-func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime time.Time) (*types.RawVideo, error) {
+func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime time.Time) (*st.RawVideo, error) {
 	beginTimeQuery := createTime.Add(-gcdc.createTimeQueryOffset)
 	endTimeQuery := createTime.Add(gcdc.createTimeQueryOffset)
 
@@ -91,7 +90,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 		fmt.Sprintf("%s%s", userIDFieldName, "="), userID,
 	)
 
-	var rawVideoOut []*types.RawVideo
+	var rawVideoOut []*st.RawVideo
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &rawVideoOut)
 	if err != nil {
@@ -110,13 +109,13 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 }
 
 // GetRawVideoByID gets the rawVideo with the given ID from the datastore.
-func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*types.RawVideo, error) {
+func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*st.RawVideo, error) {
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return nil, senecaerror.NewBadStateError(fmt.Errorf("error converting id to int64 - err: %v", err))
 	}
 
-	rawVideo := &types.RawVideo{}
+	rawVideo := &st.RawVideo{}
 
 	if err := gcdc.client.Get(context.Background(), &datastore.Key{
 		Kind:   rawVideoKind,
@@ -128,8 +127,8 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*types.RawVi
 	return rawVideo, nil
 }
 
-// InsertRawVideo inserts the given *types.RawVideo into the RawVideos Directory.
-func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo) (string, error) {
+// InsertRawVideo inserts the given *st.RawVideo into the RawVideos Directory.
+func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *st.RawVideo) (string, error) {
 	key := datastore.IncompleteKey(rawVideoKind, &rawVideoKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawVideo)
 	if err != nil {
@@ -138,9 +137,9 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *types.RawVideo)
 	return fmt.Sprintf("%d", completeKey.ID), nil
 }
 
-// InsertUniqueRawVideo inserts the given *types.RawVideo into the RawVideos Directory if a
+// InsertUniqueRawVideo inserts the given *st.RawVideo into the RawVideos Directory if a
 // similar RawVideo doesn't already exist.
-func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *types.RawVideo) (string, error) {
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *st.RawVideo) (string, error) {
 	existingRawVideo, err := gcdc.GetRawVideo(rawVideo.UserId, util.MillisecondsToTime(rawVideo.CreateTimeMs))
 
 	var nfe *senecaerror.NotFoundError
@@ -168,13 +167,13 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 	return nil
 }
 
-// GetCutVideo gets the *types.CutVideo for the given user around the specified createTime.
-func (gcdc *GoogleCloudDatastoreClient) GetCutVideo(userID string, createTime time.Time) (*types.CutVideo, error) {
+// GetCutVideo gets the *st.CutVideo for the given user around the specified createTime.
+func (gcdc *GoogleCloudDatastoreClient) GetCutVideo(userID string, createTime time.Time) (*st.CutVideo, error) {
 	query := datastore.NewQuery(cutVideoKind).Filter(fmt.Sprintf("%s%s", userIDFieldName, "="), userID)
 
 	query = addTimeOffsetFilter(createTime, gcdc.createTimeQueryOffset, query)
 
-	var cutVideoOut []*types.CutVideo
+	var cutVideoOut []*st.CutVideo
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &cutVideoOut)
 	if err != nil {
@@ -206,8 +205,8 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteCutVideoByID(id string) error {
 	return nil
 }
 
-// InsertCutVideo inserts the given *types.CutVideo into the CutVideos directory of the datastore.
-func (gcdc *GoogleCloudDatastoreClient) InsertCutVideo(cutVideo *types.CutVideo) (string, error) {
+// InsertCutVideo inserts the given *st.CutVideo into the CutVideos directory of the datastore.
+func (gcdc *GoogleCloudDatastoreClient) InsertCutVideo(cutVideo *st.CutVideo) (string, error) {
 	key := datastore.IncompleteKey(cutVideoKind, &cutVideoKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, cutVideo)
 	if err != nil {
@@ -216,8 +215,8 @@ func (gcdc *GoogleCloudDatastoreClient) InsertCutVideo(cutVideo *types.CutVideo)
 	return fmt.Sprintf("%d", completeKey.ID), nil
 }
 
-// InsertUniqueCutVideo inserts the given *types.CutVideo if a CutVideo with a similar creation time doesn't already exist.
-func (gcdc *GoogleCloudDatastoreClient) InsertUniqueCutVideo(cutVideo *types.CutVideo) (string, error) {
+// InsertUniqueCutVideo inserts the given *st.CutVideo if a CutVideo with a similar creation time doesn't already exist.
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueCutVideo(cutVideo *st.CutVideo) (string, error) {
 	existingCutVideo, err := gcdc.GetCutVideo(cutVideo.UserId, util.MillisecondsToTime(cutVideo.CreateTimeMs))
 	var nfe *senecaerror.NotFoundError
 	if err != nil && !errors.As(err, &nfe) {
@@ -230,11 +229,11 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueCutVideo(cutVideo *types.Cut
 	return gcdc.InsertCutVideo(cutVideo)
 }
 
-// GetRawMotion gets the *types.RawMotion for the given user at the given timestamp.
-func (gcdc *GoogleCloudDatastoreClient) GetRawMotion(userID string, timestamp time.Time) (*types.RawMotion, error) {
+// GetRawMotion gets the *st.RawMotion for the given user at the given timestamp.
+func (gcdc *GoogleCloudDatastoreClient) GetRawMotion(userID string, timestamp time.Time) (*st.RawMotion, error) {
 	query := datastore.NewQuery(rawMotionKind).Filter(fmt.Sprintf("%s%s", userIDFieldName, "="), userID).Filter("TimestampMs=", util.TimeToMilliseconds(timestamp))
 
-	var rawMotionOut []*types.RawMotion
+	var rawMotionOut []*st.RawMotion
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &rawMotionOut)
 	if err != nil {
@@ -246,7 +245,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawMotion(userID string, timestamp ti
 	}
 
 	if len(rawMotionOut) < 1 {
-		return nil, senecaerror.NewNotFoundError(fmt.Errorf("types.RawMotion with userID %q and TimestampMs %d was not found", userID, util.TimeToMilliseconds(timestamp)))
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("st.RawMotion with userID %q and TimestampMs %d was not found", userID, util.TimeToMilliseconds(timestamp)))
 	}
 
 	return rawMotionOut[0], nil
@@ -266,8 +265,8 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawMotionByID(id string) error {
 	return nil
 }
 
-// InsertRawMotion inserts the given *types.RawMotion into the RawMotions directory in the datastore.
-func (gcdc *GoogleCloudDatastoreClient) InsertRawMotion(rawMotion *types.RawMotion) (string, error) {
+// InsertRawMotion inserts the given *st.RawMotion into the RawMotions directory in the datastore.
+func (gcdc *GoogleCloudDatastoreClient) InsertRawMotion(rawMotion *st.RawMotion) (string, error) {
 	key := datastore.IncompleteKey(rawMotionKind, &rawMotionKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawMotion)
 	if err != nil {
@@ -277,8 +276,8 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawMotion(rawMotion *types.RawMoti
 	return fmt.Sprintf("%d", completeKey.ID), nil
 }
 
-// InsertUniqueRawMotion inserts the given *types.RawMotion if a RawMotion with the same creation time doesn't already exist.
-func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawMotion(rawMotion *types.RawMotion) (string, error) {
+// InsertUniqueRawMotion inserts the given *st.RawMotion if a RawMotion with the same creation time doesn't already exist.
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawMotion(rawMotion *st.RawMotion) (string, error) {
 	existingRawMotion, err := gcdc.GetRawMotion(rawMotion.UserId, util.MillisecondsToTime(rawMotion.TimestampMs))
 
 	var nfe *senecaerror.NotFoundError
@@ -293,11 +292,11 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawMotion(rawMotion *types.R
 	return gcdc.InsertRawMotion(rawMotion)
 }
 
-// GetRawLocation gets the *types.RawLocation for the given user at the specified timestamp.
-func (gcdc *GoogleCloudDatastoreClient) GetRawLocation(userID string, timestamp time.Time) (*types.RawLocation, error) {
+// GetRawLocation gets the *st.RawLocation for the given user at the specified timestamp.
+func (gcdc *GoogleCloudDatastoreClient) GetRawLocation(userID string, timestamp time.Time) (*st.RawLocation, error) {
 	query := datastore.NewQuery(rawLocationKind).Filter(fmt.Sprintf("%s %s", userIDFieldName, "="), userID).Filter("TimestampMs =", util.TimeToMilliseconds(timestamp))
 
-	var rawLocationOut []*types.RawLocation
+	var rawLocationOut []*st.RawLocation
 
 	_, err := gcdc.client.GetAll(context.Background(), query, &rawLocationOut)
 	if err != nil {
@@ -329,8 +328,8 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawLocationByID(id string) error {
 	return nil
 }
 
-// InsertRawLocation inserts the given *types.RawLocation into the RawLocations directory.
-func (gcdc *GoogleCloudDatastoreClient) InsertRawLocation(rawLocation *types.RawLocation) (string, error) {
+// InsertRawLocation inserts the given *st.RawLocation into the RawLocations directory.
+func (gcdc *GoogleCloudDatastoreClient) InsertRawLocation(rawLocation *st.RawLocation) (string, error) {
 	key := datastore.IncompleteKey(rawLocationKind, &rawLocationKey)
 	completeKey, err := gcdc.client.Put(context.Background(), key, rawLocation)
 	if err != nil {
@@ -339,8 +338,8 @@ func (gcdc *GoogleCloudDatastoreClient) InsertRawLocation(rawLocation *types.Raw
 	return fmt.Sprintf("%d", completeKey.ID), nil
 }
 
-// InsertUniqueRawLocation inserts the given *types.RawLocation if a RawLocation with the same creation time doesn't already exist.
-func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawLocation(rawLocation *types.RawLocation) (string, error) {
+// InsertUniqueRawLocation inserts the given *st.RawLocation if a RawLocation with the same creation time doesn't already exist.
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawLocation(rawLocation *st.RawLocation) (string, error) {
 	existingRawLocation, err := gcdc.GetRawLocation(rawLocation.UserId, util.MillisecondsToTime(rawLocation.TimestampMs))
 	if err != nil {
 		return "", fmt.Errorf("error checking if RawLocation already exists - err: %w", err)

@@ -2,7 +2,7 @@ package mp4
 
 import (
 	"fmt"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"time"
 )
 
@@ -10,32 +10,32 @@ import (
 // throughout Seneca.
 //nolint
 type MP4ToolInterface interface {
-	// ParseOutRawVideoMetadata extracts *types.RawVideo metadata from the mp4 at the given path.
+	// ParseOutRawVideoMetadata extracts *st.RawVideo metadata from the mp4 at the given path.
 	// Params:
 	// 		string pathToVideo: path to mp4 to get RawVideo metadata from
 	// Returns:
-	// 		*types.RawVideo: the RawVideo object
+	// 		*st.RawVideo: the RawVideo object
 	//		error
-	ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error)
-	// 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
+	ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error)
+	// 	ParseOutGPSMetadata extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
 	//	Params:
 	//		 pathToVideo string: the video to analyze
 	//	Returns:
-	//		[]*types.Location
-	//		[]*types.Motion
+	//		[]*st.Location
+	//		[]*st.Motion
 	//		[]*time.Time
 	//		error
-	ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error)
+	ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error)
 	// 	CutRawVideo cuts the raw video mp4 into smaller clips.
 	// 	Params:
 	//		cutVideoDur time.Duration: the duration the cut videos should be
 	//		pathToRawVideo string: the path to the mp4 to cut up
-	//		rawVideo *types.RawVideo: the RawVideo data to reference
+	//		rawVideo *st.RawVideo: the RawVideo data to reference
 	//	Returns:
-	//		[]*types.CutVideo: the cut video data
+	//		[]*st.CutVideo: the cut video data
 	//		[]string: the paths to the cut video temp files
 	//		error
-	CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error)
+	CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error)
 }
 
 //nolint
@@ -53,14 +53,14 @@ func NewMP4Tool() (*MP4Tool, error) {
 	}, nil
 }
 
-func (mt *MP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
+func (mt *MP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error) {
 	return mt.exifTool.ParseOutRawVideoMetadata(pathToVideo)
 }
 
-func (mt *MP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+func (mt *MP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
 	return mt.exifTool.ParseOutGPSMetadata(pathToVideo)
 }
 
-func (mt *MP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo) ([]*types.CutVideo, []string, error) {
+func (mt *MP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error) {
 	return CutRawVideo(cutVideoDur, pathToRawVideo, rawVideo, false)
 }

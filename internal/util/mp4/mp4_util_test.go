@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"seneca/api/types"
+	st "seneca/api/type"
 	"testing"
 )
 
@@ -9,7 +9,7 @@ func TestStringToLatitude(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		inputStr string
-		want     *types.Latitude
+		want     *st.Latitude
 		wantErr  bool
 	}{
 		{
@@ -45,22 +45,22 @@ func TestStringToLatitude(t *testing.T) {
 		{
 			desc:     "test string without decimals succeeds",
 			inputStr: "40 deg 24' 57\" N",
-			want: &types.Latitude{
+			want: &st.Latitude{
 				Degrees:       40,
 				DegreeMinutes: 24,
 				DegreeSeconds: 57,
-				LatDirection:  types.Latitude_NORTH,
+				LatDirection:  st.Latitude_NORTH,
 			},
 			wantErr: false,
 		},
 		{
 			desc:     "test string with all decimals and south succeeds",
 			inputStr: "40.35 deg 24.56' 57.78\" S",
-			want: &types.Latitude{
+			want: &st.Latitude{
 				Degrees:       40.35,
 				DegreeMinutes: 24.56,
 				DegreeSeconds: 57.78,
-				LatDirection:  types.Latitude_SOUTH,
+				LatDirection:  st.Latitude_SOUTH,
 			},
 			wantErr: false,
 		},
@@ -90,7 +90,7 @@ func TestStringToLongitude(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		inputStr string
-		want     *types.Longitude
+		want     *st.Longitude
 		wantErr  bool
 	}{
 		{
@@ -126,22 +126,22 @@ func TestStringToLongitude(t *testing.T) {
 		{
 			desc:     "test string without decimals succeeds",
 			inputStr: "40 deg 24' 57\" E",
-			want: &types.Longitude{
+			want: &st.Longitude{
 				Degrees:       40,
 				DegreeMinutes: 24,
 				DegreeSeconds: 57,
-				LongDirection: types.Longitude_EAST,
+				LongDirection: st.Longitude_EAST,
 			},
 			wantErr: false,
 		},
 		{
 			desc:     "test string with all decimals and west succeeds",
 			inputStr: "40.35 deg 24.56' 57.78\" W",
-			want: &types.Longitude{
+			want: &st.Longitude{
 				Degrees:       40.35,
 				DegreeMinutes: 24.56,
 				DegreeSeconds: 57.78,
-				LongDirection: types.Longitude_WEST,
+				LongDirection: st.Longitude_WEST,
 			},
 			wantErr: false,
 		},

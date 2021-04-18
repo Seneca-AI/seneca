@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"strconv"
 	"strings"
 	"time"
@@ -83,11 +83,11 @@ func DurationToString(dur time.Duration) string {
 
 // LocationsEqual compares the degrees and direction of the locations.
 // Params:
-//		l1 *types.Location
-//		l2 *types.Location
+//		l1 *st.Location
+//		l2 *st.Location
 // Returns:
 //		bool
-func LocationsEqual(l1 *types.Location, l2 *types.Location) bool {
+func LocationsEqual(l1 *st.Location, l2 *st.Location) bool {
 	if l1 == nil || l2 == nil {
 		return l1 == l2
 	}
@@ -101,7 +101,7 @@ func LocationsEqual(l1 *types.Location, l2 *types.Location) bool {
 		l1.Long.Degrees == l2.Long.Degrees && l1.Long.DegreeMinutes == l2.Long.DegreeMinutes && l1.Long.DegreeSeconds == l2.Long.DegreeSeconds && l1.Long.LongDirection == l2.Long.LongDirection
 }
 
-func MotionsEqual(m1 *types.Motion, m2 *types.Motion) bool {
+func MotionsEqual(m1 *st.Motion, m2 *st.Motion) bool {
 	if m1 == nil || m2 == nil {
 		return m1 == m2
 	}

@@ -3,7 +3,7 @@ package mp4
 import (
 	"errors"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"testing"
 	"time"
@@ -91,21 +91,21 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 	}
 
 	goodOutputStruct := &locationMotionTime{
-		location: &types.Location{
-			Lat: &types.Latitude{
+		location: &st.Location{
+			Lat: &st.Latitude{
 				Degrees:       40,
 				DegreeMinutes: 24,
 				DegreeSeconds: 55.86,
-				LatDirection:  types.Latitude_NORTH,
+				LatDirection:  st.Latitude_NORTH,
 			},
-			Long: &types.Longitude{
+			Long: &st.Longitude{
 				Degrees:       74,
 				DegreeMinutes: 25,
 				DegreeSeconds: 50.17,
-				LongDirection: types.Longitude_WEST,
+				LongDirection: st.Longitude_WEST,
 			},
 		},
-		motion: &types.Motion{
+		motion: &st.Motion{
 			VelocityMph: 41,
 		},
 		gpsTime: time.Date(2021, 02, 13, 22, 48, 47, 0, time.UTC),
@@ -119,21 +119,21 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 		"GPSDateTime":  "2021:02:13 22:48:47.000Z",
 	}
 	goodOutputStructKmh := &locationMotionTime{
-		location: &types.Location{
-			Lat: &types.Latitude{
+		location: &st.Location{
+			Lat: &st.Latitude{
 				Degrees:       40,
 				DegreeMinutes: 24,
 				DegreeSeconds: 55.86,
-				LatDirection:  types.Latitude_NORTH,
+				LatDirection:  st.Latitude_NORTH,
 			},
-			Long: &types.Longitude{
+			Long: &st.Longitude{
 				Degrees:       74,
 				DegreeMinutes: 25,
 				DegreeSeconds: 50.17,
-				LongDirection: types.Longitude_WEST,
+				LongDirection: st.Longitude_WEST,
 			},
 		},
-		motion: &types.Motion{
+		motion: &st.Motion{
 			VelocityMph: 65.98312441359509,
 		},
 		gpsTime: time.Date(2021, 02, 13, 22, 48, 47, 0, time.UTC),
