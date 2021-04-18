@@ -3,14 +3,14 @@ package mp4
 import (
 	"fmt"
 	"seneca/api/constants"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"testing"
 	"time"
 )
 
 func TestCutRawVideoProducesExpectedOutputFilePaths(t *testing.T) {
-	rawVideo := &types.RawVideo{
+	rawVideo := &st.RawVideo{
 		UserId:       "user",
 		CreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.February, 1, 12, 13, 14, 0, time.UTC)),
 		DurationMs:   ((time.Minute * 5) + (time.Second * 20)).Milliseconds(),
@@ -40,7 +40,7 @@ func TestCutRawVideoRejectsInvalidInput(t *testing.T) {
 		t.Errorf("Expected err from CutRawVideo(0, \"invalid\", nil), got nil")
 	}
 
-	rawVideo := &types.RawVideo{}
+	rawVideo := &st.RawVideo{}
 	pathToTestMp4 := "../../../test/testdata/dad_example.mp4"
 
 	if _, _, err = CutRawVideo(time.Duration(0), pathToTestMp4, rawVideo, true); err == nil {

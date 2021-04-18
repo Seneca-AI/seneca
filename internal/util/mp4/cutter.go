@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"seneca/internal/util/data"
 	"strings"
@@ -17,7 +17,7 @@ import (
 const ffmpegCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
 
 // 	CutRawVideo utilizes ffmpeg to cut the raw video mp4.
-func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *types.RawVideo, dryRun bool) ([]*types.CutVideo, []string, error) {
+func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo, dryRun bool) ([]*st.CutVideo, []string, error) {
 	rawVideoFileName, err := util.GetFileNameFromPath(pathToRawVideo)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error extracting pathToRawVideo %q - err: %v", pathToRawVideo, err)

@@ -2,7 +2,7 @@ package data
 
 import (
 	"fmt"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"testing"
 	"time"
@@ -34,17 +34,17 @@ func TestCutRawVideoData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			rawVideo := &types.RawVideo{
+			rawVideo := &st.RawVideo{
 				UserId:       "user",
 				Id:           "rawVidId",
 				CreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.February, 1, 12, 13, 14, 0, time.UTC)),
 				DurationMs:   tc.rawVideoDuration.Milliseconds(),
 			}
 
-			wantCutVideos := []*types.CutVideo{}
+			wantCutVideos := []*st.CutVideo{}
 			elapsedTime := time.Duration(0)
 			for _, cutVidDur := range tc.expectedCutVidDurations {
-				wantCutVideos = append(wantCutVideos, &types.CutVideo{
+				wantCutVideos = append(wantCutVideos, &st.CutVideo{
 					UserId:               "user",
 					RawVideoId:           "rawVidId",
 					CreateTimeMs:         rawVideo.CreateTimeMs + elapsedTime.Milliseconds(),
@@ -62,7 +62,7 @@ func TestCutRawVideoData(t *testing.T) {
 			for i := range gotCutVideos {
 				if gotCutVideos[i].RawVideoId != rawVideo.Id || gotCutVideos[i].UserId != wantCutVideos[i].UserId ||
 					gotCutVideos[i].CreateTimeMs != wantCutVideos[i].CreateTimeMs || gotCutVideos[i].DurationMs != wantCutVideos[i].DurationMs {
-					t.Errorf("Unexpected types.CutVideo (-want, +got) %v", cmp.Diff(wantCutVideos[i], gotCutVideos[i], protocmp.Transform()))
+					t.Errorf("Unexpected st.CutVideo (-want, +got) %v", cmp.Diff(wantCutVideos[i], gotCutVideos[i], protocmp.Transform()))
 				}
 			}
 		})

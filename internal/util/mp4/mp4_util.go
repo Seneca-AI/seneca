@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"strconv"
 	"strings"
 )
@@ -86,13 +86,13 @@ func parseDegrees(degreesStr string) (float64, float64, float64, error) {
 	return degrees, degreeMins, degreeSecs, nil
 }
 
-// StringToLatitude converts a string to a *types.Latitude object.
+// StringToLatitude converts a string to a *st.Latitude object.
 // Params:
 //		latString string: string in the form "<deg> deg <deg_mins>' <deg_sconds>\" <[N | S]>"
 // Returns:
-//		*types.Latitude
+//		*st.Latitude
 //		error
-func StringToLatitude(latString string) (*types.Latitude, error) {
+func StringToLatitude(latString string) (*st.Latitude, error) {
 	latStringSplit := strings.Split(latString, " ")
 	if len(latStringSplit) != 5 {
 		return nil, fmt.Errorf("invalid format for longitude string %q", latString)
@@ -103,7 +103,7 @@ func StringToLatitude(latString string) (*types.Latitude, error) {
 		return nil, fmt.Errorf("error parsing degrees from latString - err: %w", err)
 	}
 
-	latitude := &types.Latitude{
+	latitude := &st.Latitude{
 		Degrees:       degrees,
 		DegreeMinutes: degreeMins,
 		DegreeSeconds: degreeSecs,
@@ -111,9 +111,9 @@ func StringToLatitude(latString string) (*types.Latitude, error) {
 
 	switch latStringSplit[4] {
 	case "N":
-		latitude.LatDirection = types.Latitude_NORTH
+		latitude.LatDirection = st.Latitude_NORTH
 	case "S":
-		latitude.LatDirection = types.Latitude_SOUTH
+		latitude.LatDirection = st.Latitude_SOUTH
 	default:
 		return nil, fmt.Errorf("error parsing latitude direction from %q", latString)
 	}
@@ -121,13 +121,13 @@ func StringToLatitude(latString string) (*types.Latitude, error) {
 	return latitude, nil
 }
 
-// StringToLongitude converts a string to a *types.Longitude object.
+// StringToLongitude converts a string to a *st.Longitude object.
 // Params:
 //		longString string: string in the form "<deg> deg <deg_mins>' <deg_sconds>\" <[E | W]>"
 // Returns:
-//		*types.Longitude
+//		*st.Longitude
 //		error
-func StringToLongitude(longString string) (*types.Longitude, error) {
+func StringToLongitude(longString string) (*st.Longitude, error) {
 	longStringSplit := strings.Split(longString, " ")
 	if len(longStringSplit) != 5 {
 		return nil, fmt.Errorf("invalid format for longitude string %q", longString)
@@ -138,7 +138,7 @@ func StringToLongitude(longString string) (*types.Longitude, error) {
 		return nil, fmt.Errorf("error parsing degrees from longString - err: %w", err)
 	}
 
-	longitude := &types.Longitude{
+	longitude := &st.Longitude{
 		Degrees:       degrees,
 		DegreeMinutes: degreeMins,
 		DegreeSeconds: degreeSecs,
@@ -146,9 +146,9 @@ func StringToLongitude(longString string) (*types.Longitude, error) {
 
 	switch longStringSplit[4] {
 	case "E":
-		longitude.LongDirection = types.Longitude_EAST
+		longitude.LongDirection = st.Longitude_EAST
 	case "W":
-		longitude.LongDirection = types.Longitude_WEST
+		longitude.LongDirection = st.Longitude_WEST
 	default:
 		return nil, fmt.Errorf("error parsing longitude direction from %q", longString)
 	}

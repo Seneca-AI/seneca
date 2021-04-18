@@ -2,19 +2,19 @@ package data
 
 import (
 	"fmt"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 	"time"
 )
 
-// 	ConstructCutVideoData data generates the types.CutVideo list based on the input raw video and how long the cut videos should be.
+// 	ConstructCutVideoData data generates the st.CutVideo list based on the input raw video and how long the cut videos should be.
 //	Params:
-//		cutVideoDuration time.Duration: how long each types.CutVideo should be
-//		rawVideo *types.RawVideo: the raw video to cut
+//		cutVideoDuration time.Duration: how long each st.CutVideo should be
+//		rawVideo *st.RawVideo: the raw video to cut
 //	Returns:
-//		[]*types.CutVideo
-func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *types.RawVideo) []*types.CutVideo {
-	cutVideos := []*types.CutVideo{}
+//		[]*st.CutVideo
+func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *st.RawVideo) []*st.CutVideo {
+	cutVideos := []*st.CutVideo{}
 
 	remainingRawVideoDuration := util.MillisecondsToDuration(rawVideo.DurationMs)
 	newCutVideoCreateTimeMs := rawVideo.CreateTimeMs
@@ -24,7 +24,7 @@ func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *types.RawVi
 			cutVidDur = remainingRawVideoDuration
 		}
 
-		cutVideos = append(cutVideos, &types.CutVideo{
+		cutVideos = append(cutVideos, &st.CutVideo{
 			UserId:               rawVideo.GetUserId(),
 			CreateTimeMs:         newCutVideoCreateTimeMs,
 			DurationMs:           cutVidDur.Milliseconds(),
@@ -38,21 +38,21 @@ func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *types.RawVi
 	return cutVideos
 }
 
-//	ConstructRawLocationDatas construct a list of types.RawLocation from a list of types.Location and time.Time for the given userID.
+//	ConstructRawLocationDatas construct a list of st.RawLocation from a list of st.Location and time.Time for the given userID.
 //	Params:
 //		userID string
-//		locations []*types.Location
+//		locations []*st.Location
 //		times	[]time.Time
 //	Returns:
-//		[]*types.RawLocation
+//		[]*st.RawLocation
 //		error
-func ConstructRawLocationDatas(userID string, locations []*types.Location, times []time.Time) ([]*types.RawLocation, error) {
+func ConstructRawLocationDatas(userID string, locations []*st.Location, times []time.Time) ([]*st.RawLocation, error) {
 	if len(locations) != len(times) {
 		return nil, fmt.Errorf("locations has length %d, but times has legth %d", len(locations), len(times))
 	}
-	rawLocations := []*types.RawLocation{}
+	rawLocations := []*st.RawLocation{}
 	for i := range locations {
-		rawLocations = append(rawLocations, &types.RawLocation{
+		rawLocations = append(rawLocations, &st.RawLocation{
 			UserId:      userID,
 			Location:    locations[i],
 			TimestampMs: util.TimeToMilliseconds(times[i]),
@@ -61,21 +61,21 @@ func ConstructRawLocationDatas(userID string, locations []*types.Location, times
 	return rawLocations, nil
 }
 
-//	ConstructRawMotionDatas construct a list of types.RawMotion from a list of types.Motion and time.Time for the given userID.
+//	ConstructRawMotionDatas construct a list of st.RawMotion from a list of st.Motion and time.Time for the given userID.
 //	Params:
 //		userID string
-//		motions []*types.Motion
+//		motions []*st.Motion
 //		times	[]time.Time
 //	Returns:
-//		[]*types.RawMotion
+//		[]*st.RawMotion
 //		error
-func ConstructRawMotionDatas(userID string, motions []*types.Motion, times []time.Time) ([]*types.RawMotion, error) {
+func ConstructRawMotionDatas(userID string, motions []*st.Motion, times []time.Time) ([]*st.RawMotion, error) {
 	if len(motions) != len(times) {
 		return nil, fmt.Errorf("motions has length %d, but times has legth %d", len(motions), len(times))
 	}
-	rawMotions := []*types.RawMotion{}
+	rawMotions := []*st.RawMotion{}
 	for i := range motions {
-		rawMotions = append(rawMotions, &types.RawMotion{
+		rawMotions = append(rawMotions, &st.RawMotion{
 			UserId:      userID,
 			Motion:      motions[i],
 			TimestampMs: util.TimeToMilliseconds(times[i]),

@@ -10,7 +10,7 @@ import (
 
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
-	"seneca/api/types"
+	st "seneca/api/type"
 	"seneca/internal/util"
 
 	"github.com/barasher/go-exiftool"
@@ -50,10 +50,10 @@ func NewExifMP4Tool() (*ExifMP4Tool, error) {
 	}, nil
 }
 
-// ParseOutRawVideoMetadata extracts *types.RawVideo metadata from the mp4 at the given path.
-func (emt *ExifMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.RawVideo, error) {
+// ParseOutRawVideoMetadata extracts *st.RawVideo metadata from the mp4 at the given path.
+func (emt *ExifMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error) {
 	var err error
-	rawVideo := &types.RawVideo{}
+	rawVideo := &st.RawVideo{}
 
 	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
@@ -76,8 +76,8 @@ func (emt *ExifMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*types.Raw
 	return rawVideo, nil
 }
 
-// 	ParseOutGPSMetadata extracts a list of types.Location, types.Motion and time.Time from the video at the given path.
-func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Location, []*types.Motion, []time.Time, error) {
+// 	ParseOutGPSMetadata extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
+func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
 	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
 	if len(fileInfoList) < 1 {
 		return nil, nil, nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")
@@ -108,8 +108,8 @@ func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*types.Locati
 		}
 	}
 	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
-	locations := []*types.Location{}
-	motions := []*types.Motion{}
+	locations := []*st.Location{}
+	motions := []*st.Motion{}
 	times := []time.Time{}
 	for _, lmt := range locationsMotionsTimes {
 		locations = append(locations, lmt.location)
@@ -170,12 +170,12 @@ func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, err
 
 // Used for sorting by time.
 type locationMotionTime struct {
-	location *types.Location
-	motion   *types.Motion
+	location *st.Location
+	motion   *st.Motion
 	gpsTime  time.Time
 }
 
-func populateAccelerations(motions []*types.Motion) {
+func populateAccelerations(motions []*st.Motion) {
 	if len(motions) == 0 {
 		return
 	}
@@ -192,8 +192,8 @@ func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locati
 	var tempErr error
 	var latString, longString, dateTimeString, speedRefString string
 	lmt := locationMotionTime{
-		location: &types.Location{},
-		motion:   &types.Motion{},
+		location: &st.Location{},
+		motion:   &st.Motion{},
 	}
 	if latString, tempErr = interfaceToString(m[exifToolMetadataGPSLatKey]); tempErr != nil {
 		err = tempErr
@@ -220,8 +220,8 @@ func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locati
 	}
 
 	err = nil
-	var locLat *types.Latitude
-	var locLong *types.Longitude
+	var locLat *st.Latitude
+	var locLong *st.Longitude
 	if locLat, tempErr = StringToLatitude(latString); tempErr != nil {
 		err = tempErr
 	}
