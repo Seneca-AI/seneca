@@ -21,6 +21,7 @@ jobs:
         persist-credentials: true
     - name: Copy golang proto definitions into tmp folder
       run: |
+        mkdir ~/tmp
         mkdir ~/tmp/proto_out
         cp -r ./proto_out/go/api/type/* ~/tmp/proto_out
     - name: Checkout this repo
