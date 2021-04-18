@@ -36,7 +36,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Download golang proto definitions
-      uses: actions/upload-artifact@v2
+      uses: actions/download-artifact@v2
       with:
         name: proto-definitions-go
         path: api/type/
@@ -60,7 +60,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Download golang proto definitions
-      uses: actions/upload-artifact@v2
+      uses: actions/download-artifact@v2
       with:
         name: proto-definitions-go
         path: api/type/
@@ -79,7 +79,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Download golang proto definitions
-      uses: actions/upload-artifact@v2
+      uses: actions/download-artifact@v2
       with:
         name: proto-definitions-go
         path: api/type/
