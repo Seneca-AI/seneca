@@ -21,13 +21,13 @@ jobs:
         persist-credentials: true
     - name: Copy golang proto definitions into tmp folder
       run: |
-        mkdir ./tmp
-        cp -r ./common/proto_out/go/api/type/* tmp
+        mkdir ~/tmp/proto_out
+        cp -r ./proto_out/go/api/type/* ~/tmp/proto_out
     - name: Checkout this repo
       uses: actions/checkout@v2
     - name: Copy proto definitions to this repo
       run: |
-        cp -r ./tmp/* ./seneca/api/type
+        cp -r ~/tmp/proto_out* ./api/type
 
   lint:
     runs-on: ubuntu-latest
