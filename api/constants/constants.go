@@ -9,4 +9,4 @@ const MaxInputVideoDuration = time.Minute * 30
 const CutVideoDuration = time.Minute
 
 // KilometersToMiles defines the ratio from kilometers to miles.
-const KilometersToMiles = float64(0.621371)
+const KilometersToMiles = float64(1.60934)
