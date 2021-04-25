@@ -134,7 +134,7 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 			},
 		},
 		motion: &st.Motion{
-			VelocityMph: 65.98312441359509,
+			VelocityMph: 25,
 		},
 		gpsTime: time.Date(2021, 02, 13, 22, 48, 47, 0, time.UTC),
 	}

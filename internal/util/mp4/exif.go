@@ -3,6 +3,7 @@ package mp4
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strings"
@@ -234,11 +235,12 @@ func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locati
 	if lmt.gpsTime, tempErr = time.Parse(gpsDateTimeParseLayout, dateTimeString); tempErr != nil {
 		err = tempErr
 	}
+
 	switch speedRefString {
 	case "mph":
 		lmt.motion.VelocityMph = speed
 	case "km/h":
-		lmt.motion.VelocityMph = speed / constants.KilometersToMiles
+		lmt.motion.VelocityMph = math.Round(speed / constants.KilometersToMiles)
 	default:
 		return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "Only mph or km/h are supported speeds.")
 	}
