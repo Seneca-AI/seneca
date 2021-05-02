@@ -10,9 +10,9 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
+	"seneca/internal/client/cloud"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
-	"seneca/internal/util/cloud"
-	"seneca/internal/util/logging"
 	"seneca/internal/util/mp4"
 	"strings"
 )

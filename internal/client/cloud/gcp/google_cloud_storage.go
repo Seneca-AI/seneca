@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"seneca/api/senecaerror"
-	"seneca/internal/util/cloud"
+	"seneca/internal/client/cloud"
 	"seneca/internal/util/mp4"
 
 	"cloud.google.com/go/storage"

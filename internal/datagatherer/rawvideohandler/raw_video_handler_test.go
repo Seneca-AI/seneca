@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"seneca/api/senecaerror"
-	"seneca/internal/util/cloud"
-	"seneca/internal/util/logging"
+	"seneca/internal/client/cloud"
+	"seneca/internal/client/logging"
 	"seneca/internal/util/mp4"
 	"testing"
 )
