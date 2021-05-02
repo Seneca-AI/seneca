@@ -23,9 +23,7 @@ const (
 
 // TODO: make this configurable in different envs.
 func main() {
-	// Initialize storage client and RawVideoHandler.
-	ctx := context.Background()
-
+	ctx := context.TODO()
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
 		fmt.Fprintf(os.Stderr, "GOOGLE_CLOUD_PROJECT environment variable must be set.\n")
@@ -68,7 +66,7 @@ func main() {
 		return
 	}
 
-	http.HandleFunc(fmt.Sprintf("/%s", rawVideoEndpointPath), rawVideoHandler.HandleRawVideoPostRequest)
+	http.HandleFunc(fmt.Sprintf("/%s", rawVideoEndpointPath), rawVideoHandler.HandleRawVideoHTTPRequest)
 	http.HandleFunc(fmt.Sprintf("/%s", cutVideoEndpointPath), cutVideoHandler.HandleRawVideoPostRequest)
 
 	fmt.Printf("Starting server at port %s\n", port)

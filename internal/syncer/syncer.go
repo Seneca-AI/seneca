@@ -15,7 +15,7 @@ type noSQLDBInterface interface {
 }
 
 type intraSenecaRequestInterface interface {
-	HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) *st.RawVideoProcessResponse
+	HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error)
 }
 
 type UserClientFactory interface {
@@ -72,11 +72,11 @@ func (sync *Syncer) handleUser(id string) error {
 		if err != nil {
 			return fmt.Errorf("userDriveClient.DownloadFileByID(%s) returns err: %w", fid, err)
 		}
-		response := sync.intraSeneca.HandleRawVideoProcessRequest(&st.RawVideoProcessRequest{
+		_, err = sync.intraSeneca.HandleRawVideoProcessRequest(&st.RawVideoProcessRequest{
 			UserId:    id,
 			LocalPath: pathToFile,
 		})
-		if response.ErrorCode != 200 {
+		if err != nil {
 			if err := userDriveClient.MarkFileByID(fid, true); err != nil {
 				sync.logger.Error(fmt.Sprintf("Error MarkFileByID(%s, true) for user %q returns err: %v", fid, id, err))
 			}

@@ -150,7 +150,7 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawVideo(rawVideo *st.RawVid
 
 	var nfe *senecaerror.NotFoundError
 	if err != nil && !errors.As(err, &nfe) {
-		return "", fmt.Errorf("error checking if raw video already exists - err: %w", err)
+		return "", senecaerror.NewCloudError(fmt.Errorf("error checking if raw video already exists - err: %w", err))
 	}
 
 	if existingRawVideo != nil {

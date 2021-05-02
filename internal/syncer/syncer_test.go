@@ -95,11 +95,9 @@ func TestErrorHandling(t *testing.T) {
 	callsMap["error"] = 0
 
 	numRequests := 0
-	intraSeneca.HandleRawVideoProcessRequestMock = func(req *st.RawVideoProcessRequest) *st.RawVideoProcessResponse {
+	intraSeneca.HandleRawVideoProcessRequestMock = func(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error) {
 		numRequests++
-		return &st.RawVideoProcessResponse{
-			ErrorCode: 400,
-		}
+		return nil, fmt.Errorf("error")
 	}
 	for _, fuid := range fakeUserIDs {
 		fakeClient := &googledrive.FakeGoogleDriveUserClient{}
@@ -162,10 +160,10 @@ func TestUsesPageToken(t *testing.T) {
 }
 
 type fakeIntraSeneca struct {
-	HandleRawVideoProcessRequestMock func(req *st.RawVideoProcessRequest) *st.RawVideoProcessResponse
+	HandleRawVideoProcessRequestMock func(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error)
 }
 
-func (fis *fakeIntraSeneca) HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) *st.RawVideoProcessResponse {
+func (fis *fakeIntraSeneca) HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error) {
 	if fis.HandleRawVideoProcessRequestMock == nil {
 		log.Fatal("HandleRawVideoProcessRequestMock not set.")
 	}
