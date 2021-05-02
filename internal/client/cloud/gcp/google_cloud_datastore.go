@@ -23,6 +23,8 @@ const (
 	rawMotionDirName    = "RawMotions"
 	rawLocationKind     = "RawLocation"
 	rawLocationDirName  = "RawLocations"
+	userKind            = "User"
+	userDirName         = "Users"
 	directoryKind       = "Directory"
 	createTimeFieldName = "CreateTimeMs"
 	userIDFieldName     = "UserId"
@@ -44,6 +46,10 @@ var (
 	rawLocationKey = datastore.Key{
 		Kind: rawLocationKind,
 		Name: rawLocationDirName,
+	}
+	userKey = datastore.Key{
+		Kind: userKind,
+		Name: userDirName,
 	}
 )
 
@@ -348,6 +354,68 @@ func (gcdc *GoogleCloudDatastoreClient) InsertUniqueRawLocation(rawLocation *st.
 		return "", senecaerror.NewBadStateError(fmt.Errorf("rawLocation with timestamp %d for user %s already exists", rawLocation.TimestampMs, rawLocation.UserId))
 	}
 	return gcdc.InsertRawLocation(rawLocation)
+}
+
+// 	ListAllUserIDs lists all user IDs in the Seneca DB.
+//	Params:
+//		pageToken string: page token to apply to request
+//		maxResults int: max results to return
+//	Returns:
+//		[]string: user IDs
+//		string: the next page token, if any, to use in subsequent requests
+//		error
+func (gcdc *GoogleCloudDatastoreClient) ListAllUserIDs(pageToken string, maxResults int) ([]string, string, error) {
+	query := datastore.NewQuery(userKind).KeysOnly().Order("__key__")
+
+	if maxResults > 0 {
+		query = query.Limit(maxResults)
+	}
+
+	// The page token here is just the minumum userID to start from (non-inclusive).
+	if pageToken != "" {
+		pageTokenInt, err := strconv.ParseInt(pageToken, 10, 64)
+		if err != nil {
+			return nil, "", fmt.Errorf("error converting pageToken %q to int - err: %w", pageToken, err)
+		}
+		pageTokenKey := datastore.IDKey(userKind, pageTokenInt, nil)
+		query = query.Filter("__key__ >", pageTokenKey)
+	}
+
+	keys, err := gcdc.client.GetAll(context.TODO(), query, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("error getting getting all user IDs from store - err: %w", err)
+	}
+
+	ids := []string{}
+	for _, k := range keys {
+		ids = append(ids, strconv.FormatInt(k.ID, 10))
+	}
+
+	nextPageToken := ""
+	if maxResults > 0 && len(ids) >= maxResults {
+		nextPageToken = ids[len(ids)-1]
+	}
+
+	return ids, nextPageToken, nil
+}
+
+// 	GetUserByID returns the user with the given ID.
+//	Params:
+//		id string
+//	Returns:
+//		*st.User
+//		error
+func (gcdc *GoogleCloudDatastoreClient) GetUserByID(id string) (*st.User, error) {
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error converting id to int64 - err: %v", err))
+	}
+	key := datastore.IDKey(userKind, idInt, &userKey)
+	user := &st.User{}
+	if err := gcdc.client.Get(context.Background(), key, user); err != nil {
+		return nil, fmt.Errorf("error getting user %q by ID - err: %w", id, err)
+	}
+	return user, nil
 }
 
 func addTimeOffsetFilter(createTime time.Time, offset time.Duration, query *datastore.Query) *datastore.Query {

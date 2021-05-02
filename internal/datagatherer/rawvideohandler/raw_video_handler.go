@@ -18,10 +18,9 @@ import (
 )
 
 const (
-	mp4FormKey                             = "mp4"
-	rawVideoBucketFileNameIdentifier       = "RAW_VIDEO"
-	userIDPostFormKey                      = "user_id"
-	maxFileSizeMB                    int64 = 250
+	mp4FormKey                       = "mp4"
+	rawVideoBucketFileNameIdentifier = "RAW_VIDEO"
+	userIDPostFormKey                = "user_id"
 )
 
 // RawVideoHandler implements all logic for handling raw video requests.
@@ -182,7 +181,7 @@ func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error 
 
 func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error) {
 	var buf bytes.Buffer
-	maxFileSizeBytes := maxFileSizeMB * 1024 * 1024
+	maxFileSizeBytes := constants.MaxVideoFileSizeMB * 1024 * 1024
 
 	mp4, header, err := r.FormFile(mp4FormKey)
 	if err != nil {
@@ -191,7 +190,7 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 	defer mp4.Close()
 
 	if header.Size > maxFileSizeBytes {
-		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file too large"), fmt.Sprintf("File too large. Max file size is %d MB.", maxFileSizeMB))
+		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error parsing form for mp4 - file too large"), fmt.Sprintf("File too large. Max file size is %d MB.", maxFileSizeBytes))
 	}
 
 	if err := r.ParseMultipartForm(maxFileSizeBytes); err != nil {

@@ -25,6 +25,8 @@ type FakeNoSQLDatabaseClient struct {
 	GetRawMotionMock            func(userID string, timestamp time.Time) (*st.RawMotion, error)
 	InsertRawMotionMock         func(rawMotion *st.RawMotion) (string, error)
 	InsertUniqueRawMotionMock   func(rawMotion *st.RawMotion) (string, error)
+	ListAllUserIDsMock          func(pageToken string, maxResults int) ([]string, string, error)
+	GetUserByIDMock             func(id string) (*st.User, error)
 }
 
 //	NewFakeNoSQLDatabaseClient returns an instance of FakeNoSQLDatabaseClient.
@@ -152,4 +154,18 @@ func (fnsdc *FakeNoSQLDatabaseClient) InsertUniqueRawMotion(rawMotion *st.RawMot
 		return "", fmt.Errorf("InsertUniqueRawMotionMock not set")
 	}
 	return fnsdc.InsertUniqueRawMotionMock(rawMotion)
+}
+
+func (fnsdc *FakeNoSQLDatabaseClient) ListAllUserIDs(pageToken string, maxResults int) ([]string, string, error) {
+	if fnsdc.ListAllUserIDsMock == nil {
+		return nil, "", fmt.Errorf("ListAllUserIDsMock not set")
+	}
+	return fnsdc.ListAllUserIDsMock(pageToken, maxResults)
+}
+
+func (fnsdc *FakeNoSQLDatabaseClient) GetUserByID(id string) (*st.User, error) {
+	if fnsdc.GetUserByIDMock == nil {
+		return nil, fmt.Errorf("ListAllUserIDsMock not set")
+	}
+	return fnsdc.GetUserByIDMock(id)
 }

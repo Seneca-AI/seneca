@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// TODO(lucaloncar): Deprecate this interface, or at least make it private.
+//					 It should be defined only by the package using it.
+
 // NoSQLDatabaseInterface is the interface used for interacting with
 // NoSQL Databases across Seneca.
 type NoSQLDatabaseInterface interface {
