@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
+	"seneca/internal/client/cloud"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
-	"seneca/internal/util/cloud"
 	"seneca/internal/util/data"
-	"seneca/internal/util/logging"
 	"seneca/internal/util/mp4"
 )
 

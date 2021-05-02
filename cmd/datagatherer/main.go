@@ -8,10 +8,10 @@ import (
 	"os"
 	"time"
 
+	"seneca/internal/client/cloud/gcp"
+	"seneca/internal/client/logging"
 	"seneca/internal/datagatherer/cutvideohandler"
 	"seneca/internal/datagatherer/rawvideohandler"
-	"seneca/internal/util/cloud/gcp"
-	"seneca/internal/util/logging"
 	"seneca/internal/util/mp4"
 )
 
