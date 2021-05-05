@@ -28,6 +28,7 @@ const (
 	directoryKind       = "Directory"
 	createTimeFieldName = "CreateTimeMs"
 	userIDFieldName     = "UserId"
+	emailFieldName      = "Email"
 )
 
 var (
@@ -98,7 +99,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideo(userID string, createTime ti
 
 	var rawVideoOut []*st.RawVideo
 
-	_, err := gcdc.client.GetAll(context.Background(), query, &rawVideoOut)
+	_, err := gcdc.client.GetAll(context.TODO(), query, &rawVideoOut)
 	if err != nil {
 		return nil, senecaerror.NewCloudError(fmt.Errorf("error querying datastore for RawVideo entity for user ID %q and createTime %v - err: %v", userID, createTime, err))
 	}
@@ -123,7 +124,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*st.RawVideo
 
 	rawVideo := &st.RawVideo{}
 
-	if err := gcdc.client.Get(context.Background(), &datastore.Key{
+	if err := gcdc.client.Get(context.TODO(), &datastore.Key{
 		Kind:   rawVideoKind,
 		ID:     idInt,
 		Parent: &rawVideoKey,
@@ -136,7 +137,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawVideoByID(id string) (*st.RawVideo
 // InsertRawVideo inserts the given *st.RawVideo into the RawVideos Directory.
 func (gcdc *GoogleCloudDatastoreClient) InsertRawVideo(rawVideo *st.RawVideo) (string, error) {
 	key := datastore.IncompleteKey(rawVideoKind, &rawVideoKey)
-	completeKey, err := gcdc.client.Put(context.Background(), key, rawVideo)
+	completeKey, err := gcdc.client.Put(context.TODO(), key, rawVideo)
 	if err != nil {
 		return "", senecaerror.NewCloudError(fmt.Errorf("error putting RawVideo entity for user ID %q - err: %v", rawVideo.UserId, err))
 	}
@@ -167,7 +168,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawVideoByID(id string) error {
 	}
 
 	key := datastore.IDKey(rawVideoKind, idInt, &rawVideoKey)
-	if err := gcdc.client.Delete(context.Background(), key); err != nil {
+	if err := gcdc.client.Delete(context.TODO(), key); err != nil {
 		return senecaerror.NewCloudError(fmt.Errorf("error deleting raw video by key - err: %v", err))
 	}
 	return nil
@@ -181,7 +182,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetCutVideo(userID string, createTime ti
 
 	var cutVideoOut []*st.CutVideo
 
-	_, err := gcdc.client.GetAll(context.Background(), query, &cutVideoOut)
+	_, err := gcdc.client.GetAll(context.TODO(), query, &cutVideoOut)
 	if err != nil {
 		return nil, senecaerror.NewCloudError(fmt.Errorf("error querying datastore for CutVideo entity for user ID %q and createTime %v - err: %v", userID, createTime, err))
 	}
@@ -205,7 +206,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteCutVideoByID(id string) error {
 	}
 
 	key := datastore.IDKey(cutVideoKind, idInt, &cutVideoKey)
-	if err := gcdc.client.Delete(context.Background(), key); err != nil {
+	if err := gcdc.client.Delete(context.TODO(), key); err != nil {
 		return senecaerror.NewCloudError(fmt.Errorf("error deleting cut video by key - err: %v", err))
 	}
 	return nil
@@ -214,7 +215,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteCutVideoByID(id string) error {
 // InsertCutVideo inserts the given *st.CutVideo into the CutVideos directory of the datastore.
 func (gcdc *GoogleCloudDatastoreClient) InsertCutVideo(cutVideo *st.CutVideo) (string, error) {
 	key := datastore.IncompleteKey(cutVideoKind, &cutVideoKey)
-	completeKey, err := gcdc.client.Put(context.Background(), key, cutVideo)
+	completeKey, err := gcdc.client.Put(context.TODO(), key, cutVideo)
 	if err != nil {
 		return "", senecaerror.NewCloudError(fmt.Errorf("error putting CutVideo entity for user ID %q - err: %v", cutVideo.UserId, err))
 	}
@@ -241,7 +242,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawMotion(userID string, timestamp ti
 
 	var rawMotionOut []*st.RawMotion
 
-	_, err := gcdc.client.GetAll(context.Background(), query, &rawMotionOut)
+	_, err := gcdc.client.GetAll(context.TODO(), query, &rawMotionOut)
 	if err != nil {
 		return nil, senecaerror.NewCloudError(fmt.Errorf("error querying datastore for RawMotion entity for user ID %q and timestamp %v - err: %v", userID, timestamp, err))
 	}
@@ -265,7 +266,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawMotionByID(id string) error {
 	}
 
 	key := datastore.IDKey(rawMotionKind, idInt, &rawMotionKey)
-	if err := gcdc.client.Delete(context.Background(), key); err != nil {
+	if err := gcdc.client.Delete(context.TODO(), key); err != nil {
 		return senecaerror.NewCloudError(fmt.Errorf("error deleting raw motion by key - err: %v", err))
 	}
 	return nil
@@ -274,7 +275,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawMotionByID(id string) error {
 // InsertRawMotion inserts the given *st.RawMotion into the RawMotions directory in the datastore.
 func (gcdc *GoogleCloudDatastoreClient) InsertRawMotion(rawMotion *st.RawMotion) (string, error) {
 	key := datastore.IncompleteKey(rawMotionKind, &rawMotionKey)
-	completeKey, err := gcdc.client.Put(context.Background(), key, rawMotion)
+	completeKey, err := gcdc.client.Put(context.TODO(), key, rawMotion)
 	if err != nil {
 		return "", senecaerror.NewCloudError(fmt.Errorf("error putting RawMotion entity for user ID %q - err: %v", rawMotion.UserId, err))
 	}
@@ -304,7 +305,7 @@ func (gcdc *GoogleCloudDatastoreClient) GetRawLocation(userID string, timestamp 
 
 	var rawLocationOut []*st.RawLocation
 
-	_, err := gcdc.client.GetAll(context.Background(), query, &rawLocationOut)
+	_, err := gcdc.client.GetAll(context.TODO(), query, &rawLocationOut)
 	if err != nil {
 		return nil, senecaerror.NewCloudError(fmt.Errorf("error querying datastore for RawLocation entity for user ID %q and timestamp %v - err: %v", userID, timestamp, err))
 	}
@@ -328,7 +329,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawLocationByID(id string) error {
 	}
 
 	key := datastore.IDKey(rawLocationKind, idInt, &rawLocationKey)
-	if err := gcdc.client.Delete(context.Background(), key); err != nil {
+	if err := gcdc.client.Delete(context.TODO(), key); err != nil {
 		return senecaerror.NewCloudError(fmt.Errorf("error deleting raw location by key - err: %v", err))
 	}
 	return nil
@@ -337,7 +338,7 @@ func (gcdc *GoogleCloudDatastoreClient) DeleteRawLocationByID(id string) error {
 // InsertRawLocation inserts the given *st.RawLocation into the RawLocations directory.
 func (gcdc *GoogleCloudDatastoreClient) InsertRawLocation(rawLocation *st.RawLocation) (string, error) {
 	key := datastore.IncompleteKey(rawLocationKind, &rawLocationKey)
-	completeKey, err := gcdc.client.Put(context.Background(), key, rawLocation)
+	completeKey, err := gcdc.client.Put(context.TODO(), key, rawLocation)
 	if err != nil {
 		return "", senecaerror.NewCloudError(fmt.Errorf("error putting RawLocation entity for user ID %q - err: %v", rawLocation.UserId, err))
 	}
@@ -412,10 +413,55 @@ func (gcdc *GoogleCloudDatastoreClient) GetUserByID(id string) (*st.User, error)
 	}
 	key := datastore.IDKey(userKind, idInt, &userKey)
 	user := &st.User{}
-	if err := gcdc.client.Get(context.Background(), key, user); err != nil {
+	if err := gcdc.client.Get(context.TODO(), key, user); err != nil {
 		return nil, fmt.Errorf("error getting user %q by ID - err: %w", id, err)
 	}
 	return user, nil
+}
+
+func (gcdc *GoogleCloudDatastoreClient) GetUserByEmail(email string) (*st.User, error) {
+	query := datastore.NewQuery(userKind).Filter(fmt.Sprintf("%s%s", emailFieldName, "="), email)
+	var users []*st.User
+	_, err := gcdc.client.GetAll(context.TODO(), query, &users)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user %q by email - err: %w", email, err)
+	}
+
+	if len(users) > 1 {
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("%d users with email address %q", len(users), email))
+	}
+
+	if len(users) == 0 {
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("user with email %q not found", email))
+	}
+
+	return users[0], nil
+}
+
+func (gcdc *GoogleCloudDatastoreClient) InsertUser(user *st.User) (string, error) {
+	key := datastore.IncompleteKey(userKind, &userKey)
+	completeKey, err := gcdc.client.Put(context.TODO(), key, user)
+	if err != nil {
+		return "", senecaerror.NewCloudError(fmt.Errorf("error putting User entity for user with email %q - err: %v", user.Email, err))
+	}
+	return fmt.Sprintf("%d", completeKey.ID), nil
+}
+
+func (gcdc *GoogleCloudDatastoreClient) InsertUniqueUser(user *st.User) (string, error) {
+	if user.Email == "" {
+		return "", fmt.Errorf("user %v does not have email set, cannot insert", user)
+	}
+
+	_, err := gcdc.GetUserByEmail(user.Email)
+	if err == nil {
+		return "", fmt.Errorf("user with email %q already exists", user.Email)
+	}
+	var nfe *senecaerror.NotFoundError
+	if !errors.As(err, &nfe) {
+		return "", fmt.Errorf("error getting user: %w", err)
+	}
+
+	return gcdc.InsertUser(user)
 }
 
 func addTimeOffsetFilter(createTime time.Time, offset time.Duration, query *datastore.Query) *datastore.Query {

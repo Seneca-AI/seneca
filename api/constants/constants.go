@@ -13,6 +13,3 @@ const KilometersToMiles = float64(1.60934)
 
 // MaxVideoFileSizeMB dictates the maximum size of video files Seneca will accept.
 const MaxVideoFileSizeMB int64 = 250
-
-// PathToOAuthCredentials is the path to the application's credentials for handling oauth.
-const PathToOAuthCredentials = ""

@@ -18,6 +18,7 @@ import (
 	"seneca/internal/util/mp4"
 	mp4util "seneca/internal/util/mp4/util"
 	"strings"
+	"time"
 )
 
 const (
@@ -69,7 +70,7 @@ func (rvh *RawVideoHandler) HandleRawVideoHTTPRequest(w http.ResponseWriter, r *
 		return
 	}
 
-	_, err = rvh.InsertRawVideoFromRequest(rawVideoProcessRequest)
+	_, err = rvh.HandleRawVideoProcessRequest(rawVideoProcessRequest)
 	if err != nil {
 		senecaerror.WriteErrorToHTTPResponse(w, err)
 		logging.LogSenecaError(rvh.logger, err)
@@ -84,23 +85,32 @@ func (rvh *RawVideoHandler) HandleRawVideoHTTPRequest(w http.ResponseWriter, r *
 // 		*st.RawVideoProcessRequest req
 //	Returns:
 //		*st.RawVideoProcessResponse
-func (rvh *RawVideoHandler) InsertRawVideoFromRequest(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error) {
+func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error) {
+	nowTime := time.Now()
+	defer func(startTime time.Time) {
+		rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest took %s", time.Since(startTime)))
+	}(nowTime)
+
 	if req.UserId == "" {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("UserID must not be \"\" in RawVideoProcessRequest"), fmt.Sprintf("UserID not specified in request."))
+		return nil, senecaerror.NewUserError("", fmt.Errorf("UserID must not be \"\" in RawVideoProcessRequest"), "UserID not specified in request.")
 	}
 
 	// Stage mp4 locally.
-	var mp4File *os.File
 	mp4Path := ""
-	defer mp4File.Close()
-	mp4File, err := mp4util.CreateTempMP4File(req.VideoName)
-	if err != nil {
-		return nil, senecaerror.NewServerError(fmt.Errorf("error creating temp mp4 file %v - err: %w", req, err))
-	}
-	mp4Path = mp4File.Name()
+	if req.LocalPath == "" {
+		var mp4File *os.File
+		defer mp4File.Close()
+		mp4File, err := mp4util.CreateTempMP4File(req.VideoName)
+		if err != nil {
+			return nil, senecaerror.NewServerError(fmt.Errorf("error creating temp mp4 file %v - err: %w", req, err))
+		}
+		mp4Path = mp4File.Name()
 
-	if err := ioutil.WriteFile(mp4File.Name(), req.VideoBytes, 0644); err != nil {
-		return nil, senecaerror.NewServerError(fmt.Errorf("error writing mp4 file - err: %w", err))
+		if err := ioutil.WriteFile(mp4File.Name(), req.VideoBytes, 0644); err != nil {
+			return nil, senecaerror.NewServerError(fmt.Errorf("error writing mp4 file - err: %w", err))
+		}
+	} else {
+		mp4Path = req.LocalPath
 	}
 
 	// Extract metadata.

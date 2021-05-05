@@ -59,7 +59,7 @@ func NewGoogleCloudStorageClient(ctx context.Context, projectID string, quickTim
 
 // CreateBucket creates a bucket in the project with the given name.
 func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName cloud.BucketName) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
@@ -71,7 +71,7 @@ func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName cloud.BucketName) 
 
 // BucketExists checks if a bucket with the given name already exists.
 func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName cloud.BucketName) (bool, error) {
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	var buckets []string
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
@@ -100,7 +100,7 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName cloud.BucketName) 
 // This is done by trying to read the attributes of the file, and if an error is
 // returned, we assume the file does not exist.
 func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName cloud.BucketName, bucketFileName string) (bool, error) {
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
 
@@ -125,7 +125,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketNam
 		return senecaerror.NewBadStateError(fmt.Errorf("received empty bucketFileName"))
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	f, err := os.Open(localFileNameAndPath)
 	if err != nil {
 		return senecaerror.NewBadStateError(fmt.Errorf("error opening local file %q - err: %v", localFileNameAndPath, err))
@@ -146,7 +146,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketNam
 
 // GetBucketFile downloads the file with the given bucketFileName, stores it in a temp file, and returns bytes.
 func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName cloud.BucketName, bucketFileName string) (string, error) {
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
 	defer cancel()
 

@@ -17,6 +17,10 @@ import (
 //		*os.File
 //		error
 func CreateTempMP4File(name string) (*os.File, error) {
+	if name == "" {
+		return nil, fmt.Errorf("no name specified")
+	}
+
 	nameParts := strings.Split(name, ".")
 
 	if nameParts[len(nameParts)-1] != "mp4" {

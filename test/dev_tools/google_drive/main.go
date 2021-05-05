@@ -7,10 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"seneca/internal/client/cloud/gcp"
+	"seneca/internal/client/googledrive"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/drive/v2"
 )
 
 // devtools offers tools to help developers do certain things that would not be
@@ -53,8 +54,45 @@ func generateDriveToken(pathToOAuthCredentials, pathToOutputToken, scope string)
 	return nil
 }
 
+func resetFilePrefixes(email string) error {
+	datastoreClient, err := gcp.NewGoogleCloudDatastoreClient(context.TODO(), "senecacam-sandbox", 0)
+	if err != nil {
+		return fmt.Errorf("error init datastore client: %w", err)
+	}
+
+	user, err := datastoreClient.GetUserByEmail(email)
+	if err != nil {
+		return fmt.Errorf("error getting user: %w", err)
+	}
+
+	pathToCredentials, exists := os.LookupEnv("GOOGLE_OAUTH_CREDENTIALS")
+	if !exists {
+		return fmt.Errorf("GOOGLE_OAUTH_CREDENTIALS not set")
+	}
+
+	gClient, err := googledrive.NewGoogleDriveUserClient(user, pathToCredentials)
+	if err != nil {
+		return fmt.Errorf("error initing user drive client: %w", err)
+	}
+
+	fids, err := gClient.ListFileIDs(googledrive.AllMP4s)
+	if err != nil {
+		return fmt.Errorf("error listing file IDs: %w", err)
+	}
+
+	prefixes := []googledrive.FilePrefix{googledrive.Success, googledrive.WorkInProgress, googledrive.Error}
+	for _, fid := range fids {
+		for _, p := range prefixes {
+			if err := gClient.MarkFileByID(fid, p, true); err != nil {
+				fmt.Printf("error marking file: %v\n", err)
+			}
+		}
+	}
+	return nil
+}
+
 func main() {
-	if err := generateDriveToken("oauth.json", "token.json", drive.DriveScope); err != nil {
-		log.Fatal(err)
+	if err := resetFilePrefixes("testuser000@senecacam.com"); err != nil {
+		fmt.Printf("error: %v\n", err)
 	}
 }

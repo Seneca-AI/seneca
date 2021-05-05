@@ -1,14 +1,19 @@
 package googledrive
 
 import (
-	"seneca/api/constants"
+	"fmt"
+	"os"
 	st "seneca/api/type"
 )
 
 type UserClientFactory struct{}
 
 func (fact *UserClientFactory) New(user *st.User) (GoogleDriveUserInterface, error) {
-	return NewGoogleDriveUserClient(user, constants.PathToOAuthCredentials)
+	pathToOAuthCredentials, exists := os.LookupEnv("GOOGLE_OAUTH_CREDENTIALS")
+	if !exists {
+		return nil, fmt.Errorf("GOOGLE_OAUTH_CREDENTIALS not set")
+	}
+	return NewGoogleDriveUserClient(user, pathToOAuthCredentials)
 }
 
 type clientOrError struct {
