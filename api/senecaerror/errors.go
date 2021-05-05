@@ -16,10 +16,10 @@ func WriteErrorToHTTPResponse(w http.ResponseWriter, err error) {
 	var ue *UserError
 	if errors.As(err, &ue) {
 		w.WriteHeader(400)
-		fmt.Fprintf(w, fmt.Sprintf("Error: %q", ue.ExternalMessage))
+		fmt.Fprintf(w, "Error: %q", ue.ExternalMessage)
 	} else {
 		w.WriteHeader(500)
-		fmt.Printf("Error: Internal error occurred")
+		fmt.Fprint(w, "Error: Internal error occurred.")
 	}
 }
 
@@ -45,6 +45,11 @@ func (ue *UserError) Error() string {
 	return ue.UserID + ": " + ue.Err.Error()
 }
 
+// Unwrap returns the error stored.
+func (ue *UserError) Unwrap() error {
+	return ue.Err
+}
+
 // CloudError is used for errors returned by clou clients.
 type CloudError struct {
 	Err error
@@ -60,7 +65,12 @@ func NewCloudError(err error) *CloudError {
 	return &CloudError{Err: err}
 }
 
-// BadStateError indicates that Seneca is in a bad state.
+// Unwrap returns the error stored.
+func (ce *CloudError) Unwrap() error {
+	return ce.Err
+}
+
+// BadStateError indicates that Seneca's data is in a bad state.
 type BadStateError struct {
 	Err error
 }
@@ -73,6 +83,11 @@ func (bse *BadStateError) Error() string {
 // NewBadStateError returns a new BadStateError.
 func NewBadStateError(err error) *BadStateError {
 	return &BadStateError{Err: err}
+}
+
+// Unwrap returns the error stored.
+func (bse *BadStateError) Unwrap() error {
+	return bse.Err
 }
 
 // NotFoundError indicates that whatever the caller asked for was not found.
@@ -88,4 +103,29 @@ func (nfe *NotFoundError) Error() string {
 // NewNotFoundError returns a new NotFoundError.
 func NewNotFoundError(err error) *NotFoundError {
 	return &NotFoundError{Err: err}
+}
+
+// Unwrap returns the error stored.
+func (nfe *NotFoundError) Unwrap() error {
+	return nfe.Err
+}
+
+// ServerError indicates that something unknown happened on the server, like a failure to create a temp file.
+type ServerError struct {
+	Err error
+}
+
+// Error returns the full error message for a ServerError.
+func (se *ServerError) Error() string {
+	return se.Err.Error()
+}
+
+// NewServerError returns a new ServerError.
+func NewServerError(err error) *ServerError {
+	return &ServerError{Err: err}
+}
+
+// Unwrap returns the error stored.
+func (se *ServerError) Unwrap() error {
+	return se.Err
 }

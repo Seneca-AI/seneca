@@ -36,7 +36,7 @@ func (fssc *FakeSimpleStorageClient) BucketExists(bucketName BucketName) (bool, 
 	if fssc.BucketExistsMock == nil {
 		return false, fmt.Errorf("BucketExistsMock not set")
 	}
-	return fssc.BucketExists(bucketName)
+	return fssc.BucketExistsMock(bucketName)
 }
 
 // BucketFileExists checks if the given bucket exists, and if it holds the given file.
