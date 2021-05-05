@@ -1,8 +1,8 @@
 package mp4
 
 import (
-	"fmt"
 	st "seneca/api/type"
+	"seneca/internal/client/logging"
 	"seneca/internal/util/mp4/cutter"
 	"seneca/internal/util/mp4/headerparse"
 	"time"
@@ -45,11 +45,8 @@ type MP4Tool struct {
 	exifTool *headerparse.ExifMP4Tool
 }
 
-func NewMP4Tool() (*MP4Tool, error) {
-	et, err := headerparse.NewExifMP4Tool()
-	if err != nil {
-		return nil, fmt.Errorf("error initializing ExifMP4Tool, err: %w", err)
-	}
+func NewMP4Tool(logger logging.LoggingInterface) (*MP4Tool, error) {
+	et := headerparse.NewExifMP4Tool(logger)
 	return &MP4Tool{
 		exifTool: et,
 	}, nil

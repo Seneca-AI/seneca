@@ -4,14 +4,10 @@ import (
 	"errors"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"testing"
 	"time"
-)
-
-const (
-	pathToTestMP4       = "../../../../test/testdata/dad_example.mp4"
-	pathToNoMetadataMP4 = "../../../../test/testdata/no_metadata.mp4"
 )
 
 func TestGetMetadataHasExpectedData(t *testing.T) {
@@ -19,25 +15,43 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExifMP4Tool()
-	if err != nil {
-		t.Errorf("NewExifMP4Tool() returns err: %v", err)
+	testCases := []struct {
+		desc             string
+		pathToVideo      string
+		wantCreateTimeMs int64
+		wantDurationMs   int64
+	}{
+		{
+			desc:             "garmin",
+			pathToVideo:      "../../../../test/testdata/garmin_example.mp4",
+			wantCreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC)),
+			wantDurationMs:   time.Minute.Milliseconds(),
+		},
+		{
+			desc:             "blackvue",
+			pathToVideo:      "../../../../test/testdata/blackvue_example.mp4",
+			wantCreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.April, 4, 21, 50, 29, 0, time.UTC)),
+			wantDurationMs:   time.Minute.Milliseconds(),
+		},
 	}
 
-	expectedCreationTimeMs := util.TimeToMilliseconds(time.Date(2021, time.February, 13, 17, 47, 49, 0, time.UTC))
-	expectedDurationMs := time.Minute.Milliseconds()
+	exifMP4Tool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
-	rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToTestMP4)
-	if err != nil {
-		t.Errorf("GetMetadata(%s) returns err: %v", pathToTestMP4, err)
-		return
-	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(tc.pathToVideo)
+			if err != nil {
+				t.Errorf("ParseOutRawVideoMetadata(%s) returns err: %v", tc.pathToVideo, err)
+				return
+			}
 
-	if rawVideo.GetCreateTimeMs() != expectedCreationTimeMs {
-		t.Errorf("rawVideo.CreateTimeMs incorrect. got %v, want %v", rawVideo.CreateTimeMs, expectedCreationTimeMs)
-	}
-	if rawVideo.GetDurationMs() != expectedDurationMs {
-		t.Errorf("rawVideo.GetDurationMs incorrect. got %v, want %v", rawVideo.GetDurationMs(), expectedDurationMs)
+			if rawVideo.GetCreateTimeMs() != tc.wantCreateTimeMs {
+				t.Errorf("rawVideo.CreateTimeMs incorrect. got %v, want %v", util.MillisecondsToTime(rawVideo.CreateTimeMs), util.MillisecondsToTime(tc.wantCreateTimeMs))
+			}
+			if rawVideo.GetDurationMs() != tc.wantDurationMs {
+				t.Errorf("rawVideo.GetDurationMs incorrect. got %v, want %v", rawVideo.GetDurationMs(), tc.wantDurationMs)
+			}
+		})
 	}
 }
 
@@ -46,18 +60,12 @@ func TestGetMetadataHasRejectsFileWithZeroCreationTime(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExifMP4Tool()
-	if err != nil {
-		t.Errorf("NewExifMP4Tool() returns err: %v", err)
-	}
+	exifMP4Tool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
-	_, err = exifMP4Tool.ParseOutRawVideoMetadata(pathToNoMetadataMP4)
+	pathToNoMetadataMP4 := "../../../../test/testdata/no_metadata.mp4"
+	_, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToNoMetadataMP4)
 	if err == nil {
 		t.Errorf("Expected err from exifMP4Tool.ParseOutRawVideoMetadata(%q), got nil", pathToNoMetadataMP4)
-	}
-	var userError *senecaerror.UserError
-	if !errors.As(err, &userError) {
-		t.Errorf("Want UserError from exifMP4Tool.ParseOutRawVideoMetadata(%q), got %v", pathToNoMetadataMP4, err)
 	}
 }
 
@@ -66,12 +74,9 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifMP4Tool, err := NewExifMP4Tool()
-	if err != nil {
-		t.Errorf("NewExifMP4Tool() returns err: %v", err)
-	}
+	exifMP4Tool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
-	_, err = exifMP4Tool.ParseOutRawVideoMetadata("../idontexist")
+	_, err := exifMP4Tool.ParseOutRawVideoMetadata("../idontexist")
 	if err == nil {
 		t.Errorf("Want non-nil error from bogus input file, got nil")
 	}
@@ -81,15 +86,14 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 	}
 }
 
-func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
-	goodInputMap := map[string]interface{}{
-		"GPSLatitude":  "40 deg 24' 55.86\" N",
-		"GPSLongitude": "74 deg 25' 50.17\" W",
-		"GPSSpeed":     float64(41),
-		"GPSSpeedRef":  "mph",
-		"GPSDateTime":  "2021:02:13 22:48:47.000Z",
+func TestGetLocationMotionTime(t *testing.T) {
+	goodUnprocessedGPSDataMPH := &unprocessedExifGPSData{
+		datetime:  "2021:02:13 22:48:47.000Z",
+		latitude:  "40 deg 24' 55.86\" N",
+		longitude: "74 deg 25' 50.17\" W",
+		speed:     float64(41),
+		speedRef:  "mph",
 	}
-
 	goodOutputStruct := &locationMotionTime{
 		location: &st.Location{
 			Lat: &st.Latitude{
@@ -111,14 +115,14 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 		gpsTime: time.Date(2021, 02, 13, 22, 48, 47, 0, time.UTC),
 	}
 
-	goodInputMapKmh := map[string]interface{}{
-		"GPSLatitude":  "40 deg 24' 55.86\" N",
-		"GPSLongitude": "74 deg 25' 50.17\" W",
-		"GPSSpeed":     float64(41),
-		"GPSSpeedRef":  "km/h",
-		"GPSDateTime":  "2021:02:13 22:48:47.000Z",
+	goodUnprocessedGPSDataKMH := &unprocessedExifGPSData{
+		datetime:  "2021:02:13 22:48:47.000Z",
+		latitude:  "40 deg 24' 55.86\" N",
+		longitude: "74 deg 25' 50.17\" W",
+		speed:     float64(41),
+		speedRef:  "km/h",
 	}
-	goodOutputStructKmh := &locationMotionTime{
+	goodOutputStructKMH := &locationMotionTime{
 		location: &st.Location{
 			Lat: &st.Latitude{
 				Degrees:       40,
@@ -139,85 +143,65 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 		gpsTime: time.Date(2021, 02, 13, 22, 48, 47, 0, time.UTC),
 	}
 
-	inputMapUnsupportedSpeedRef := map[string]interface{}{
-		"GPSLatitude":  "40 deg 24' 55.86\" N",
-		"GPSLongitude": "74 deg 25' 50.17\" W",
-		"GPSSpeed":     41,
-		"GPSSpeedRef":  "q",
-		"GPSDateTime":  "2021:02:13 22:48:47.000Z",
+	unsupportedSpeedRefData := &unprocessedExifGPSData{
+		datetime:  "2021:02:13 22:48:47.000Z",
+		latitude:  "40 deg 24' 55.86\" N",
+		longitude: "74 deg 25' 50.17\" W",
+		speed:     float64(41),
+		speedRef:  "q",
 	}
 
-	inputMapBadTimeFormat := map[string]interface{}{
-		"GPSLatitude":  "40 deg 24' 55.86\" N",
-		"GPSLongitude": "74 deg 25' 50.17\" W",
-		"GPSSpeed":     41,
-		"GPSSpeedRef":  "mph",
-		"GPSDateTime":  "02/13/2021 22:48:47.000Z",
-	}
-
-	inputMapBadSpeedType := map[string]interface{}{
-		"GPSLatitude":  "40 deg 24' 55.86\" N",
-		"GPSLongitude": "74 deg 25' 50.17\" W",
-		"GPSSpeed":     "41",
-		"GPSSpeedRef":  "mph",
-		"GPSDateTime":  "02/13/2021 22:48:47.000Z",
+	badTimeFormatData := &unprocessedExifGPSData{
+		datetime:  "02/13/2021 22:48:47.000Z",
+		latitude:  "40 deg 24' 55.86\" N",
+		longitude: "74 deg 25' 50.17\" W",
+		speed:     float64(41),
+		speedRef:  "mph",
 	}
 
 	testCases := []struct {
-		desc     string
-		inputMap map[string]interface{}
-		want     *locationMotionTime
-		wantErr  bool
+		desc    string
+		input   *unprocessedExifGPSData
+		want    *locationMotionTime
+		wantErr bool
 	}{
 		{
-			desc:     "test empty map throws error",
-			inputMap: make(map[string]interface{}),
-			want:     nil,
-			wantErr:  true,
+			desc:    "test expected output",
+			input:   goodUnprocessedGPSDataMPH,
+			want:    goodOutputStruct,
+			wantErr: false,
 		},
 		{
-			desc:     "test expected output",
-			inputMap: goodInputMap,
-			want:     goodOutputStruct,
-			wantErr:  false,
+			desc:    "test expected output kmh",
+			input:   goodUnprocessedGPSDataKMH,
+			want:    goodOutputStructKMH,
+			wantErr: false,
 		},
 		{
-			desc:     "test expected output kmh",
-			inputMap: goodInputMapKmh,
-			want:     goodOutputStructKmh,
-			wantErr:  false,
+			desc:    "test bad speed ref returns err",
+			input:   unsupportedSpeedRefData,
+			want:    nil,
+			wantErr: true,
 		},
 		{
-			desc:     "test bad speed ref returns err",
-			inputMap: inputMapUnsupportedSpeedRef,
-			want:     nil,
-			wantErr:  true,
-		},
-		{
-			desc:     "test bad time format returns err",
-			inputMap: inputMapBadTimeFormat,
-			want:     nil,
-			wantErr:  true,
-		},
-		{
-			desc:     "test bad speed type returns err",
-			inputMap: inputMapBadSpeedType,
-			want:     nil,
-			wantErr:  true,
+			desc:    "test bad time format returns err",
+			input:   badTimeFormatData,
+			want:    nil,
+			wantErr: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got, err := getLocationMotionTimeFromFileMetadataMap(tc.inputMap)
+			got, err := getLocationMotionTime(tc.input)
 			if tc.wantErr {
 				if err == nil {
-					t.Errorf("Want err from getLocationMotionTimeFromFileMetadataMap(%v), got nil", tc.inputMap)
+					t.Errorf("Want err from getLocationMotionTime(%v), got nil", tc.input)
 				}
 				return
 			}
 			if err != nil {
-				t.Errorf("getLocationMotionTimeFromFileMetadataMap(%v) returns unexpected err %v", tc.inputMap, err)
+				t.Errorf("getLocationMotionTime(%v) returns unexpected err %v", tc.input, err)
 				return
 			}
 			if !util.LocationsEqual(tc.want.location, got.location) {
@@ -233,32 +217,52 @@ func TestGetLocationMotionTimeFromFileMetadataMap(t *testing.T) {
 	}
 }
 
-func TestGetLocationDataFileMetadata(t *testing.T) {
+func TestParseOutGPSMetadata(t *testing.T) {
 	if util.IsCIEnv() {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	exifTool, err := NewExifMP4Tool()
-	if err != nil {
-		t.Error(err)
+	testCases := []struct {
+		desc                  string
+		pathToVideo           string
+		expectedAccelerations []float64
+	}{
+		{
+			desc:                  "garmin",
+			pathToVideo:           "../../../../test/testdata/garmin_example.mp4",
+			expectedAccelerations: []float64{0, -2, -2, -2, -2, -3, -1, -2, 0, -5, -2, -2, 0, 3, 4, 2, 3, 2, 1, 0, 0, -1, -1, -3, -2, -3, -2, 0, 0, -1, 1, 2, 1, 2, 1, 1, 1, 9, 2, 1, 0, 0, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+		},
+		// TODO(lucaloncar): double check this
+		{
+			desc:                  "blackvue",
+			pathToVideo:           "../../../../test/testdata/blackvue_example.mp4",
+			expectedAccelerations: []float64{0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, -1, -2, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 0, -1, -1, 3, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0},
+		},
 	}
 
-	expectedAccelerations := []float64{0, -2, -2, -2, -2, -3, -1, -2, 0, -5, -2, -2, 0, 3, 4, 2, 3, 2, 1, 0, 0, -1, -1, -3, -2, -3, -2, 0, 0, -1, 1, 2, 1, 2, 1, 1, 1, 9, 2, 1, 0, 0, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}
+	exifTool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
-	_, motions, _, err := exifTool.ParseOutGPSMetadata(pathToTestMP4)
-	if err != nil {
-		t.Errorf("getLocationDataFileMetadata() returns err - %v", err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, motions, _, err := exifTool.ParseOutGPSMetadata(tc.pathToVideo)
+			if err != nil {
+				t.Errorf("ParseOutGPSMetadata() returns err - %v", err)
+			}
+
+			if len(motions) != len(tc.expectedAccelerations) {
+				t.Errorf("Want len %d for motions, got %d", len(tc.expectedAccelerations), len(motions))
+				return
+			}
+
+			for i, m := range motions {
+				if tc.expectedAccelerations[i] != m.AccelerationMphS {
+					t.Errorf("Want accelerations %f at index %d, got %f", tc.expectedAccelerations[i], i, m.AccelerationMphS)
+					t.Errorf("%v", motions)
+				}
+			}
+		})
 	}
 
-	if len(motions) != len(expectedAccelerations) {
-		t.Errorf("Want len %d for motions, got %d", len(expectedAccelerations), len(motions))
-	}
-
-	for i, m := range motions {
-		if expectedAccelerations[i] != m.AccelerationMphS {
-			t.Errorf("Want accelerations %f at index %d, got %f", expectedAccelerations[i], i, m.AccelerationMphS)
-		}
-	}
 }
 
 func TestStringToLatitude(t *testing.T) {

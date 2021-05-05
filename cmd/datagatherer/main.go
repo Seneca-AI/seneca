@@ -48,7 +48,7 @@ func main() {
 		return
 	}
 
-	mp4Tool, err := mp4.NewMP4Tool()
+	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 		return

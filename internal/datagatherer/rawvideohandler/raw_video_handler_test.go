@@ -9,6 +9,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/logging"
+	"seneca/internal/util"
 	"seneca/internal/util/mp4"
 	"testing"
 	"time"
@@ -38,6 +39,11 @@ func TestHandleRawVideoHTTPRequestRejectsMalformed(t *testing.T) {
 }
 
 func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
+	// TODO(lucaloncar): use mocks here
+	if util.IsCIEnv() {
+		t.Skip("Skipping exiftool test in GitHub env.")
+	}
+
 	rawVidHandler, fakeMP4Tool, fakeSSC, fakeNOSQL, err := newRawVideoHandlerForTests()
 	if err != nil {
 		t.Error(err)
