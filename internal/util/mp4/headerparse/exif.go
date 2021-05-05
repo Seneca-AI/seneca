@@ -4,111 +4,98 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"seneca/api/constants"
-	"seneca/api/senecaerror"
 	st "seneca/api/type"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
-
-	"github.com/barasher/go-exiftool"
 )
 
 const (
-	exifToolMetadataMainKey        = "Main"
-	exifToolMetadataCreateDateKey  = "CreateDate"
-	exifToolMetadataDurationKey    = "TrackDuration"
-	exifToolMetadataGPSLatKey      = "GPSLatitude"
-	exifToolMetadataGPSLongKey     = "GPSLongitude"
-	exifToolMetadataGPSDateTimeKey = "GPSDateTime"
-	exifToolMetadataGPSSpeedKey    = "GPSSpeed"
-	exifToolMetadataGPSSpeedRefKey = "GPSSpeedRef"
+	exifToolMetadataMainKey = "Main"
+	exifStartTimeKey        = "CreateDate"
+	exifDurationKey         = "TrackDuration"
+	exifGPSLatKey           = "GPSLatitude"
+	exifGPSLongKey          = "GPSLongitude"
+	exifGPSDateTimeKey      = "GPSDateTime"
+	exifGPSSpeedKey         = "GPSSpeed"
+	exifGPSSpeedRefKey      = "GPSSpeedRef"
+	exifGPSSampleTimeKey    = "SampleTime"
 	// time.Parse requires the first arugment to be a string
 	// representing what the datetime 15:04 on 1/2/2006 would be.
 	// This is the format that exiftool gives.
-	timeParserLayout       = "2006:01:02 15:04:05"
-	gpsDateTimeParseLayout = "2006:01:02 15:04:05.000Z"
+	timeParserLayout = "2006:01:02 15:04:05"
 )
 
 var (
-	exifToolMainMetdataKeys = []string{exifToolMetadataCreateDateKey, exifToolMetadataDurationKey}
+	exifGPSSpeedRefs        = []string{"mph", "km/h"}
+	gpsDateTimeParseLayouts = []string{"2006:01:02 15:04:05.000Z", "2006:01:02 15:04:05.00Z"}
 )
 
 type ExifMP4Tool struct {
-	exiftool *exiftool.Exiftool
+	logger logging.LoggingInterface
 }
 
-func NewExifMP4Tool() (*ExifMP4Tool, error) {
-	et, err := exiftool.NewExiftool()
-	if err != nil {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("error instantiating exiftool - err: %v", err))
-	}
+func NewExifMP4Tool(logger logging.LoggingInterface) *ExifMP4Tool {
 	return &ExifMP4Tool{
-		exiftool: et,
-	}, nil
+		logger: logger,
+	}
 }
 
 // ParseOutRawVideoMetadata extracts *st.RawVideo metadata from the mp4 at the given path.
 func (emt *ExifMP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error) {
-	var err error
+	exifRawData, err := runExifCommand(pathToVideo)
+	if err != nil {
+		return nil, fmt.Errorf("error running exif command: %w", err)
+	}
+
+	unprocessedExifData, err := emt.extractData(exifRawData)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting unprocessed data: %w", err)
+	}
+
 	rawVideo := &st.RawVideo{}
 
-	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
-	if len(fileInfoList) < 1 {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")
+	creationTimeMs, err := getCreationTime(unprocessedExifData.startTime)
+	if err != nil {
+		return nil, fmt.Errorf("error getting creationTimeMs: %w", err)
 	}
+	rawVideo.CreateTimeMs = creationTimeMs
 
-	fileInfo := fileInfoList[0]
-	if fileInfo.Err != nil {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("error in fileInfo - err: %v", fileInfo.Err))
+	durationMs, err := getDurationMs(unprocessedExifData.duration)
+	if err != nil {
+		return nil, fmt.Errorf("error getting durationMs: %w", err)
 	}
-
-	if rawVideo.CreateTimeMs, err = getCreationTimeFromFileMetadata(fileInfo); err != nil {
-		return nil, fmt.Errorf("error parsing CreationTime - err: %w", err)
-	}
-
-	if rawVideo.DurationMs, err = getDurationFromFileMetadata(fileInfo); err != nil {
-		return nil, fmt.Errorf("error parsing Duration - err: %w", err)
-	}
+	rawVideo.DurationMs = durationMs
 
 	return rawVideo, nil
 }
 
 // 	ParseOutGPSMetadata extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
 func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
-	fileInfoList := emt.exiftool.ExtractMetadata(pathToVideo)
-	if len(fileInfoList) < 1 {
-		return nil, nil, nil, senecaerror.NewUserError("", fmt.Errorf("fileInfoList for %q is empty", pathToVideo), "MP4 is missing metadata.")
+	exifRawData, err := runExifCommand(pathToVideo)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error running exif command: %w", err)
 	}
 
-	fileMetadata := fileInfoList[0]
-	if fileMetadata.Err != nil {
-		return nil, nil, nil, senecaerror.NewBadStateError(fmt.Errorf("error in fileInfo - err: %v", fileMetadata.Err))
+	unprocessedExifData, err := emt.extractData(exifRawData)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error extracting unprocessed data: %w", err)
 	}
 
-	locationsMotionsTimes := []*locationMotionTime{}
-
-	for k, v := range fileMetadata.Fields {
-		if strings.Contains(k, "Doc") {
-			m, ok := v.(map[string]interface{})
-			if !ok {
-				// TODO: handle this with the logger
-				fmt.Printf("Value is of type: %q\n", reflect.TypeOf(v))
-				continue
-			}
-
-			locationMotionTime, err := getLocationMotionTimeFromFileMetadataMap(m)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("error parsing GPS metadata map - err: %w", err)
-			}
-
-			locationsMotionsTimes = append(locationsMotionsTimes, locationMotionTime)
+	locationsMotionsTimes := []locationMotionTime{}
+	for _, gpsData := range unprocessedExifData.gpsData {
+		lmt, err := getLocationMotionTime(gpsData)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error extracting GPS data: %w", err)
 		}
+		locationsMotionsTimes = append(locationsMotionsTimes, *lmt)
 	}
+
 	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
 	locations := []*st.Location{}
 	motions := []*st.Motion{}
@@ -123,49 +110,29 @@ func (emt *ExifMP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location,
 	return locations, motions, times, nil
 }
 
-func getCreationTimeFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, error) {
-	mainMap, err := getMainMetadata(fileMetadata)
-	if err != nil {
-		return 0, fmt.Errorf("error constructing mainMap - err: %w", err)
-	}
-
-	timeString, ok := mainMap[exifToolMetadataCreateDateKey]
-	if !ok {
-		return 0, senecaerror.NewUserError("", fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataCreateDateKey), "MP4 is missing CreationTime metadata.")
-	}
-
+func getCreationTime(timeString string) (int64, error) {
 	t, err := time.Parse(timeParserLayout, timeString)
 	if err != nil {
-		return 0, senecaerror.NewUserError("", fmt.Errorf("error parsing CreationTime - err: %v", err), "Malformed MP4 metadata.")
+		return 0, fmt.Errorf("error parsing CreationTime - err: %v", err)
 	}
 
 	if t.Equal(time.Unix(0, 0)) {
-		return 0, senecaerror.NewUserError("", errors.New("creationTime of 0 is not allowed"), "mp4 has CreationTime of 0, which is not allowed.")
+		return 0, errors.New("creationTime of 0 is not allowed")
 	}
 
 	return util.TimeToMilliseconds(t), nil
 }
 
-func getDurationFromFileMetadata(fileMetadata exiftool.FileMetadata) (int64, error) {
-	mainMap, err := getMainMetadata(fileMetadata)
-	if err != nil {
-		return 0, fmt.Errorf("error constructing mainMap - err: %w", err)
-	}
-
-	durationString, ok := mainMap[exifToolMetadataDurationKey]
-	if !ok {
-		return 0, senecaerror.NewUserError("", fmt.Errorf("could not find value for %q in mainMap", exifToolMetadataDurationKey), "MP4 is missing Duration metadata.")
-	}
-
+func getDurationMs(durationString string) (int64, error) {
 	durationString = strings.Replace(durationString, ":", "h", 1)
 	durationString = strings.Replace(durationString, ":", "m", 1)
 	durationString = durationString + "s"
 	duration, err := time.ParseDuration(durationString)
 	if err != nil {
-		return 0, senecaerror.NewUserError("", fmt.Errorf("error parsing duration - err: %w", err), "Malformed MP4 metadata.")
+		return 0, fmt.Errorf("error parsing duration - err: %w", err)
 	}
 	if duration.Milliseconds() == 0 {
-		return 0, senecaerror.NewUserError("", fmt.Errorf("duration from durationString %q is zero", durationString), "Malformed MP4 metadata.")
+		return 0, fmt.Errorf("duration from durationString %q is zero", durationString)
 	}
 	return duration.Milliseconds(), nil
 }
@@ -189,101 +156,41 @@ func populateAccelerations(motions []*st.Motion) {
 	}
 }
 
-func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locationMotionTime, error) {
+func getLocationMotionTime(unprocessedGPSData *unprocessedExifGPSData) (*locationMotionTime, error) {
 	var err error
-	var tempErr error
-	var latString, longString, dateTimeString, speedRefString string
-	lmt := locationMotionTime{
+
+	locationMotionTime := &locationMotionTime{
 		location: &st.Location{},
 		motion:   &st.Motion{},
-	}
-	if latString, tempErr = interfaceToString(m[exifToolMetadataGPSLatKey]); tempErr != nil {
-		err = tempErr
-	}
-	if longString, tempErr = interfaceToString(m[exifToolMetadataGPSLongKey]); tempErr != nil {
-		err = tempErr
-	}
-	if dateTimeString, tempErr = interfaceToString(m[exifToolMetadataGPSDateTimeKey]); tempErr != nil {
-		err = tempErr
+		gpsTime:  time.Time{},
 	}
 
-	speed, ok := m[exifToolMetadataGPSSpeedKey].(float64)
-	if !ok {
-		err = fmt.Errorf("error parsing GPS Speed. Want float64, got %T", m[exifToolMetadataGPSSpeedKey])
+	if locationMotionTime.location.Lat, err = stringToLatitude(unprocessedGPSData.latitude); err != nil {
+		return nil, fmt.Errorf("error parsing Latitude: %w", err)
 	}
-	if speedRefString, tempErr = interfaceToString(m[exifToolMetadataGPSSpeedRefKey]); tempErr != nil {
-		err = tempErr
+	if locationMotionTime.location.Long, err = stringToLongitude(unprocessedGPSData.longitude); err != nil {
+		return nil, fmt.Errorf("error parsing Longitude: %w", err)
 	}
 
-	if err != nil {
-		if err != nil {
-			return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "MP4 GPS data malformed.")
+	for _, layout := range gpsDateTimeParseLayouts {
+		if locationMotionTime.gpsTime, err = time.Parse(layout, unprocessedGPSData.datetime); err == nil {
+			break
 		}
 	}
-
-	err = nil
-	var locLat *st.Latitude
-	var locLong *st.Longitude
-	if locLat, tempErr = stringToLatitude(latString); tempErr != nil {
-		err = tempErr
-	}
-	if locLong, tempErr = stringToLongitude(longString); tempErr != nil {
-		err = tempErr
-	}
-	lmt.location.Lat = locLat
-	lmt.location.Long = locLong
-
-	if lmt.gpsTime, tempErr = time.Parse(gpsDateTimeParseLayout, dateTimeString); tempErr != nil {
-		err = tempErr
+	if err != nil {
+		return nil, fmt.Errorf("error parsing GPS time: %w", err)
 	}
 
-	switch speedRefString {
+	switch unprocessedGPSData.speedRef {
 	case "mph":
-		lmt.motion.VelocityMph = speed
+		locationMotionTime.motion.VelocityMph = unprocessedGPSData.speed
 	case "km/h":
-		lmt.motion.VelocityMph = math.Round(speed / constants.KilometersToMiles)
+		locationMotionTime.motion.VelocityMph = math.Round(unprocessedGPSData.speed / constants.KilometersToMiles)
 	default:
-		return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "Only mph or km/h are supported speeds.")
+		return nil, fmt.Errorf("invalid spedRef %q", unprocessedGPSData.speedRef)
 	}
 
-	if err != nil {
-		return &lmt, senecaerror.NewUserError("", fmt.Errorf("error parsing GPS Data %v - err: %v", m, err), "MP4 GPS data malformed.")
-	}
-	return &lmt, nil
-}
-
-func getMainMetadata(fileMetadata exiftool.FileMetadata) (map[string]string, error) {
-	mainMapObj, ok := fileMetadata.Fields[exifToolMetadataMainKey]
-	if !ok {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("could not find main file metadata"), "MP4 metadata is malformed.")
-	}
-
-	mainMap, ok := mainMapObj.(map[string]interface{})
-	if !ok {
-		return nil, senecaerror.NewBadStateError(fmt.Errorf("want type map[string]interface{} for mainMap in file metadata, got %T", mainMapObj))
-	}
-
-	mainMapOut := map[string]string{}
-	for _, key := range exifToolMainMetdataKeys {
-		valueObj, ok := mainMap[key]
-		if !ok {
-			return nil, senecaerror.NewUserError("", fmt.Errorf("could not find value for key %q in mainMap", key), fmt.Sprintf("MP4 metadata is malformed and missing %q.", key))
-		}
-		valueString, err := interfaceToString(valueObj)
-		if err != nil {
-			return nil, senecaerror.NewUserError("", fmt.Errorf("error converting value for key %q to string - err: %v", key, err), fmt.Sprintf("MP4 metadata is malformed at key %q.", key))
-		}
-		mainMapOut[key] = valueString
-	}
-	return mainMapOut, nil
-}
-
-func interfaceToString(val interface{}) (string, error) {
-	s, ok := val.(string)
-	if !ok {
-		return "", fmt.Errorf("want string, got %T", val)
-	}
-	return s, nil
+	return locationMotionTime, nil
 }
 
 // In the form "<deg> deg <deg_mins>' <deg_sconds>\"".
@@ -376,4 +283,146 @@ func stringToLongitude(longString string) (*st.Longitude, error) {
 	}
 
 	return longitude, nil
+}
+
+type unprocessedExifGPSData struct {
+	datetime  string
+	latitude  string
+	longitude string
+	speed     float64
+	speedRef  string
+}
+
+type unprocessedExifData struct {
+	startTime string
+	duration  string
+	gpsData   []*unprocessedExifGPSData
+}
+
+func (emt *ExifMP4Tool) extractData(rawData map[string]interface{}) (*unprocessedExifData, error) {
+	unprocessedData := &unprocessedExifData{}
+
+	mainDataObj, ok := rawData[exifToolMetadataMainKey]
+	if !ok {
+		return nil, fmt.Errorf("no %q data", exifToolMetadataMainKey)
+	}
+
+	var err error
+	unprocessedData.startTime, unprocessedData.duration, err = extractMainMetadata(mainDataObj)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting %q data - err: %w", exifToolMetadataMainKey, err)
+	}
+
+	for _, subMapObj := range rawData {
+		subMap, ok := subMapObj.(map[string]interface{})
+		if !ok {
+			emt.logger.Warning("expected map[string]interface{} ")
+		}
+
+		gpsData, err := extractGPSData(subMap)
+		if err != nil {
+			return nil, fmt.Errorf("error extracting GPS data: %w", err)
+		}
+		if gpsData != nil {
+			unprocessedData.gpsData = append(unprocessedData.gpsData, gpsData)
+		}
+	}
+
+	unprocessedData.gpsData = removeDuplicates(unprocessedData.gpsData)
+	return unprocessedData, nil
+}
+
+func removeDuplicates(dataList []*unprocessedExifGPSData) []*unprocessedExifGPSData {
+	gpsDateTimes := map[string]bool{}
+	newList := []*unprocessedExifGPSData{}
+	for _, gpsData := range dataList {
+		if gpsDateTimes[gpsData.datetime] {
+			continue
+		}
+		gpsDateTimes[gpsData.datetime] = true
+		newList = append(newList, gpsData)
+	}
+	return newList
+}
+
+func extractMainMetadata(obj interface{}) (string, string, error) {
+	startTime := ""
+	duration := ""
+
+	mainData, ok := obj.(map[string]interface{})
+	if !ok {
+		return "", "", fmt.Errorf("expected map[string]interface{} for main metadata %q, got %T", exifToolMetadataMainKey, obj)
+	}
+
+	startTimeObj, ok := mainData[exifStartTimeKey]
+	if !ok {
+		return "", "", fmt.Errorf("no %q data", exifStartTimeKey)
+	}
+	startTime, ok = startTimeObj.(string)
+	if !ok {
+		return "", "", fmt.Errorf("expected string for %q, got %T", exifStartTimeKey, startTimeObj)
+	}
+
+	durationObj, ok := mainData[exifDurationKey]
+	if !ok {
+		return "", "", fmt.Errorf("no %q data", exifDurationKey)
+	}
+	duration, ok = durationObj.(string)
+	if !ok {
+		return "", "", fmt.Errorf("expected string for %q, got %T", exifDurationKey, durationObj)
+	}
+
+	return startTime, duration, nil
+}
+
+func extractGPSData(gpsMap map[string]interface{}) (*unprocessedExifGPSData, error) {
+	gpsData := &unprocessedExifGPSData{}
+
+	gpsKeys := []string{exifGPSDateTimeKey, exifGPSLatKey, exifGPSLongKey, exifGPSSpeedKey, exifGPSSpeedRefKey, exifGPSSampleTimeKey}
+	for _, key := range gpsKeys {
+		if _, ok := gpsMap[key]; !ok {
+			return nil, nil
+		}
+	}
+
+	datetime, ok := gpsMap[exifGPSDateTimeKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string for %q, got %T", exifGPSDateTimeKey, gpsMap[exifGPSDateTimeKey])
+	}
+	gpsData.datetime = datetime
+
+	lat, ok := gpsMap[exifGPSLatKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string for %q, got %T", exifGPSLatKey, gpsMap[exifGPSLatKey])
+	}
+	gpsData.latitude = lat
+
+	long, ok := gpsMap[exifGPSLongKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string for %q, got %T", exifGPSLongKey, gpsMap[exifGPSLongKey])
+	}
+	gpsData.longitude = long
+
+	speed, ok := gpsMap[exifGPSSpeedKey].(float64)
+	if !ok {
+		return nil, fmt.Errorf("expected float64 for %q, got %T", exifGPSSpeedKey, gpsMap[exifGPSSpeedKey])
+	}
+	gpsData.speed = speed
+
+	speedRef, ok := gpsMap[exifGPSSpeedRefKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string for %q, got %T", exifGPSSpeedRefKey, gpsMap[exifGPSSpeedRefKey])
+	}
+	found := false
+	for _, validRef := range exifGPSSpeedRefs {
+		if speedRef == validRef {
+			found = true
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("invalid speedRef %q", speedRef)
+	}
+	gpsData.speedRef = speedRef
+
+	return gpsData, nil
 }
