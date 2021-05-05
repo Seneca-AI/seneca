@@ -10,7 +10,7 @@ import (
 
 	"seneca/api/senecaerror"
 	"seneca/internal/client/cloud"
-	"seneca/internal/util/mp4"
+	mp4util "seneca/internal/util/mp4/util"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
@@ -161,7 +161,7 @@ func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName cloud.BucketName,
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error extracting bytes from file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
 	}
 
-	tempFile, err := mp4.CreateTempMP4File(bucketFileName)
+	tempFile, err := mp4util.CreateTempMP4File(bucketFileName)
 	if err != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error creating temp file for file %q in bucket %q - err: %w", bucketFileName, bucketName, err))
 	}

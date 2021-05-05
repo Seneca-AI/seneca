@@ -3,6 +3,8 @@ package mp4
 import (
 	"fmt"
 	st "seneca/api/type"
+	"seneca/internal/util/mp4/cutter"
+	"seneca/internal/util/mp4/headerparse"
 	"time"
 )
 
@@ -40,11 +42,11 @@ type MP4ToolInterface interface {
 
 //nolint
 type MP4Tool struct {
-	exifTool *ExifMP4Tool
+	exifTool *headerparse.ExifMP4Tool
 }
 
 func NewMP4Tool() (*MP4Tool, error) {
-	et, err := NewExifMP4Tool()
+	et, err := headerparse.NewExifMP4Tool()
 	if err != nil {
 		return nil, fmt.Errorf("error initializing ExifMP4Tool, err: %w", err)
 	}
@@ -62,5 +64,5 @@ func (mt *MP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*s
 }
 
 func (mt *MP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error) {
-	return CutRawVideo(cutVideoDur, pathToRawVideo, rawVideo, false)
+	return cutter.CutRawVideo(cutVideoDur, pathToRawVideo, rawVideo, false)
 }
