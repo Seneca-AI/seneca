@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"seneca/api/constants"
 	st "seneca/api/type"
-	"seneca/internal/util/mp4"
+	mp4util "seneca/internal/util/mp4/util"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -141,7 +141,7 @@ func (gduc *GoogleDriveUserClient) DownloadFileByID(fileID string) (string, erro
 		return "", fmt.Errorf("error readying bytes from file with ID %q - err: %w", fileID, err)
 	}
 
-	tempFile, err := mp4.CreateTempMP4File(fmt.Sprintf("%s.mp4", fileID))
+	tempFile, err := mp4util.CreateTempMP4File(fmt.Sprintf("%s.mp4", fileID))
 	if err != nil {
 		return "", fmt.Errorf("error creating tmp file with name %s.mp4", fileID)
 	}

@@ -16,6 +16,7 @@ import (
 	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
+	mp4util "seneca/internal/util/mp4/util"
 	"strings"
 )
 
@@ -92,7 +93,7 @@ func (rvh *RawVideoHandler) InsertRawVideoFromRequest(req *st.RawVideoProcessReq
 	var mp4File *os.File
 	mp4Path := ""
 	defer mp4File.Close()
-	mp4File, err := mp4.CreateTempMP4File(req.VideoName)
+	mp4File, err := mp4util.CreateTempMP4File(req.VideoName)
 	if err != nil {
 		return nil, senecaerror.NewServerError(fmt.Errorf("error creating temp mp4 file %v - err: %w", req, err))
 	}

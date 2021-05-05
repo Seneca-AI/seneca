@@ -1,4 +1,4 @@
-package mp4
+package headerparse
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -223,10 +224,10 @@ func getLocationMotionTimeFromFileMetadataMap(m map[string]interface{}) (*locati
 	err = nil
 	var locLat *st.Latitude
 	var locLong *st.Longitude
-	if locLat, tempErr = StringToLatitude(latString); tempErr != nil {
+	if locLat, tempErr = stringToLatitude(latString); tempErr != nil {
 		err = tempErr
 	}
-	if locLong, tempErr = StringToLongitude(longString); tempErr != nil {
+	if locLong, tempErr = stringToLongitude(longString); tempErr != nil {
 		err = tempErr
 	}
 	lmt.location.Lat = locLat
@@ -283,4 +284,96 @@ func interfaceToString(val interface{}) (string, error) {
 		return "", fmt.Errorf("want string, got %T", val)
 	}
 	return s, nil
+}
+
+// In the form "<deg> deg <deg_mins>' <deg_sconds>\"".
+func parseDegrees(degreesStr string) (float64, float64, float64, error) {
+	degreesStrSplit := strings.Split(degreesStr, " ")
+	if len(degreesStrSplit) != 4 {
+		return 0, 0, 0, fmt.Errorf("invalid length for lat/long degrees string %q", degreesStr)
+	}
+
+	if degreesStrSplit[1] != "deg" {
+		return 0, 0, 0, fmt.Errorf("invalid format for latitude string %q", degreesStr)
+	}
+	degrees, err := strconv.ParseFloat(degreesStrSplit[0], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("error parsing float from deg in %q", degreesStr)
+	}
+
+	if degreesStrSplit[2][len(degreesStrSplit[2])-1:] != "'" {
+		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeMins symbol", degreesStr)
+	}
+	degreeMins, err := strconv.ParseFloat(degreesStrSplit[2][:len(degreesStrSplit[2])-1], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("error parsing float from deg mins in %q", degreesStr)
+	}
+
+	if degreesStrSplit[3][len(degreesStrSplit[3])-1:] != "\"" {
+		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeSecs symbol - %q != %q", degreesStr, degreesStrSplit[3][len(degreesStrSplit[3])-1:], "\\\"")
+	}
+	degreeSecs, err := strconv.ParseFloat(degreesStrSplit[3][:len(degreesStrSplit[3])-1], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("error parsing float from deg secs in %q", degreesStr)
+	}
+
+	return degrees, degreeMins, degreeSecs, nil
+}
+
+func stringToLatitude(latString string) (*st.Latitude, error) {
+	latStringSplit := strings.Split(latString, " ")
+	if len(latStringSplit) != 5 {
+		return nil, fmt.Errorf("invalid format for longitude string %q", latString)
+	}
+
+	degrees, degreeMins, degreeSecs, err := parseDegrees(strings.Join(latStringSplit[:4], " "))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing degrees from latString - err: %w", err)
+	}
+
+	latitude := &st.Latitude{
+		Degrees:       degrees,
+		DegreeMinutes: degreeMins,
+		DegreeSeconds: degreeSecs,
+	}
+
+	switch latStringSplit[4] {
+	case "N":
+		latitude.LatDirection = st.Latitude_NORTH
+	case "S":
+		latitude.LatDirection = st.Latitude_SOUTH
+	default:
+		return nil, fmt.Errorf("error parsing latitude direction from %q", latString)
+	}
+
+	return latitude, nil
+}
+
+func stringToLongitude(longString string) (*st.Longitude, error) {
+	longStringSplit := strings.Split(longString, " ")
+	if len(longStringSplit) != 5 {
+		return nil, fmt.Errorf("invalid format for longitude string %q", longString)
+	}
+
+	degrees, degreeMins, degreeSecs, err := parseDegrees(strings.Join(longStringSplit[:4], " "))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing degrees from longString - err: %w", err)
+	}
+
+	longitude := &st.Longitude{
+		Degrees:       degrees,
+		DegreeMinutes: degreeMins,
+		DegreeSeconds: degreeSecs,
+	}
+
+	switch longStringSplit[4] {
+	case "E":
+		longitude.LongDirection = st.Longitude_EAST
+	case "W":
+		longitude.LongDirection = st.Longitude_WEST
+	default:
+		return nil, fmt.Errorf("error parsing longitude direction from %q", longString)
+	}
+
+	return longitude, nil
 }

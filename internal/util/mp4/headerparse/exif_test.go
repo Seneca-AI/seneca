@@ -1,4 +1,4 @@
-package mp4
+package headerparse
 
 import (
 	"errors"
@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	pathToTestMP4       = "../../../test/testdata/dad_example.mp4"
-	pathToNoMetadataMP4 = "../../../test/testdata/no_metadata.mp4"
+	pathToTestMP4       = "../../../../test/testdata/dad_example.mp4"
+	pathToNoMetadataMP4 = "../../../../test/testdata/no_metadata.mp4"
 )
 
 func TestGetMetadataHasExpectedData(t *testing.T) {
@@ -258,5 +258,167 @@ func TestGetLocationDataFileMetadata(t *testing.T) {
 		if expectedAccelerations[i] != m.AccelerationMphS {
 			t.Errorf("Want accelerations %f at index %d, got %f", expectedAccelerations[i], i, m.AccelerationMphS)
 		}
+	}
+}
+
+func TestStringToLatitude(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		inputStr string
+		want     *st.Latitude
+		wantErr  bool
+	}{
+		{
+			desc:     "test empty string throws err",
+			inputStr: "",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string without direction throws err",
+			inputStr: "40 deg 24' 57.66\"",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string with extra info throws err",
+			inputStr: "40 deg 24' 57.66\" N P",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string with bad degrees throws err",
+			inputStr: "40 degrees 24' 57.66\" N",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string without degrees symbol throws err",
+			inputStr: "40 deg 24 57.66 N",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test string without decimals succeeds",
+			inputStr: "40 deg 24' 57\" N",
+			want: &st.Latitude{
+				Degrees:       40,
+				DegreeMinutes: 24,
+				DegreeSeconds: 57,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			wantErr: false,
+		},
+		{
+			desc:     "test string with all decimals and south succeeds",
+			inputStr: "40.35 deg 24.56' 57.78\" S",
+			want: &st.Latitude{
+				Degrees:       40.35,
+				DegreeMinutes: 24.56,
+				DegreeSeconds: 57.78,
+				LatDirection:  st.Latitude_SOUTH,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := stringToLatitude(tc.inputStr)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("Want err from stringToLatitude(%s), got nil", tc.inputStr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("stringToLatitude(%s) returns unexpected err: %v", tc.inputStr, err)
+				return
+			}
+			if got.Degrees != tc.want.Degrees || got.DegreeMinutes != tc.want.DegreeMinutes || got.DegreeSeconds != tc.want.DegreeSeconds || got.LatDirection != tc.want.LatDirection {
+				t.Errorf("Want %v from stringToLatitude(%s), got %v", tc.want, tc.inputStr, got)
+			}
+		})
+	}
+}
+
+func TestStringToLongitude(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		inputStr string
+		want     *st.Longitude
+		wantErr  bool
+	}{
+		{
+			desc:     "test empty string throws err",
+			inputStr: "",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string without direction throws err",
+			inputStr: "40 deg 24' 57.66\"",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string with extra info throws err",
+			inputStr: "40 deg 24' 57.66\" E P",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string with bad degrees throws err",
+			inputStr: "40 degrees 24' 57.66\" E",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test malformed string without degrees symbol throws err",
+			inputStr: "40 deg 24 57.66 E",
+			want:     nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "test string without decimals succeeds",
+			inputStr: "40 deg 24' 57\" E",
+			want: &st.Longitude{
+				Degrees:       40,
+				DegreeMinutes: 24,
+				DegreeSeconds: 57,
+				LongDirection: st.Longitude_EAST,
+			},
+			wantErr: false,
+		},
+		{
+			desc:     "test string with all decimals and west succeeds",
+			inputStr: "40.35 deg 24.56' 57.78\" W",
+			want: &st.Longitude{
+				Degrees:       40.35,
+				DegreeMinutes: 24.56,
+				DegreeSeconds: 57.78,
+				LongDirection: st.Longitude_WEST,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := stringToLongitude(tc.inputStr)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("Want err from stringToLongitude(%s), got nil", tc.inputStr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("stringToLongitude(%s) returns unexpected err: %v", tc.inputStr, err)
+				return
+			}
+			if got.Degrees != tc.want.Degrees || got.DegreeMinutes != tc.want.DegreeMinutes || got.DegreeSeconds != tc.want.DegreeSeconds || got.LongDirection != tc.want.LongDirection {
+				t.Errorf("Want %v from stringToLongitude(%s), got %v", tc.want, tc.inputStr, got)
+			}
+		})
 	}
 }
