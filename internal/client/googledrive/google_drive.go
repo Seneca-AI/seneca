@@ -56,12 +56,12 @@ func NewGoogleDriveUserClient(user *st.User, pathToOAuthCredentials string) (*Go
 		return nil, fmt.Errorf("google.ConfigFromJSON(%s, drive.DriveMetadataScope) returns err: %w", pathToOAuthCredentials, err)
 	}
 
-	if user.OauthToken == "" {
+	if len(user.OauthToken) == 0 {
 		return nil, fmt.Errorf("user with ID %q does not have OauthToken set", user.Id)
 	}
 
 	tok := &oauth2.Token{}
-	err = json.NewDecoder(bytes.NewReader([]byte(user.OauthToken))).Decode(tok)
+	err = json.NewDecoder(bytes.NewReader(user.OauthToken)).Decode(tok)
 	if err != nil {
 		return nil, fmt.Errorf("error reading oauth token for user with ID %s - err: %w", user.Id, err)
 	}
