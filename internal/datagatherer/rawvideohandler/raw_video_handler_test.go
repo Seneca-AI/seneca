@@ -29,10 +29,10 @@ func TestHandleRawVideoHTTPRequestRejectsMalformed(t *testing.T) {
 
 	_, err = rawVideoHandler.convertHTTPRequestToRawVideoProcessRequest(request)
 	if err == nil {
-		t.Error("Want err from InsertRawVideoFromRequest() with GET method, got nil")
+		t.Error("Want err from HandleRawVideoProcessRequest() with GET method, got nil")
 	}
 	if !errors.As(err, &userError) {
-		t.Errorf("Want UserError from InsertRawVideoFromRequest() GET method, got %v", err)
+		t.Errorf("Want UserError from HandleRawVideoProcessRequest() GET method, got %v", err)
 	}
 
 	// TODO(lucaloncar): test the rest of HTTP parsing
@@ -54,12 +54,12 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		VideoName: "illegalname{&}",
 	}
 
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest with invalid file name, got nil")
 	}
 	request.VideoName = "no_metadata.mp4"
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest with no bytes, got nil")
 	}
@@ -69,7 +69,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		t.Errorf("Error reading mp4 bytes: %v", err)
 	}
 	request.VideoBytes = data
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest with no metadata, got nil")
 	}
@@ -79,7 +79,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 			DurationMs: time.Hour.Milliseconds(),
 		}, nil
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest with long video, got nil")
 	}
@@ -92,7 +92,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeNOSQL.InsertUniqueRawVideoMock = func(rawVideo *st.RawVideo) (string, error) {
 		return "", fmt.Errorf("")
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when InsertUniqueRawVideo returns err, got nil")
 	}
@@ -103,7 +103,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeSSC.BucketExistsMock = func(bucketName cloud.BucketName) (bool, error) {
 		return false, fmt.Errorf("error")
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when BucketExists returns err, got nil")
 	}
@@ -114,7 +114,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeSSC.CreateBucketMock = func(bucketName cloud.BucketName) error {
 		return fmt.Errorf("")
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when CreateBucket returns err, got nil")
 	}
@@ -125,7 +125,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeSSC.BucketFileExistsMock = func(bucketName cloud.BucketName, bucketFileName string) (bool, error) {
 		return false, fmt.Errorf("error")
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when BucketFileExists returns err, got nil")
 	}
@@ -136,7 +136,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeSSC.WriteBucketFileMock = func(bucketName cloud.BucketName, localFileNameAndPath, bucketFileName string) error {
 		return fmt.Errorf("")
 	}
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when WriteBucketFile returns err, got nil")
 	}
@@ -144,9 +144,9 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		return nil
 	}
 
-	_, err = rawVidHandler.InsertRawVideoFromRequest(request)
+	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err != nil {
-		t.Errorf("Want nil from InsertRawVideoFromRequest err, got %v", err)
+		t.Errorf("Want nil from HandleRawVideoProcessRequest err, got %v", err)
 	}
 }
 

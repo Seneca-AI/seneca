@@ -5,6 +5,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	"time"
 )
 
 const maxListResults = 10
@@ -29,8 +30,19 @@ type Syncer struct {
 	logger        logging.LoggingInterface
 }
 
+func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactory, noSQLDB noSQLDBInterface, logger logging.LoggingInterface) *Syncer {
+	return &Syncer{
+		intraSeneca:   intraSeneca,
+		gdriveFactory: gdriveFactory,
+		noSQLDB:       noSQLDB,
+		logger:        logger,
+	}
+}
+
 // ScanAllUsers scans all users' Google Drive folders for newly uploaded files.
 func (sync *Syncer) ScanAllUsers() {
+	sync.logger.Log(fmt.Sprintf("Scanning all users at %q", time.Now().String()))
+
 	nextPageToken := ""
 	for {
 		userIDs, nextPageToken, err := sync.noSQLDB.ListAllUserIDs(nextPageToken, maxListResults)
@@ -62,10 +74,12 @@ func (sync *Syncer) handleUser(id string) error {
 		return fmt.Errorf("error initializing NewGoogleDriveUserClient - err: %w", err)
 	}
 
-	fileIDs, err := userDriveClient.ListFileIDs()
+	fileIDs, err := userDriveClient.ListFileIDs(googledrive.UnprocessedMP4s)
 	if err != nil {
 		return fmt.Errorf("ListFileIDs() returns err: %w", err)
 	}
+
+	sync.logger.Log(fmt.Sprintf("User with ID %q has %d files to process.", id, len(fileIDs)))
 
 	for _, fid := range fileIDs {
 		pathToFile, err := userDriveClient.DownloadFileByID(fid)
@@ -77,9 +91,14 @@ func (sync *Syncer) handleUser(id string) error {
 			LocalPath: pathToFile,
 		})
 		if err != nil {
-			if err := userDriveClient.MarkFileByID(fid, true); err != nil {
-				sync.logger.Error(fmt.Sprintf("Error MarkFileByID(%s, true) for user %q returns err: %v", fid, id, err))
+			sync.logger.Error(fmt.Sprintf("Error in HandleRawVideoProcessRequest for user %q: %v", id, err))
+			if err := userDriveClient.MarkFileByID(fid, googledrive.Error, false); err != nil {
+				sync.logger.Error(fmt.Sprintf("Error MarkFileByID(%s, %s, false) for user %q returns err: %v", fid, googledrive.Error, id, err))
 			}
+			continue
+		}
+		if err := userDriveClient.MarkFileByID(fid, googledrive.WorkInProgress, false); err != nil {
+			sync.logger.Error(fmt.Sprintf("Error MarkFileByID(%s, %s, false) for user %q returns err: %v", fid, googledrive.WorkInProgress, id, err))
 		}
 	}
 	return nil

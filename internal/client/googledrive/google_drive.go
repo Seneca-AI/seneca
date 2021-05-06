@@ -9,6 +9,7 @@ import (
 	"seneca/api/constants"
 	st "seneca/api/type"
 	mp4util "seneca/internal/util/mp4/util"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -17,18 +18,43 @@ import (
 
 const (
 	googleDriveFolderName = "Senecacam"
-	fileSuccessPrefix     = "SUCCESS_"
-	fileErrorPrefix       = "ERROR_"
 )
+
+type FilePrefix string
+
+const (
+	Success        FilePrefix = "SUCCESS_"
+	WorkInProgress FilePrefix = "WIP_"
+	Error          FilePrefix = "ERROR_"
+)
+
+func (fp FilePrefix) String() string {
+	return string(fp)
+}
+
+var (
+	filePrefixes = []FilePrefix{Success, WorkInProgress, Error}
+)
+
+type GDriveQuery string
+
+const (
+	AllMP4s         GDriveQuery = "ALL_MP4s"
+	UnprocessedMP4s GDriveQuery = "UNPROCESSED_MP4s"
+)
+
+func (gdq GDriveQuery) String() string {
+	return string(gdq)
+}
 
 //nolint
 type GoogleDriveUserInterface interface {
 	// 	ListFileIDs lists all of the relevant files from the user's Google Drive.
-	ListFileIDs() ([]string, error)
+	ListFileIDs(gdQuery GDriveQuery) ([]string, error)
 	// 	DownloadFileByID downloads the file with the given ID and returns a path to the tmp file saved to disk.
 	DownloadFileByID(fileID string) (string, error)
-	// 	MarkFileByID marks the file with the given ID as a success or failure.
-	MarkFileByID(fileID string, failure bool) error
+	// 	MarkFileByID marks the file with the given ID by adding or removing the prefix.
+	MarkFileByID(fileID string, prefix FilePrefix, remove bool) error
 }
 
 //nolint
@@ -94,12 +120,11 @@ func NewGoogleDriveUserClient(user *st.User, pathToOAuthCredentials string) (*Go
 // 	Returns:
 //		[]string: a list of the file IDs
 //		error
-func (gduc *GoogleDriveUserClient) ListFileIDs() ([]string, error) {
-	queryString := fmt.Sprintf("parents in '%s' and not title contains '%s' and not title contains '%s' and title contains '.mp4'", gduc.folderID, fileSuccessPrefix, fileErrorPrefix)
+func (gduc *GoogleDriveUserClient) ListFileIDs(gdQuery GDriveQuery) ([]string, error) {
 	var fileIDs []string
 	pageToken := ""
 	for {
-		q := gduc.service.Files.List().Q(queryString)
+		q := gduc.service.Files.List().Q(gduc.generateQuery(gdQuery))
 		// If we have a pageToken set, apply it to the query
 		if pageToken != "" {
 			q = q.PageToken(pageToken)
@@ -155,24 +180,47 @@ func (gduc *GoogleDriveUserClient) DownloadFileByID(fileID string) (string, erro
 // 	MarkFileByID marks the file with the given ID with the fileSuccessPrefix or fileErrorPrefix.
 //	Params:
 //		fileID string: the ID of the file to mark
-//		failure bool: if true, prefix file name with fileSuccessPrefix, else prefix file name with fileErrorPrefix
+//		prefix string: the prefix to add or remove
+//		remove bool: whether to add or remove the prefix
 //	Returns:
 //		error
-func (gduc *GoogleDriveUserClient) MarkFileByID(fileID string, failure bool) error {
+func (gduc *GoogleDriveUserClient) MarkFileByID(fileID string, prefix FilePrefix, remove bool) error {
 	file, err := gduc.service.Files.Get(fileID).Do()
 	if err != nil {
 		return fmt.Errorf("gduc.service.Files.Get(%s).Do() returns err: %w", fileID, err)
 	}
-
-	prefix := "SUCCESS_"
-	if failure {
-		prefix = "ERROR_"
-	}
 	originalName := file.Title
-	file.Title = fmt.Sprintf("%s%s", prefix, originalName)
+
+	var newName string
+	if remove {
+		if !strings.HasPrefix(originalName, prefix.String()) {
+			return fmt.Errorf("specified removal of prefix %q, but file name is %q", prefix, originalName)
+		}
+		newName = originalName[len(prefix):]
+	} else {
+		newName = fmt.Sprintf("%s%s", prefix, originalName)
+	}
+
+	file.Title = newName
 	if _, err := gduc.service.Files.Update(file.Id, file).Do(); err != nil {
 		return fmt.Errorf("error patching file with original name %s - err: %w", originalName, err)
 	}
 
 	return nil
+}
+
+func (gduc *GoogleDriveUserClient) generateQuery(gdq GDriveQuery) string {
+	switch gdq.String() {
+	case AllMP4s.String():
+		return fmt.Sprintf("parents in '%s' and title contains '.mp4'", gduc.folderID)
+	case UnprocessedMP4s.String():
+		query := fmt.Sprintf("parents in '%s' and title contains '.mp4'", gduc.folderID)
+		for _, prefix := range filePrefixes {
+			query = query + fmt.Sprintf(" and not title contains '%s'", prefix.String())
+		}
+		return query
+	default:
+		// This can trigger the error in the gdrive client.
+		return "ERROR"
+	}
 }

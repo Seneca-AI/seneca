@@ -23,6 +23,9 @@ func TestErrorHandling(t *testing.T) {
 	logger.ErrorMock = func(message string) {
 		callsMap["error"]++
 	}
+	logger.LogMock = func(message string) {
+		callsMap["log"]++
+	}
 
 	// Ensure we get a critical error if ListAllUserIDs returns an err.
 	noSQLDB.ListAllUserIDsMock = func(pageToken string, maxResults int) ([]string, string, error) {
@@ -63,7 +66,7 @@ func TestErrorHandling(t *testing.T) {
 
 	for _, fuid := range fakeUserIDs {
 		fakeClient := &googledrive.FakeGoogleDriveUserClient{}
-		fakeClient.ListFileIDsMock = func() ([]string, error) {
+		fakeClient.ListFileIDsMock = func(gdQuery googledrive.GDriveQuery) ([]string, error) {
 			return nil, fmt.Errorf("error")
 		}
 		fakeGDrive.InsertFakeClient(fuid, fakeClient, nil)
@@ -76,7 +79,7 @@ func TestErrorHandling(t *testing.T) {
 
 	for _, fuid := range fakeUserIDs {
 		fakeClient := &googledrive.FakeGoogleDriveUserClient{}
-		fakeClient.ListFileIDsMock = func() ([]string, error) {
+		fakeClient.ListFileIDsMock = func(gdQuery googledrive.GDriveQuery) ([]string, error) {
 			fileIDs := []string{}
 			for i := 0; i < 5; i++ {
 				fileIDs = append(fileIDs, fmt.Sprintf("%s%d", fuid, i))
@@ -101,7 +104,7 @@ func TestErrorHandling(t *testing.T) {
 	}
 	for _, fuid := range fakeUserIDs {
 		fakeClient := &googledrive.FakeGoogleDriveUserClient{}
-		fakeClient.ListFileIDsMock = func() ([]string, error) {
+		fakeClient.ListFileIDsMock = func(gdQuery googledrive.GDriveQuery) ([]string, error) {
 			fileIDs := []string{}
 			for i := 0; i < 5; i++ {
 				fileIDs = append(fileIDs, fmt.Sprintf("%s%d", fuid, i))
@@ -111,7 +114,7 @@ func TestErrorHandling(t *testing.T) {
 		fakeClient.DownloadFileByIDMock = func(fileID string) (string, error) {
 			return fileID, nil
 		}
-		fakeClient.MarkFileByIDMock = func(fileID string, failure bool) error {
+		fakeClient.MarkFileByIDMock = func(fileID string, prefix googledrive.FilePrefix, remove bool) error {
 			return fmt.Errorf("error")
 		}
 		fakeGDrive.InsertFakeClient(fuid, fakeClient, nil)
@@ -120,8 +123,8 @@ func TestErrorHandling(t *testing.T) {
 	if numRequests != 15 {
 		t.Errorf("Want 15 calls to HandleRawVideoProcessRequest, got %d", numRequests)
 	}
-	if callsMap["error"] != 15 {
-		t.Errorf("Want 15 calls to logger.Error, got %d", callsMap["error"])
+	if callsMap["error"] != 30 {
+		t.Errorf("Want 30 calls to logger.Error, got %d", callsMap["error"])
 	}
 }
 
@@ -135,6 +138,9 @@ func TestUsesPageToken(t *testing.T) {
 	}
 	logger.ErrorMock = func(message string) {
 		callsMap["error"]++
+	}
+	logger.LogMock = func(message string) {
+		callsMap["log"]++
 	}
 
 	userIDsListCalls := make(chan string, 5)
