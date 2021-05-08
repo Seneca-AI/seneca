@@ -139,18 +139,39 @@ func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}
 	}
 }
 
-func (s *Service) Insert(tableName constants.TableName, object interface{}) (string, error) {
+func (s *Service) Create(tableName constants.TableName, object interface{}) (string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
 		return "", fmt.Errorf("no Datstore key found for table %q", tableName)
 	}
 
-	fullKey, err := s.client.Put(context.TODO(), &key, object)
+	incompleteKey := datastore.IncompleteKey(key.Kind, &key)
+
+	fullKey, err := s.client.Put(context.TODO(), incompleteKey, object)
 	if err != nil {
 		return "", fmt.Errorf("error putting %v for table %q", object, tableName)
 	}
 
 	return fmt.Sprintf("%d", fullKey.ID), nil
+}
+
+func (s *Service) Insert(tableName constants.TableName, id string, object interface{}) error {
+	key, ok := tableNameToDatastoreKey[tableName]
+	if !ok {
+		return fmt.Errorf("no Datstore key found for table %q", tableName)
+	}
+
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing id %q - err: %w", id, err)
+	}
+
+	idKey := datastore.IDKey(key.Kind, idInt, &key)
+	if _, err = s.client.Put(context.TODO(), idKey, object); err != nil {
+		return fmt.Errorf("error putting %v with id %q for table %q - err: %w", object, id, tableName, err)
+	}
+
+	return nil
 }
 
 func (s *Service) DeleteByID(tableName constants.TableName, id string) error {

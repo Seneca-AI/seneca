@@ -83,7 +83,7 @@ start_datagatherer() {
 
 # Start the singleserver.
 start_singleserver() {
-	echo "Starting datagatherer server."
+	echo "Starting single server."
 	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
 	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
 	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS

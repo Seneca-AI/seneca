@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/drive/v2"
 )
 
 // devtools offers tools to help developers do certain things that would not be
@@ -20,7 +21,12 @@ import (
 // to run a function just put it in the main function and run "go run ."
 
 // generateDriveToken generates a token with the given scope using the path to the given oauth credentials and saves it to the given output path.
-func generateDriveToken(pathToOAuthCredentials, pathToOutputToken, scope string) error {
+func generateDriveToken(pathToOutputToken, scope string) error {
+	pathToOAuthCredentials, ok := os.LookupEnv("GOOGLE_OAUTH_CREDENTIALS")
+	if !ok {
+		return fmt.Errorf("GOOGLE_OAUTH_CREDENTIALS not set")
+	}
+
 	b, err := ioutil.ReadFile(pathToOAuthCredentials)
 	if err != nil {
 		return fmt.Errorf("ioutil.ReadFile(%s) returns err: %w", pathToOAuthCredentials, err)
@@ -101,9 +107,5 @@ func resetFilePrefixes(email string) error {
 }
 
 func main() {
-	for _, email := range []string{"testuser000@senecacam.com", "testuser001@senecacam.com", "testuser002@senecacam.com"} {
-		if err := resetFilePrefixes(email); err != nil {
-			fmt.Printf("error: %v\n", err)
-		}
-	}
+	generateDriveToken("token.json", drive.DriveScope)
 }

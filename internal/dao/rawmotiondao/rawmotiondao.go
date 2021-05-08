@@ -45,9 +45,15 @@ func (rdao *SQLRawMotionDAO) InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st
 		return nil, fmt.Errorf("rawMotion with timestamp %d already exists for user %q", rawMotion.TimestampMs, rawMotion.UserId)
 	}
 
-	newRawMotionID, err := rdao.sql.Insert(constants.RawMotionsTable, rawMotion)
+	newRawMotionID, err := rdao.sql.Create(constants.RawMotionsTable, rawMotion)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting rawMotion %v - err: %w", rawMotion, err)
+		return nil, fmt.Errorf("error inserting rawMotion %v into store: %w", rawMotion, err)
+	}
+	rawMotion.Id = newRawMotionID
+
+	// Now set the ID in the datastore object.
+	if err := rdao.sql.Insert(constants.RawMotionsTable, rawMotion.Id, rawMotion); err != nil {
+		return nil, fmt.Errorf("error updating rawMotionID for rawMotion %v - err: %w", rawMotion, err)
 	}
 
 	rawMotion.Id = newRawMotionID
