@@ -1,34 +1,12 @@
 package cutter
 
 import (
-	"fmt"
 	"seneca/api/constants"
 	st "seneca/api/type"
 	"seneca/internal/util"
 	"testing"
 	"time"
 )
-
-func TestCutRawVideoProducesExpectedOutputFilePaths(t *testing.T) {
-	rawVideo := &st.RawVideo{
-		UserId:       "user",
-		CreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.February, 1, 12, 13, 14, 0, time.UTC)),
-		DurationMs:   ((time.Minute * 5) + (time.Second * 20)).Milliseconds(),
-	}
-
-	_, outputFilePaths, err := CutRawVideo(time.Minute, "rawVideo.mp4", rawVideo, true)
-	if err != nil {
-		t.Errorf("CutRawVideo(time.Minute, \"rawVideo.mp4\", %v) returns err: %v", rawVideo, err)
-	}
-	if len(outputFilePaths) != 6 {
-		t.Errorf("Want 6 output file paths from CutRawVideo(time.Minute, \"rawVideo.mp4\", %v), got %d", rawVideo, len(outputFilePaths))
-	}
-	for i, ofp := range outputFilePaths {
-		if ofp != fmt.Sprintf("/rawVideo.%d.mp4", i) {
-			t.Errorf("Want %q for outputFilePaths, got %q", fmt.Sprintf("/rawVideo.%d.mp4", i), ofp)
-		}
-	}
-}
 
 func TestCutRawVideoRejectsInvalidInput(t *testing.T) {
 	var err error

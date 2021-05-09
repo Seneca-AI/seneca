@@ -10,7 +10,6 @@ import (
 
 	"seneca/internal/client/cloud/gcp"
 	"seneca/internal/client/logging"
-	"seneca/internal/datagatherer/cutvideohandler"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util/mp4"
 )
@@ -60,14 +59,7 @@ func main() {
 		return
 	}
 
-	cutVideoHandler, err := cutvideohandler.NewCutVideoHandler(gcsc, gcsd, mp4Tool, logger, projectID)
-	if err != nil {
-		logger.Critical(fmt.Sprintf("cloud.NewCutVideoHandler() returns - err: %v", err))
-		return
-	}
-
 	http.HandleFunc(fmt.Sprintf("/%s", rawVideoEndpointPath), rawVideoHandler.HandleRawVideoHTTPRequest)
-	http.HandleFunc(fmt.Sprintf("/%s", cutVideoEndpointPath), cutVideoHandler.HandleRawVideoPostRequest)
 
 	fmt.Printf("Starting server at port %s\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {

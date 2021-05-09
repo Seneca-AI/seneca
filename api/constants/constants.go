@@ -3,7 +3,7 @@ package constants
 import "time"
 
 // MaxInputVideoDuration dictates the maximum duration of single videos Seneca will process.
-const MaxInputVideoDuration = time.Minute * 30
+const MaxInputVideoDuration = (time.Minute + time.Second)
 
 // CutVideoDuration dictates the duration of videos after being cut.
 const CutVideoDuration = time.Minute
