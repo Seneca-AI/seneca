@@ -13,3 +13,16 @@ const KilometersToMiles = float64(1.60934)
 
 // MaxVideoFileSizeMB dictates the maximum size of video files Seneca will accept.
 const MaxVideoFileSizeMB int64 = 250
+
+type TableName string
+
+const (
+	UsersTable        TableName = "Users"
+	RawVideosTable    TableName = "RawVideos"
+	RawLocationsTable TableName = "RawLocations"
+	RawMotionsTable   TableName = "RawMotions"
+)
+
+func (tn TableName) String() string {
+	return string(tn)
+}

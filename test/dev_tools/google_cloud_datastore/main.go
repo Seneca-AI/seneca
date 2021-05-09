@@ -2,22 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud/gcp"
+	"seneca/internal/client/cloud/gcpdatastore"
+	"seneca/internal/dao/rawlocationdao"
+	"seneca/internal/dao/rawmotiondao"
+	"seneca/internal/dao/rawvideodao"
+	"seneca/internal/dao/userdao"
 	"time"
 )
 
-// For interfacing with cloud datastore.
-func main() {
-	cloudDatastore, err := gcp.NewGoogleCloudDatastoreClient(context.TODO(), "senecacam-sandbox", time.Minute)
-	if err != nil {
-		log.Fatalf("Error creating client: %v", err)
-	}
+func insertUserWithToken(sqlService *gcpdatastore.Service, email, pathToOauthToken string) {
+	userDAO := userdao.NewSQLUserDao(sqlService)
 
-	pathToOauthToken := "../google_drive/token.json"
 	oauthFile, err := os.Open(pathToOauthToken)
 	if err != nil {
 		log.Fatalf("Error opening token file %q - err: %v", pathToOauthToken, err)
@@ -34,8 +34,83 @@ func main() {
 		OauthToken: bytes,
 	}
 
-	_, err = cloudDatastore.InsertUniqueUser(user)
+	_, err = userDAO.InsertUniqueUser(user)
 	if err != nil {
 		log.Fatalf("Error inserting user err: %v", err)
+	}
+}
+
+func deleteAllRawVideosForUser(sqlService *gcpdatastore.Service, userID string) error {
+	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, time.Second*5)
+
+	rawVideoIDs, err := rawVideoDAO.ListUserRawVideoIDs(userID)
+	if err != nil {
+		return err
+	}
+
+	for _, rid := range rawVideoIDs {
+		if err := rawVideoDAO.DeleteRawVideoByID(rid); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deleteAllRawLocationsForUser(sqlService *gcpdatastore.Service, userID string) error {
+	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
+
+	rawLocationIDs, err := rawLocationDAO.ListUserRawLocationIDs(userID)
+	if err != nil {
+		return err
+	}
+
+	for _, rlid := range rawLocationIDs {
+		if err := rawLocationDAO.DeleteRawLocationByID(rlid); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deleteAllRawMotionsForUser(sqlService *gcpdatastore.Service, userID string) error {
+	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
+
+	rawMotionIDs, err := rawMotionDAO.ListUserRawMotionIDs(userID)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Got %d rawMotions\n", len(rawMotionIDs))
+	for _, rlid := range rawMotionIDs {
+		if err := rawMotionDAO.DeleteRawMotionByID(rlid); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// For interfacing with cloud datastore.
+func main() {
+	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-sandbox")
+	if err != nil {
+		log.Fatalf("Error initializing datastore service %v", err)
+	}
+
+	userDAO := userdao.NewSQLUserDao(sqlService)
+	userIDs, err := userDAO.ListAllUserIDs()
+
+	fmt.Printf("Got %d userIDs\n", len(userIDs))
+
+	if err != nil {
+		log.Fatalf("Error listing all user IDs: %v", err)
+	}
+
+	for _, uid := range userIDs {
+		if err := deleteAllRawMotionsForUser(sqlService, uid); err != nil {
+			log.Fatalf("Error deleting raw video for user %q: %v", uid, err)
+		}
 	}
 }

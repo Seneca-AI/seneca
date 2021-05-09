@@ -10,8 +10,13 @@ import (
 	"os"
 	"seneca/env"
 	"seneca/internal/client/cloud/gcp"
+	"seneca/internal/client/cloud/gcpdatastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/rawlocationdao"
+	"seneca/internal/dao/rawmotiondao"
+	"seneca/internal/dao/rawvideodao"
+	"seneca/internal/dao/userdao"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/syncer"
 	"seneca/internal/util/mp4"
@@ -47,11 +52,15 @@ func main() {
 		return
 	}
 
-	gcsd, err := gcp.NewGoogleCloudDatastoreClient(ctx, projectID, time.Second)
+	sqlService, err := gcpdatastore.New(context.TODO(), projectID)
 	if err != nil {
-		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudDatastoreClient() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("gcpdatastore.New() returns - err: %v", err))
 		return
 	}
+	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, (time.Second * 5))
+	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
+	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
+	userDAO := userdao.NewSQLUserDao(sqlService)
 
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
@@ -59,7 +68,7 @@ func main() {
 		return
 	}
 
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, gcsd, mp4Tool, logger, projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, logger, projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return
@@ -67,7 +76,7 @@ func main() {
 
 	gDriveFactory := &googledrive.UserClientFactory{}
 
-	syncer := syncer.New(rawVideoHandler, gDriveFactory, gcsd, logger)
+	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
 	handler := &HTTPHandler{
 		syncer: syncer,
 	}

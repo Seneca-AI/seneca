@@ -9,6 +9,9 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/rawlocationdao"
+	"seneca/internal/dao/rawmotiondao"
+	"seneca/internal/dao/rawvideodao"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
 	"testing"
@@ -19,7 +22,7 @@ func TestHandleRawVideoHTTPRequestRejectsMalformed(t *testing.T) {
 	var err error
 	var userError *senecaerror.UserError
 
-	rawVideoHandler, _, _, _, err := newRawVideoHandlerForTests()
+	rawVideoHandler, _, _, _, _, _, err := newRawVideoHandlerForTests()
 	if err != nil {
 		t.Errorf("newRawVideoHandlerForTests() returns err: %v", err)
 	}
@@ -44,7 +47,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		t.Skip("Skipping exiftool test in GitHub env.")
 	}
 
-	rawVidHandler, fakeMP4Tool, fakeSSC, fakeNOSQL, err := newRawVideoHandlerForTests()
+	rawVidHandler, fakeMP4Tool, fakeSSC, mockRawVideoDAO, _, _, err := newRawVideoHandlerForTests()
 	if err != nil {
 		t.Error(err)
 	}
@@ -93,15 +96,21 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		}, nil
 	}
 
-	fakeNOSQL.InsertUniqueRawVideoMock = func(rawVideo *st.RawVideo) (string, error) {
-		return "", fmt.Errorf("")
+	mockRawVideoDAO.DeleteRawVideoByIDMock = func(id string) error {
+		return nil
 	}
+
+	mockRawVideoDAO.InsertUniqueRawVideoMock = func(rawVideo *st.RawVideo) (*st.RawVideo, error) {
+		return nil, fmt.Errorf("")
+	}
+
 	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest when InsertUniqueRawVideo returns err, got nil")
 	}
-	fakeNOSQL.InsertUniqueRawVideoMock = func(rawVideo *st.RawVideo) (string, error) {
-		return "1", nil
+	mockRawVideoDAO.InsertUniqueRawVideoMock = func(rawVideo *st.RawVideo) (*st.RawVideo, error) {
+		rawVideo.Id = "1"
+		return rawVideo, nil
 	}
 
 	fakeSSC.BucketExistsMock = func(bucketName cloud.BucketName) (bool, error) {
@@ -154,15 +163,18 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	}
 }
 
-func newRawVideoHandlerForTests() (*RawVideoHandler, *mp4.FakeMP4Tool, *cloud.FakeSimpleStorageClient, *cloud.FakeNoSQLDatabaseClient, error) {
+func newRawVideoHandlerForTests() (*RawVideoHandler, *mp4.FakeMP4Tool, *cloud.FakeSimpleStorageClient, *rawvideodao.MockRawVideoDAO, *rawlocationdao.MockRawLocatinDAO, *rawmotiondao.MockRawMotionDAO, error) {
 	fakeSimpleStorageClient := cloud.NewFakeSimpleStorageClient()
-	fakeFakeNoSQLDBClient := cloud.NewFakeNoSQLDatabaseClient()
 	fakeMP4Tool := mp4.NewFakeMP4Tool()
 	localLogger := logging.NewLocalLogger(true /* silent */)
 
-	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeFakeNoSQLDBClient, fakeMP4Tool, localLogger, "")
+	mockRawVideoDAO := &rawvideodao.MockRawVideoDAO{}
+	mockRawLocationDao := &rawlocationdao.MockRawLocatinDAO{}
+	mockRawMotionDAO := &rawmotiondao.MockRawMotionDAO{}
+
+	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeMP4Tool, mockRawVideoDAO, mockRawLocationDao, mockRawMotionDAO, localLogger, "")
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
+		return nil, nil, nil, nil, nil, nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
 	}
-	return rawVideoHandler, fakeMP4Tool, fakeSimpleStorageClient, fakeFakeNoSQLDBClient, nil
+	return rawVideoHandler, fakeMP4Tool, fakeSimpleStorageClient, mockRawVideoDAO, mockRawLocationDao, mockRawMotionDAO, nil
 }

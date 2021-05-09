@@ -5,15 +5,11 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao"
 	"time"
 )
 
 const maxListResults = 10
-
-type noSQLDBInterface interface {
-	ListAllUserIDs(pageToken string, maxResults int) ([]string, string, error)
-	GetUserByID(id string) (*st.User, error)
-}
 
 type intraSenecaRequestInterface interface {
 	HandleRawVideoProcessRequest(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error)
@@ -26,15 +22,15 @@ type UserClientFactory interface {
 type Syncer struct {
 	intraSeneca   intraSenecaRequestInterface
 	gdriveFactory UserClientFactory
-	noSQLDB       noSQLDBInterface
+	userDao       dao.UserDAO
 	logger        logging.LoggingInterface
 }
 
-func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactory, noSQLDB noSQLDBInterface, logger logging.LoggingInterface) *Syncer {
+func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactory, userDao dao.UserDAO, logger logging.LoggingInterface) *Syncer {
 	return &Syncer{
 		intraSeneca:   intraSeneca,
 		gdriveFactory: gdriveFactory,
-		noSQLDB:       noSQLDB,
+		userDao:       userDao,
 		logger:        logger,
 	}
 }
@@ -42,29 +38,21 @@ func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactor
 // ScanAllUsers scans all users' Google Drive folders for newly uploaded files.
 func (sync *Syncer) ScanAllUsers() {
 	sync.logger.Log(fmt.Sprintf("Scanning all users at %q", time.Now().String()))
+	userIDs, err := sync.userDao.ListAllUserIDs()
+	if err != nil {
+		sync.logger.Critical(fmt.Sprintf("Error listing all users - err: %v", err))
+		return
+	}
 
-	nextPageToken := ""
-	for {
-		userIDs, nextPageToken, err := sync.noSQLDB.ListAllUserIDs(nextPageToken, maxListResults)
-		if err != nil {
-			sync.logger.Critical(fmt.Sprintf("Error listing all users - err: %v", err))
-			return
-		}
-
-		for _, id := range userIDs {
-			if err := sync.handleUser(id); err != nil {
-				sync.logger.Error(fmt.Sprintf("Error in sync.handleUser(%s) - err: %v", id, err))
-			}
-		}
-
-		if nextPageToken == "" {
-			break
+	for _, id := range userIDs {
+		if err := sync.handleUser(id); err != nil {
+			sync.logger.Error(fmt.Sprintf("Error in sync.handleUser(%s) - err: %v", id, err))
 		}
 	}
 }
 
 func (sync *Syncer) handleUser(id string) error {
-	user, err := sync.noSQLDB.GetUserByID(id)
+	user, err := sync.userDao.GetUserByID(id)
 	if err != nil {
 		return fmt.Errorf("GetUserByID(%s) returns err: %w", id, err)
 	}
