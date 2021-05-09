@@ -14,6 +14,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao"
 	"seneca/internal/util"
 	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
@@ -31,30 +32,35 @@ const (
 // RawVideoHandler implements all logic for handling raw video requests.
 type RawVideoHandler struct {
 	simpleStorage cloud.SimpleStorageInterface
-	noSQLDB       cloud.NoSQLDatabaseInterface
 	mp4Tool       mp4.MP4ToolInterface
 	logger        logging.LoggingInterface
 	projectID     string
+
+	rawVideoDao    dao.RawVideoDAO
+	rawLocationDao dao.RawLocationDAO
+	rawMotionDao   dao.RawMotionDAO
 }
 
 // NewRawVideoHandler initializes a new RawVideoHandler with the given parameters.
 //
 // Params:
 //		simpleStorageInterface cloud.SimpleStorageInterface: client for storing mp4 files
-//		noSQLDatabaseInterface cloud.NoSQLDatabaseInterface: client for storing documents
+//		TODO(lucaloncar): fix paramas
 //		mp4ToolInterface mp4.MP4ToolInterface: tool for parsing and manipulating mp4 data
 //		logger logging.LoggingInterface
 // 		projectID string
 // Returns:
 //		*RawVideoHandler: the handler
 //		error
-func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, noSQLDatabaseInterface cloud.NoSQLDatabaseInterface, mp4ToolInterface mp4.MP4ToolInterface, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, mp4ToolInterface mp4.MP4ToolInterface, rawVideoDao dao.RawVideoDAO, rawLocationDao dao.RawLocationDAO, rawMotionDao dao.RawMotionDAO, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
 	return &RawVideoHandler{
-		simpleStorage: simpleStorageInterface,
-		noSQLDB:       noSQLDatabaseInterface,
-		mp4Tool:       mp4ToolInterface,
-		logger:        logger,
-		projectID:     projectID,
+		simpleStorage:  simpleStorageInterface,
+		mp4Tool:        mp4ToolInterface,
+		logger:         logger,
+		projectID:      projectID,
+		rawVideoDao:    rawVideoDao,
+		rawLocationDao: rawLocationDao,
+		rawMotionDao:   rawMotionDao,
 	}, nil
 }
 
@@ -92,7 +98,7 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest took %s", time.Since(startTime)))
 	}(nowTime)
 
-	cleanUp := newCleanUp(rvh.noSQLDB, rvh.logger)
+	cleanUp := newCleanUp(rvh.rawVideoDao, rvh.rawLocationDao, rvh.rawMotionDao, rvh.logger)
 	defer cleanUp.cleanUpFailure()
 
 	if req.UserId == "" {
@@ -130,9 +136,8 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}
 
 	// Upload firestore data.
-	cleanUp.rawVideoID = rawVideo.Id
 	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", req.UserId, rawVideo.CreateTimeMs, rawVideoBucketFileNameIdentifier)
-	err = rvh.writePartialRawVideoToGCD(req.UserId, bucketFileName, rawVideo)
+	cleanUp.rawVideoID, err = rvh.writePartialRawVideoToGCD(req.UserId, bucketFileName, rawVideo)
 	if err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing to datastore: %w", err)
@@ -168,12 +173,12 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}
 	for i := range rawLocations {
 		cleanUp.rawLocationIDs = append(cleanUp.rawLocationIDs, rawLocations[i].Id)
-		if _, err := rvh.noSQLDB.InsertUniqueRawLocation(rawLocations[i]); err != nil {
+		if _, err := rvh.rawLocationDao.InsertUniqueRawLocation(rawLocations[i]); err != nil {
 			cleanUp.clean = true
 			return nil, fmt.Errorf("InsertUniqueRawLocation(%v) returns err: %w", rawLocations[i], err)
 		}
 		cleanUp.rawMotionIDs = append(cleanUp.rawMotionIDs, rawMotions[i].Id)
-		if _, err := rvh.noSQLDB.InsertUniqueRawMotion(rawMotions[i]); err != nil {
+		if _, err := rvh.rawMotionDao.InsertUniqueRawMotion(rawMotions[i]); err != nil {
 			cleanUp.clean = true
 			return nil, fmt.Errorf("InsertUniqueRawMotion(%v) returns err: %w", rawMotions[i], err)
 		}
@@ -185,17 +190,16 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}, nil
 }
 
-func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *st.RawVideo) error {
+func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *st.RawVideo) (string, error) {
 	rawVideo.UserId = userID
 	rawVideo.CloudStorageFileName = bucketFileName
 
-	id, err := rvh.noSQLDB.InsertUniqueRawVideo(rawVideo)
+	newRawVideo, err := rvh.rawVideoDao.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
-		return fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
+		return "", fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
 
-	rawVideo.Id = id
-	return nil
+	return newRawVideo.Id, nil
 }
 
 func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error {
@@ -272,8 +276,11 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 }
 
 type cleanUp struct {
-	noSQLDB    cloud.NoSQLDatabaseInterface
-	logger     logging.LoggingInterface
+	rawVideoDao    dao.RawVideoDAO
+	rawLocationDao dao.RawLocationDAO
+	rawMotionDao   dao.RawMotionDAO
+	logger         logging.LoggingInterface
+
 	clean      bool
 	rawVideoID string
 	// TODO(lucaloncar): also clean up s3 file so none are dangling
@@ -281,10 +288,12 @@ type cleanUp struct {
 	rawMotionIDs   []string
 }
 
-func newCleanUp(noSQLDB cloud.NoSQLDatabaseInterface, logger logging.LoggingInterface) *cleanUp {
+func newCleanUp(rawVideoDao dao.RawVideoDAO, rawLocationDao dao.RawLocationDAO, rawMotionDao dao.RawMotionDAO, logger logging.LoggingInterface) *cleanUp {
 	return &cleanUp{
-		noSQLDB: noSQLDB,
-		logger:  logger,
+		rawVideoDao:    rawVideoDao,
+		rawLocationDao: rawLocationDao,
+		rawMotionDao:   rawMotionDao,
+		logger:         logger,
 	}
 }
 
@@ -296,15 +305,15 @@ func (cu *cleanUp) cleanUpFailure() {
 	errs := []error{}
 
 	if cu.rawVideoID != "" {
-		errs = append(errs, cu.noSQLDB.DeleteRawVideoByID(cu.rawVideoID))
+		errs = append(errs, cu.rawVideoDao.DeleteRawVideoByID(cu.rawVideoID))
 	}
 
 	for _, rlid := range cu.rawLocationIDs {
-		errs = append(errs, cu.noSQLDB.DeleteRawLocationByID(rlid))
+		errs = append(errs, cu.rawLocationDao.DeleteRawLocationByID(rlid))
 	}
 
 	for _, rmid := range cu.rawMotionIDs {
-		errs = append(errs, cu.noSQLDB.DeleteRawMotionByID(rmid))
+		errs = append(errs, cu.rawMotionDao.DeleteRawMotionByID(rmid))
 	}
 
 	for _, err := range errs {

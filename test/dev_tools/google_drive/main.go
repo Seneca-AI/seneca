@@ -7,8 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"seneca/internal/client/cloud/gcp"
+	"seneca/internal/client/cloud/gcpdatastore"
 	"seneca/internal/client/googledrive"
+	"seneca/internal/dao/userdao"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -55,36 +56,44 @@ func generateDriveToken(pathToOAuthCredentials, pathToOutputToken, scope string)
 }
 
 func resetFilePrefixes(email string) error {
-	datastoreClient, err := gcp.NewGoogleCloudDatastoreClient(context.TODO(), "senecacam-sandbox", 0)
+	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-sandbox")
+
+	userDAO := userdao.NewSQLUserDao(sqlService)
+
+	uids, err := userDAO.ListAllUserIDs()
 	if err != nil {
-		return fmt.Errorf("error init datastore client: %w", err)
+		return err
 	}
 
-	user, err := datastoreClient.GetUserByEmail(email)
-	if err != nil {
-		return fmt.Errorf("error getting user: %w", err)
-	}
+	for _, uid := range uids {
+		user, err := userDAO.GetUserByID(uid)
+		if err != nil {
+			return err
+		}
 
-	pathToCredentials, exists := os.LookupEnv("GOOGLE_OAUTH_CREDENTIALS")
-	if !exists {
-		return fmt.Errorf("GOOGLE_OAUTH_CREDENTIALS not set")
-	}
+		if user.Email == email {
+			pathToCredentials, exists := os.LookupEnv("GOOGLE_OAUTH_CREDENTIALS")
+			if !exists {
+				return fmt.Errorf("GOOGLE_OAUTH_CREDENTIALS not set")
+			}
 
-	gClient, err := googledrive.NewGoogleDriveUserClient(user, pathToCredentials)
-	if err != nil {
-		return fmt.Errorf("error initing user drive client: %w", err)
-	}
+			gClient, err := googledrive.NewGoogleDriveUserClient(user, pathToCredentials)
+			if err != nil {
+				return fmt.Errorf("error initing user drive client: %w", err)
+			}
 
-	fids, err := gClient.ListFileIDs(googledrive.AllMP4s)
-	if err != nil {
-		return fmt.Errorf("error listing file IDs: %w", err)
-	}
+			fids, err := gClient.ListFileIDs(googledrive.AllMP4s)
+			if err != nil {
+				return fmt.Errorf("error listing file IDs: %w", err)
+			}
 
-	prefixes := []googledrive.FilePrefix{googledrive.Success, googledrive.WorkInProgress, googledrive.Error}
-	for _, fid := range fids {
-		for _, p := range prefixes {
-			if err := gClient.MarkFileByID(fid, p, true); err != nil {
-				fmt.Printf("error marking file: %v\n", err)
+			prefixes := []googledrive.FilePrefix{googledrive.Success, googledrive.WorkInProgress, googledrive.Error}
+			for _, fid := range fids {
+				for _, p := range prefixes {
+					if err := gClient.MarkFileByID(fid, p, true); err != nil {
+						fmt.Printf("error marking file: %v\n", err)
+					}
+				}
 			}
 		}
 	}

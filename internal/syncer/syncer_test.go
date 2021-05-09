@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/userdao"
 	"testing"
 )
 
@@ -14,7 +14,7 @@ func TestErrorHandling(t *testing.T) {
 	fakeUserIDs := []string{"123", "456", "789"}
 
 	logger := &logging.MockLogger{}
-	syncer, intraSeneca, fakeGDrive, noSQLDB := newSyncerForTests(logger)
+	syncer, intraSeneca, fakeGDrive, mockUserDAO := newSyncerForTests(logger)
 
 	callsMap := map[string]int{"critical": 0, "error": 0}
 	logger.CriticalMock = func(message string) {
@@ -28,8 +28,8 @@ func TestErrorHandling(t *testing.T) {
 	}
 
 	// Ensure we get a critical error if ListAllUserIDs returns an err.
-	noSQLDB.ListAllUserIDsMock = func(pageToken string, maxResults int) ([]string, string, error) {
-		return nil, "", fmt.Errorf("error")
+	mockUserDAO.ListAllUserIDsMock = func() ([]string, error) {
+		return nil, fmt.Errorf("error")
 	}
 	syncer.ScanAllUsers()
 	if callsMap["critical"] != 1 {
@@ -37,11 +37,11 @@ func TestErrorHandling(t *testing.T) {
 	}
 	callsMap["critical"] = 0
 
-	noSQLDB.ListAllUserIDsMock = func(pageToken string, maxResults int) ([]string, string, error) {
-		return fakeUserIDs, "", nil
+	mockUserDAO.ListAllUserIDsMock = func() ([]string, error) {
+		return fakeUserIDs, nil
 	}
 
-	noSQLDB.GetUserByIDMock = func(id string) (*st.User, error) {
+	mockUserDAO.GetUserByIDMock = func(id string) (*st.User, error) {
 		return nil, fmt.Errorf("error")
 	}
 	syncer.ScanAllUsers()
@@ -50,7 +50,7 @@ func TestErrorHandling(t *testing.T) {
 	}
 	callsMap["error"] = 0
 
-	noSQLDB.GetUserByIDMock = func(id string) (*st.User, error) {
+	mockUserDAO.GetUserByIDMock = func(id string) (*st.User, error) {
 		return &st.User{
 			Id: id,
 		}, nil
@@ -128,43 +128,6 @@ func TestErrorHandling(t *testing.T) {
 	}
 }
 
-func TestUsesPageToken(t *testing.T) {
-	logger := &logging.MockLogger{}
-	syncer, _, _, noSQLDB := newSyncerForTests(logger)
-
-	callsMap := map[string]int{"critical": 0, "error": 0}
-	logger.CriticalMock = func(message string) {
-		callsMap["critical"]++
-	}
-	logger.ErrorMock = func(message string) {
-		callsMap["error"]++
-	}
-	logger.LogMock = func(message string) {
-		callsMap["log"]++
-	}
-
-	userIDsListCalls := make(chan string, 5)
-	userIDsListCalls <- "1"
-	userIDsListCalls <- "2"
-	userIDsListCalls <- "3"
-
-	noSQLDB.ListAllUserIDsMock = func(pageToken string, maxResults int) ([]string, string, error) {
-		if len(userIDsListCalls) == 0 {
-			return []string{}, "", nil
-		}
-
-		return []string{<-userIDsListCalls}, "something", nil
-	}
-
-	noSQLDB.GetUserByIDMock = func(id string) (*st.User, error) {
-		return nil, fmt.Errorf("error")
-	}
-	syncer.ScanAllUsers()
-	if callsMap["error"] != 3 {
-		t.Errorf("Want 3 calls to logger.Error, got %d", callsMap["error"])
-	}
-}
-
 type fakeIntraSeneca struct {
 	HandleRawVideoProcessRequestMock func(req *st.RawVideoProcessRequest) (*st.RawVideoProcessResponse, error)
 }
@@ -176,16 +139,16 @@ func (fis *fakeIntraSeneca) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	return fis.HandleRawVideoProcessRequestMock(req)
 }
 
-func newSyncerForTests(logger logging.LoggingInterface) (*Syncer, *fakeIntraSeneca, *googledrive.FakeUserClientFactory, *cloud.FakeNoSQLDatabaseClient) {
+func newSyncerForTests(logger logging.LoggingInterface) (*Syncer, *fakeIntraSeneca, *googledrive.FakeUserClientFactory, *userdao.MockUserDAO) {
 	intraSeneca := &fakeIntraSeneca{}
 	fakeGDrive := googledrive.NewFakeUserClientFactory()
-	fakeNoSQL := &cloud.FakeNoSQLDatabaseClient{}
+	mockUserDAO := &userdao.MockUserDAO{}
 
 	fakeSyncer := &Syncer{
 		intraSeneca:   intraSeneca,
 		gdriveFactory: fakeGDrive,
-		noSQLDB:       fakeNoSQL,
+		userDao:       mockUserDAO,
 		logger:        logger,
 	}
-	return fakeSyncer, intraSeneca, fakeGDrive, fakeNoSQL
+	return fakeSyncer, intraSeneca, fakeGDrive, mockUserDAO
 }
