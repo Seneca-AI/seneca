@@ -92,7 +92,9 @@ func resetFilePrefixes(email string) error {
 }
 
 func main() {
-	if err := resetFilePrefixes("testuser000@senecacam.com"); err != nil {
-		fmt.Printf("error: %v\n", err)
+	for _, email := range []string{"testuser000@senecacam.com", "testuser001@senecacam.com", "testuser002@senecacam.com"} {
+		if err := resetFilePrefixes(email); err != nil {
+			fmt.Printf("error: %v\n", err)
+		}
 	}
 }

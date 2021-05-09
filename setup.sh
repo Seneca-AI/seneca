@@ -21,10 +21,11 @@ spin() {
 }
 
 # Download and install all necessary dependencies.
-# TODO: download ffmpeg for cutting videos
 setup() {
 	echo "Output stored in setup.log"
 	touch setup.log
+
+	read -p "Enter GitHub token: " GITHUB_TOKEN
 
 	echo "Installing wget"
 	sudo apt-get update > setup.log
@@ -49,24 +50,14 @@ setup() {
 	sudo rm -r Image-ExifTool-12.22 
 	rm Image-ExifTool-12.22.tar.gz 
 
-	echo "Installing unzip"
-	sudo apt-get install -y unzip > setup.log
-
-	echo "Installing protobuf compiler"
-	
-	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/$PROTOC_ZIP > setup.log
-	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc > setup.log
-	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*' > setup.log
-	rm -f $PROTOC_ZIP
-
-	echo "Generating protobuf golang code"
-	cd api/types
-	sudo env "PATH=$PATH" "GOPATH=$GOPATH" go get -u github.com/golang/protobuf/protoc-gen-go > ../../setup.log
-	sudo env "PATH=$PATH" "GOPATH=$GOPATH" protoc raw.proto --go_out=../../..
-	cd ../..
+	echo "Getting protos"
+	cd ..
+	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/setup.log
+	cp -r common/proto_out/go/api seneca > seneca/setup.log
+	cd seneca
 
 	echo "Installing golang libraries"
-	sudo env "PATH=$PATH" "GOPATH=$GOPATH" go mod tidy
+	sudo env "PATH=$PATH" "GOPATH=$GOPATH" go mod tidy > setup.log
 
 	echo "Done"
 }
@@ -86,18 +77,30 @@ start_datagatherer() {
 	source env/ENV
 	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
 	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
+	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
 	cd cmd/datagatherer
-	sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" go run .
+	sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run .
+}
+
+# Start the singleserver.
+start_singleserver() {
+	echo "Starting datagatherer server."
+	source env/ENV
+	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
+	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
+	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
+	cd cmd/singleserver
+	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
 }
 
 if [ -z "$1" ]; then 
-	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer ]."
+	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer, start_singleserver ]."
 	exit 1
 fi
 
 if [ $1 == "help" ]; then
 	if [ -z "$2" ]; then
-		echo "Options are [ setup, open_port, start_datagatherer ]. Type 'bash setup.sh help <command> to learn more."
+		echo "Options are [ setup, open_port, start_datagatherer, start_singleserver ]. Type 'bash setup.sh help <command> to learn more."
 	else
 		if [ $2 == "setup" ]; then
 			echo "Download and install all necessary dependencies."
@@ -105,6 +108,8 @@ if [ $1 == "help" ]; then
 			echo "Open a port to allow incoming traffic."
 		elif [ $2 == "start_datagatherer" ]; then
 			echo "Start the datagatherer."
+		elif [ $2 == "start_singleserver" ]; then
+			echo "Start the singleserver."
 		else 
 			echo "Invalid argument."
 		fi
@@ -124,6 +129,8 @@ elif [ $1 == "open_port" ]; then
 	open_port
 elif [ $1 == "start_datagatherer" ]; then
 	start_datagatherer
+elif [ $1 == "start_singleserver" ]; then
+	start_singleserver
 else
 	echo "Invalid argument."
 fi
