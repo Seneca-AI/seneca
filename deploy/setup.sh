@@ -51,9 +51,9 @@ setup() {
 	rm Image-ExifTool-12.22.tar.gz 
 
 	echo "Getting protos"
-	cd ..
-	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/setup.log
-	cp -r common/proto_out/go/api seneca > seneca/setup.log
+	cd ../..
+	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/deploy/setup.log
+	cp -r common/proto_out/go/api seneca > seneca/deploy/setup.log
 	cd seneca
 
 	echo "Installing golang libraries"
@@ -93,14 +93,22 @@ start_singleserver() {
 	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
 }
 
+deploy_run_syncer() {
+	# Create the pubsub topic.
+	gcloud pubsub topics create run_syncer_topic
+	gcloud scheduler jobs create pubsub run_syncer_job --schedule="*/10 * * * *" --topic="run_syncer_topic" --message-body="run"
+	gcloud compute networks vpc-access connectors create default-connector --network=default --region=us-central1 --range=10.8.0.0/28
+	gcloud functions deploy RunSyncer --runtime=go113 --trigger-topic="run_syncer_topic" --vpc-connector=default-connector --region=us-central1
+}
+
 if [ -z "$1" ]; then 
-	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer, start_singleserver ]."
+	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer, start_singleserver, deploy_run_syncer ]."
 	exit 1
 fi
 
 if [ $1 == "help" ]; then
 	if [ -z "$2" ]; then
-		echo "Options are [ setup, open_port, start_datagatherer, start_singleserver ]. Type 'bash setup.sh help <command> to learn more."
+		echo "Options are [ setup, open_port, start_datagatherer, start_singleserver, deploy_run_syncer ]. Type 'bash setup.sh help <command> to learn more."
 	else
 		if [ $2 == "setup" ]; then
 			echo "Download and install all necessary dependencies."
@@ -110,6 +118,8 @@ if [ $1 == "help" ]; then
 			echo "Start the datagatherer."
 		elif [ $2 == "start_singleserver" ]; then
 			echo "Start the singleserver."
+		elif [ $2 == "deploy_run_syncer" ]; then
+			echo "Start deploy run_syncer cloud function."
 		else 
 			echo "Invalid argument."
 		fi
@@ -131,6 +141,8 @@ elif [ $1 == "start_datagatherer" ]; then
 	start_datagatherer
 elif [ $1 == "start_singleserver" ]; then
 	start_singleserver
+elif [ $1 == "deploy_run_syncer" ]; then
+	deploy_run_syncer
 else
 	echo "Invalid argument."
 fi
