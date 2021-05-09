@@ -74,22 +74,20 @@ open_port() {
 # Start the datagatherer.
 start_datagatherer() {
 	echo "Starting datagatherer server."
-	source env/ENV
 	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
 	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
 	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
-	cd cmd/datagatherer
+	cd ../cmd/datagatherer
 	sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run .
 }
 
 # Start the singleserver.
 start_singleserver() {
 	echo "Starting datagatherer server."
-	source env/ENV
 	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
 	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
 	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
-	cd cmd/singleserver
+	cd ../cmd/singleserver
 	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
 }
 
