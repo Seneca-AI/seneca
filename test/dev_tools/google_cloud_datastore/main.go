@@ -10,8 +10,7 @@ import (
 	"time"
 )
 
-// for interfacting with cloud datastore
-
+// For interfacing with cloud datastore.
 func main() {
 	cloudDatastore, err := gcp.NewGoogleCloudDatastoreClient(context.TODO(), "senecacam-sandbox", time.Minute)
 	if err != nil {

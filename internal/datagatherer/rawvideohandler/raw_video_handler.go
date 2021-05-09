@@ -15,6 +15,7 @@ import (
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/logging"
 	"seneca/internal/util"
+	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
 	mp4util "seneca/internal/util/mp4/util"
 	"strings"
@@ -91,9 +92,14 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest took %s", time.Since(startTime)))
 	}(nowTime)
 
+	cleanUp := newCleanUp(rvh.noSQLDB, rvh.logger)
+	defer cleanUp.cleanUpFailure()
+
 	if req.UserId == "" {
 		return nil, senecaerror.NewUserError("", fmt.Errorf("UserID must not be \"\" in RawVideoProcessRequest"), "UserID not specified in request.")
 	}
+
+	rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest for user %q", req.UserId))
 
 	// Stage mp4 locally.
 	mp4Path := ""
@@ -116,8 +122,7 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	// Extract metadata.
 	rawVideo, err := rvh.mp4Tool.ParseOutRawVideoMetadata(mp4Path)
 	if err != nil {
-		userError := senecaerror.NewUserError(req.UserId, fmt.Errorf("mp4Tool.ParseOutRawVideoMetadata(%s) returns - err: %w", mp4Path, err), "Error handling RawVideoProcessRequest.  MP4 may not have headers.")
-		return nil, userError
+		return nil, fmt.Errorf("mp4Tool.ParseOutRawVideoMetadata(%s) returns - err: %w", mp4Path, err)
 	}
 
 	if rawVideo.DurationMs > constants.MaxInputVideoDuration.Milliseconds() {
@@ -125,18 +130,53 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}
 
 	// Upload firestore data.
+	cleanUp.rawVideoID = rawVideo.Id
 	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", req.UserId, rawVideo.CreateTimeMs, rawVideoBucketFileNameIdentifier)
 	err = rvh.writePartialRawVideoToGCD(req.UserId, bucketFileName, rawVideo)
 	if err != nil {
+		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing to datastore: %w", err)
 	}
 
 	// Upload cloud storage data.
 	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
-		if err := rvh.noSQLDB.DeleteRawVideoByID(rawVideo.Id); err != nil {
-			rvh.logger.Warning(fmt.Sprintf("Error cleaning up rawVideo with ID %q on failed request", rawVideo.Id))
-		}
+		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing mp4 to cloud storage: %w", err)
+	}
+
+	// TODO(lucaloncar): clean up previously created resources if this fails
+	locations, motions, times, err := rvh.mp4Tool.ParseOutGPSMetadata(mp4Path)
+	if err != nil {
+		cleanUp.clean = true
+		return nil, fmt.Errorf("ParseOutGPSMetadata() returns err: %w", err)
+	}
+
+	rawLocations, err := data.ConstructRawLocationDatas(req.UserId, locations, times)
+	if err != nil {
+		cleanUp.clean = true
+		return nil, fmt.Errorf("ConstructRawLocationDatas() returns err: $%w", err)
+	}
+	rawMotions, err := data.ConstructRawMotionDatas(req.UserId, motions, times)
+	if err != nil {
+		cleanUp.clean = true
+		return nil, fmt.Errorf("ConstructRawMotionDatas() returns err: $%w", err)
+	}
+
+	if len(rawLocations) != len(rawMotions) {
+		cleanUp.clean = true
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("len(rawLocations) %d != len(rawMotions) %d", len(rawLocations), len(rawMotions)))
+	}
+	for i := range rawLocations {
+		cleanUp.rawLocationIDs = append(cleanUp.rawLocationIDs, rawLocations[i].Id)
+		if _, err := rvh.noSQLDB.InsertUniqueRawLocation(rawLocations[i]); err != nil {
+			cleanUp.clean = true
+			return nil, fmt.Errorf("InsertUniqueRawLocation(%v) returns err: %w", rawLocations[i], err)
+		}
+		cleanUp.rawMotionIDs = append(cleanUp.rawMotionIDs, rawMotions[i].Id)
+		if _, err := rvh.noSQLDB.InsertUniqueRawMotion(rawMotions[i]); err != nil {
+			cleanUp.clean = true
+			return nil, fmt.Errorf("InsertUniqueRawMotion(%v) returns err: %w", rawMotions[i], err)
+		}
 	}
 
 	rvh.logger.Log(fmt.Sprintf("Successfully processed video %q for user %q", bucketFileName, req.UserId))
@@ -229,4 +269,48 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 		return nil, "", senecaerror.NewUserError(userID, fmt.Errorf("error copying bytes - err: %v", err), fmt.Sprintf("Corrupted file: %q.", header.Filename))
 	}
 	return buf.Bytes(), mp4Name, nil
+}
+
+type cleanUp struct {
+	noSQLDB    cloud.NoSQLDatabaseInterface
+	logger     logging.LoggingInterface
+	clean      bool
+	rawVideoID string
+	// TODO(lucaloncar): also clean up s3 file so none are dangling
+	rawLocationIDs []string
+	rawMotionIDs   []string
+}
+
+func newCleanUp(noSQLDB cloud.NoSQLDatabaseInterface, logger logging.LoggingInterface) *cleanUp {
+	return &cleanUp{
+		noSQLDB: noSQLDB,
+		logger:  logger,
+	}
+}
+
+func (cu *cleanUp) cleanUpFailure() {
+	if !cu.clean {
+		return
+	}
+
+	errs := []error{}
+
+	if cu.rawVideoID != "" {
+		errs = append(errs, cu.noSQLDB.DeleteRawVideoByID(cu.rawVideoID))
+	}
+
+	for _, rlid := range cu.rawLocationIDs {
+		errs = append(errs, cu.noSQLDB.DeleteRawLocationByID(rlid))
+	}
+
+	for _, rmid := range cu.rawMotionIDs {
+		errs = append(errs, cu.noSQLDB.DeleteRawMotionByID(rmid))
+	}
+
+	for _, err := range errs {
+		if err != nil {
+			cu.logger.Error(fmt.Sprintf("Error cleaning up rawVideo failure: %v", err))
+		}
+	}
+
 }
