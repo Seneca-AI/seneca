@@ -6,6 +6,7 @@ on:
 name: Trigger integration test
 jobs:
   trigger:
+    runs-on: ubuntu-latest
     steps:
       - name: Send HTTP request
         run: |
