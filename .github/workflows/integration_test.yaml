@@ -3,13 +3,13 @@ on:
     branches:
       - staging
 
-  name: Trigger integration test
-  jobs:
-    trigger:
-      steps:
-        - name: Send HTTP request
-          run: |
-            output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://35.188.190.79:5050/integration_test)
-            if [[ $output != *"SUCCESS"* ]]; then
-              exit 1
-            fi
+name: Trigger integration test
+jobs:
+  trigger:
+    steps:
+      - name: Send HTTP request
+        run: |
+          output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://35.188.190.79:5050/integration_test)
+          if [[ $output != *"SUCCESS"* ]]; then
+            exit 1
+          fi
