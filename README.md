@@ -11,9 +11,12 @@ Seneca.AI/seneca implements all of the infrastucture for this application, aside
 * ID001: internal/datagatherer
 * ID002: internal/syncer
 
-## Dev Help
+## Dev Info
 
-### Dev Commands
+### Rules
+* New PR's are merged into staging
+
+### Helpful Commands
 * Run all tests (from root repo directory)
     * `$ go test ./...`
 * Run the linter
