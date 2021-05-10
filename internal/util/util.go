@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"seneca/api/senecaerror"
-	st "seneca/api/type"
 	"strconv"
 	"strings"
 	"time"
@@ -79,33 +78,6 @@ func DurationToString(dur time.Duration) string {
 	}
 
 	return fmt.Sprintf("%s:%s:%s", hourString, minuteString, secondString)
-}
-
-// LocationsEqual compares the degrees and direction of the locations.
-// Params:
-//		l1 *st.Location
-//		l2 *st.Location
-// Returns:
-//		bool
-func LocationsEqual(l1 *st.Location, l2 *st.Location) bool {
-	if l1 == nil || l2 == nil {
-		return l1 == l2
-	}
-	if l1.Lat == nil || l2.Lat == nil {
-		return l1.Lat == l2.Lat
-	}
-	if l1.Long == nil || l2.Long == nil {
-		return l1.Long == l2.Long
-	}
-	return l1.Lat.Degrees == l2.Lat.Degrees && l1.Lat.DegreeMinutes == l2.Lat.DegreeMinutes && l1.Lat.DegreeSeconds == l2.Lat.DegreeSeconds && l1.Lat.LatDirection == l2.Lat.LatDirection &&
-		l1.Long.Degrees == l2.Long.Degrees && l1.Long.DegreeMinutes == l2.Long.DegreeMinutes && l1.Long.DegreeSeconds == l2.Long.DegreeSeconds && l1.Long.LongDirection == l2.Long.LongDirection
-}
-
-func MotionsEqual(m1 *st.Motion, m2 *st.Motion) bool {
-	if m1 == nil || m2 == nil {
-		return m1 == m2
-	}
-	return m1.VelocityMph == m2.VelocityMph && m1.AccelerationMphS == m2.AccelerationMphS
 }
 
 // IsCIEnv returns true if the env variable "CI" is set to "true".

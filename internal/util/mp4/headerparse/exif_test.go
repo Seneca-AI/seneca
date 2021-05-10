@@ -6,6 +6,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/logging"
 	"seneca/internal/util"
+	"seneca/internal/util/data"
 	"testing"
 	"time"
 )
@@ -204,7 +205,7 @@ func TestGetLocationMotionTime(t *testing.T) {
 				t.Errorf("getLocationMotionTime(%v) returns unexpected err %v", tc.input, err)
 				return
 			}
-			if !util.LocationsEqual(tc.want.location, got.location) {
+			if !data.LocationsEqual(tc.want.location, got.location) {
 				t.Errorf("Locations not equal. Got %v, want %v", got.location, tc.want.location)
 			}
 			if got.motion.VelocityMph != tc.want.motion.VelocityMph || got.motion.AccelerationMphS != tc.want.motion.AccelerationMphS {

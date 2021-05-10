@@ -194,7 +194,7 @@ func (gduc *GoogleDriveUserClient) MarkFileByID(fileID string, prefix FilePrefix
 	var newName string
 	if remove {
 		if !strings.HasPrefix(originalName, prefix.String()) {
-			return fmt.Errorf("specified removal of prefix %q, but file name is %q", prefix, originalName)
+			return nil
 		}
 		newName = originalName[len(prefix):]
 	} else {

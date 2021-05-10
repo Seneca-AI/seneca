@@ -63,7 +63,7 @@ func (gcsc *GoogleCloudStorageClient) CreateBucket(bucketName cloud.BucketName) 
 
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
-	if err := gcsc.client.Bucket(bucketName.String()).Create(ctx, gcsc.projectID, nil); err != nil {
+	if err := gcsc.client.Bucket(bucketName.RealName(gcsc.projectID)).Create(ctx, gcsc.projectID, nil); err != nil {
 		return senecaerror.NewCloudError(err)
 	}
 	return nil
@@ -89,7 +89,7 @@ func (gcsc *GoogleCloudStorageClient) BucketExists(bucketName cloud.BucketName) 
 	}
 
 	for _, b := range buckets {
-		if b == bucketName.String() {
+		if b == bucketName.RealName(gcsc.projectID) {
 			return true, nil
 		}
 	}
@@ -104,7 +104,7 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName cloud.BucketNa
 	ctx, cancel := context.WithTimeout(ctx, gcsc.quickTimeOut)
 	defer cancel()
 
-	object := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName)
+	object := gcsc.client.Bucket(bucketName.RealName(gcsc.projectID)).Object(bucketFileName)
 
 	// If there is an error, we assume the file does not exist.
 	if _, err := object.Attrs(ctx); err != nil {
@@ -134,7 +134,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketNam
 
 	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
 	defer cancel()
-	wc := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName).NewWriter(ctx)
+	wc := gcsc.client.Bucket(bucketName.RealName(gcsc.projectID)).Object(bucketFileName).NewWriter(ctx)
 	if _, err = io.Copy(wc, f); err != nil {
 		return senecaerror.NewBadStateError(err)
 	}
@@ -150,7 +150,7 @@ func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName cloud.BucketName,
 	ctx, cancel := context.WithTimeout(ctx, gcsc.longTimeOut)
 	defer cancel()
 
-	rc, err := gcsc.client.Bucket(bucketName.String()).Object(bucketFileName).NewReader(ctx)
+	rc, err := gcsc.client.Bucket(bucketName.RealName(gcsc.projectID)).Object(bucketFileName).NewReader(ctx)
 	if err != nil {
 		return "", senecaerror.NewBadStateError(fmt.Errorf("error reading from bucket %q for file %q - err: %w", bucketName, bucketFileName, err))
 	}
@@ -174,4 +174,11 @@ func (gcsc *GoogleCloudStorageClient) GetBucketFile(bucketName cloud.BucketName,
 	}
 
 	return tempFile.Name(), nil
+}
+
+func (gcsc *GoogleCloudStorageClient) DeleteBucketFile(bucketName cloud.BucketName, bucketFileName string) error {
+	if err := gcsc.client.Bucket(bucketName.RealName(gcsc.projectID)).Object(bucketFileName).Delete(context.TODO()); err != nil {
+		return fmt.Errorf("error deleting file %q in bucket %q: %w", bucketFileName, bucketName, err)
+	}
+	return nil
 }

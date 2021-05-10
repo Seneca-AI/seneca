@@ -45,13 +45,13 @@ func (sync *Syncer) ScanAllUsers() {
 	}
 
 	for _, id := range userIDs {
-		if err := sync.handleUser(id); err != nil {
+		if err := sync.SyncUser(id); err != nil {
 			sync.logger.Error(fmt.Sprintf("Error in sync.handleUser(%s) - err: %v", id, err))
 		}
 	}
 }
 
-func (sync *Syncer) handleUser(id string) error {
+func (sync *Syncer) SyncUser(id string) error {
 	user, err := sync.userDao.GetUserByID(id)
 	if err != nil {
 		return fmt.Errorf("GetUserByID(%s) returns err: %w", id, err)
@@ -78,6 +78,7 @@ func (sync *Syncer) handleUser(id string) error {
 			UserId:    id,
 			LocalPath: pathToFile,
 		})
+
 		if err != nil {
 			sync.logger.Error(fmt.Sprintf("Error in HandleRawVideoProcessRequest for user %q: %v", id, err))
 			if err := userDriveClient.MarkFileByID(fid, googledrive.Error, false); err != nil {

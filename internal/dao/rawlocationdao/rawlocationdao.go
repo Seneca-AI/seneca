@@ -45,9 +45,15 @@ func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocati
 		return nil, fmt.Errorf("rawLocation with timestamp %d already exists for user %q", rawLocation.TimestampMs, rawLocation.UserId)
 	}
 
-	newRawLocationID, err := rdao.sql.Insert(constants.RawLocationsTable, rawLocation)
+	newRawLocationID, err := rdao.sql.Create(constants.RawLocationsTable, rawLocation)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting rawLocation %v - err: %w", rawLocation, err)
+		return nil, fmt.Errorf("error inserting rawLocation %v into store: %w", rawLocation, err)
+	}
+	rawLocation.Id = newRawLocationID
+
+	// Now set the ID in the datastore object.
+	if err := rdao.sql.Insert(constants.RawLocationsTable, rawLocation.Id, rawLocation); err != nil {
+		return nil, fmt.Errorf("error updating rawLocationID for rawLocation %v - err: %w", rawLocation, err)
 	}
 
 	rawLocation.Id = newRawLocationID

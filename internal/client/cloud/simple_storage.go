@@ -1,17 +1,21 @@
 package cloud
 
+import "fmt"
+
 // BucketName is used for specifying buckets.
 type BucketName string
 
 const (
 	// RawVideoBucketName defines the bucket used for raw videos.
-	RawVideoBucketName BucketName = "seneca_raw_videos"
-	// CutVideoBucketName is the name of the GCS bucket for cut videos.
-	CutVideoBucketName BucketName = "seneca_cut_videos"
+	RawVideoBucketName BucketName = "raw_videos"
 )
 
 func (bn *BucketName) String() string {
 	return string(*bn)
+}
+
+func (bn *BucketName) RealName(projectID string) string {
+	return fmt.Sprintf("%s-%s", projectID, string(*bn))
 }
 
 // SimpleStorageInterface is the interface used for interacting with

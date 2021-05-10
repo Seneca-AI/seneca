@@ -30,7 +30,7 @@ func insertUserWithToken(sqlService *gcpdatastore.Service, email, pathToOauthTok
 	}
 
 	user := &st.User{
-		Email:      "testuser002@gmail.com",
+		Email:      email,
 		OauthToken: bytes,
 	}
 
@@ -94,23 +94,10 @@ func deleteAllRawMotionsForUser(sqlService *gcpdatastore.Service, userID string)
 
 // For interfacing with cloud datastore.
 func main() {
-	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-sandbox")
+	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-staging")
 	if err != nil {
 		log.Fatalf("Error initializing datastore service %v", err)
 	}
 
-	userDAO := userdao.NewSQLUserDao(sqlService)
-	userIDs, err := userDAO.ListAllUserIDs()
-
-	fmt.Printf("Got %d userIDs\n", len(userIDs))
-
-	if err != nil {
-		log.Fatalf("Error listing all user IDs: %v", err)
-	}
-
-	for _, uid := range userIDs {
-		if err := deleteAllRawMotionsForUser(sqlService, uid); err != nil {
-			log.Fatalf("Error deleting raw video for user %q: %v", uid, err)
-		}
-	}
+	insertUserWithToken(sqlService, "itestuser000@senecacam.com", "token.json")
 }

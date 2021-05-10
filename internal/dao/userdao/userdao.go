@@ -3,6 +3,7 @@ package userdao
 import (
 	"fmt"
 	"seneca/api/constants"
+	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/cloud"
 	"seneca/internal/dao"
@@ -32,11 +33,17 @@ func (udao *SQLUserDao) InsertUniqueUser(user *st.User) (*st.User, error) {
 		return nil, fmt.Errorf("a user with email %q already exists", user.Email)
 	}
 
-	newUserID, err := udao.sqlInterface.Insert(constants.UsersTable, user)
+	newUserID, err := udao.sqlInterface.Create(constants.UsersTable, user)
 	if err != nil {
 		return nil, fmt.Errorf("error inserting user %v into store: %w", user, err)
 	}
 	user.Id = newUserID
+
+	// Now set the ID in the datastore object.
+	if err := udao.sqlInterface.Insert(constants.UsersTable, user.Id, user); err != nil {
+		return nil, fmt.Errorf("error updating userID for user %v - err: %w", user, err)
+	}
+
 	return user, nil
 }
 
@@ -54,10 +61,26 @@ func (udao *SQLUserDao) GetUserByID(id string) (*st.User, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected User, got %T", userObj)
 	}
-
 	return user, nil
 }
 
 func (udao *SQLUserDao) ListAllUserIDs() ([]string, error) {
 	return udao.sqlInterface.ListIDs(constants.UsersTable, nil)
+}
+
+func (udao *SQLUserDao) GetUserByEmail(email string) (*st.User, error) {
+	userIDs, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*cloud.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: email}})
+	if err != nil {
+		return nil, fmt.Errorf("error listing users with email %q - err: %w", email, err)
+	}
+
+	if len(userIDs) == 0 {
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("no user with email %q found", email))
+	}
+
+	if len(userIDs) > 1 {
+		return nil, senecaerror.NewBadStateError((fmt.Errorf("%d users with email %q found", len(userIDs), email)))
+	}
+
+	return udao.GetUserByID(userIDs[0])
 }

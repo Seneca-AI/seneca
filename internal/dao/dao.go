@@ -10,7 +10,8 @@ import (
 type SQLInterface interface {
 	ListIDs(tableName constants.TableName, queryParams []*cloud.QueryParam) ([]string, error)
 	GetByID(tableName constants.TableName, id string) (interface{}, error)
-	Insert(tableName constants.TableName, object interface{}) (string, error)
+	Create(tableName constants.TableName, object interface{}) (string, error)
+	Insert(tableName constants.TableName, id string, object interface{}) error
 	DeleteByID(tableName constants.TableName, id string) error
 }
 

@@ -38,9 +38,15 @@ func (rdao *SQLRawVideoDAO) InsertUniqueRawVideo(rawVideo *st.RawVideo) (*st.Raw
 		return nil, fmt.Errorf("rawVideo with timestamp %d already exists for user %q", rawVideo.CreateTimeMs, rawVideo.UserId)
 	}
 
-	newRawVideoID, err := rdao.sql.Insert(constants.RawVideosTable, rawVideo)
+	newRawVideoID, err := rdao.sql.Create(constants.RawVideosTable, rawVideo)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting rawVideo %v - err: %w", rawVideo, err)
+		return nil, fmt.Errorf("error inserting rawVideo %v into store: %w", rawVideo, err)
+	}
+	rawVideo.Id = newRawVideoID
+
+	// Now set the ID in the datastore object.
+	if err := rdao.sql.Insert(constants.RawVideosTable, rawVideo.Id, rawVideo); err != nil {
+		return nil, fmt.Errorf("error updating rawVideoID for rawVideo %v - err: %w", rawVideo, err)
 	}
 
 	rawVideo.Id = newRawVideoID
