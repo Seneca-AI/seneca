@@ -6,8 +6,7 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
-	"seneca/internal/dao"
+	"seneca/internal/client/database"
 	"seneca/internal/util"
 	"time"
 )
@@ -19,7 +18,13 @@ const (
 )
 
 type SQLTripDAO struct {
-	sql dao.SQLInterface
+	sql database.SQLInterface
+}
+
+func NewSQLTripDAO(sql database.SQLInterface) *SQLTripDAO {
+	return &SQLTripDAO{
+		sql: sql,
+	}
 }
 
 func (tdao *SQLTripDAO) CreateUniqueTrip(ctx context.Context, trip *st.TripInternal) (*st.TripInternal, error) {
@@ -43,13 +48,18 @@ func (tdao *SQLTripDAO) CreateUniqueTrip(ctx context.Context, trip *st.TripInter
 		return nil, fmt.Errorf("error patching trip's ID %q - err: %w", trip.Id, err)
 	}
 
+	fmt.Printf("Created trip %v\n", trip)
 	return trip, nil
 }
 
-func (tdao *SQLTripDAO) GetTripByID(ctx context.Context, userID, tripID string) (*st.TripInternal, error) {
+func (tdao *SQLTripDAO) GetTripByID(userID, tripID string) (*st.TripInternal, error) {
 	tripObj, err := tdao.sql.GetByID(constants.TripTable, tripID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting trip from strore: %w", err)
+	}
+
+	if tripObj == nil {
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("tripInternal with ID %q not found in the store", tripID))
 	}
 
 	trip, ok := tripObj.(*st.TripInternal)
@@ -69,12 +79,12 @@ func (tdao *SQLTripDAO) PutTripByID(ctx context.Context, tripID string, trip *st
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDs(userID string) ([]string, error) {
-	return tdao.sql.ListIDs(constants.TripTable, []*cloud.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return tdao.sql.ListIDs(constants.TripTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time, endTime time.Time) ([]string, error) {
 	// { [ } ] or [ {} ] -- [] are query bounds, {} are trips
-	overLappingStartQuery := []*cloud.QueryParam{
+	overLappingStartQuery := []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
 			Operand:   "=",
@@ -93,7 +103,7 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 	}
 
 	// [ { ] } or [ {} ]
-	overLappingEndQuery := []*cloud.QueryParam{
+	overLappingEndQuery := []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
 			Operand:   "=",
@@ -111,7 +121,7 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 		},
 	}
 	// { [] }
-	superQuery := []*cloud.QueryParam{
+	superQuery := []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
 			Operand:   "=",

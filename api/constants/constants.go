@@ -22,7 +22,7 @@ const (
 	RawLocationsTable     TableName = "RawLocations"
 	RawMotionsTable       TableName = "RawMotions"
 	EventTable            TableName = "Events"
-	DrivingConditionTable TableName = "DrivingCondions"
+	DrivingConditionTable TableName = "DrivingConditions"
 	TripTable             TableName = "Trips"
 )
 

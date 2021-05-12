@@ -6,7 +6,7 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
+	"seneca/internal/client/database"
 	"seneca/internal/dao"
 	"seneca/internal/util"
 )
@@ -16,12 +16,19 @@ const (
 	tripIDFieldName  = "TripId"
 )
 
-type SQLEventDao struct {
-	sql     dao.SQLInterface
+type SQLEventDAO struct {
+	sql     database.SQLInterface
 	tripDAO dao.TripDAO
 }
 
-func (edao *SQLEventDao) CreateEvent(ctx context.Context, event *st.EventInternal) (*st.EventInternal, error) {
+func NewSQLEventDAO(sql database.SQLInterface, tripDAO dao.TripDAO) *SQLEventDAO {
+	return &SQLEventDAO{
+		sql:     sql,
+		tripDAO: tripDAO,
+	}
+}
+
+func (edao *SQLEventDAO) CreateEvent(ctx context.Context, event *st.EventInternal) (*st.EventInternal, error) {
 	// Check if there's an existing trip.
 	tripIDs, err := edao.tripDAO.ListUserTripIDsByTime(event.UserId, util.MillisecondsToTime(event.TimestampMs), util.MillisecondsToTime(event.TimestampMs))
 	if err != nil {
@@ -54,18 +61,19 @@ func (edao *SQLEventDao) CreateEvent(ctx context.Context, event *st.EventInterna
 	}
 
 	event.Id = eventID
-	if err := edao.PutEventByID(context.TODO(), event.Id, event); err != nil {
+	if err := edao.PutEventByID(context.TODO(), event.UserId, event.TripId, event.Id, event); err != nil {
 		return nil, fmt.Errorf("error updating eventID %q: %w", event.Id, err)
 	}
 
+	fmt.Printf("Created event %v\n", event)
 	return event, nil
 }
 
-func (edao *SQLEventDao) PutEventByID(ctx context.Context, eventID string, event *st.EventInternal) error {
+func (edao *SQLEventDAO) PutEventByID(ctx context.Context, userID, tripID, eventID string, event *st.EventInternal) error {
 	return edao.sql.Insert(constants.EventTable, event.Id, event)
 }
 
-func (edao *SQLEventDao) GetEventByID(userID, tripID, eventID string) (*st.EventInternal, error) {
+func (edao *SQLEventDAO) GetEventByID(userID, tripID, eventID string) (*st.EventInternal, error) {
 	eventObj, err := edao.sql.GetByID(constants.EventTable, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting event by ID: %w", err)
@@ -83,10 +91,10 @@ func (edao *SQLEventDao) GetEventByID(userID, tripID, eventID string) (*st.Event
 	return event, nil
 }
 
-func (edao *SQLEventDao) ListTripEventIDs(tripID string) ([]string, error) {
-	return edao.sql.ListIDs(constants.EventTable, []*cloud.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
+func (edao *SQLEventDAO) ListTripEventIDs(userID, tripID string) ([]string, error) {
+	return edao.sql.ListIDs(constants.EventTable, []*database.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
 }
 
-func (edao *SQLEventDao) DeleteEventByID(ctx context.Context, eventID string) error {
+func (edao *SQLEventDAO) DeleteEventByID(ctx context.Context, userID, tripID, eventID string) error {
 	return edao.sql.DeleteByID(constants.EventTable, eventID)
 }

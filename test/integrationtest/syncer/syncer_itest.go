@@ -7,7 +7,7 @@ import (
 	"seneca/env"
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/cloud/gcp"
-	"seneca/internal/client/cloud/gcpdatastore"
+	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/dao/rawlocationdao"
@@ -61,12 +61,12 @@ func E2ESyncer(projectID string) error {
 		return fmt.Errorf(fmt.Sprintf("cloud.NewGoogleCloudStorageClient() returns - err: %v", err))
 	}
 
-	sqlService, err := gcpdatastore.New(context.TODO(), projectID)
+	sqlService, err := datastore.New(context.TODO(), projectID)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("error initializing sql service - err: %v", err))
 	}
 
-	userDAO := userdao.NewSQLUserDao(sqlService)
+	userDAO := userdao.NewSQLUserDAO(sqlService)
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, time.Second*5)
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)

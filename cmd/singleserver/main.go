@@ -10,7 +10,7 @@ import (
 	"os"
 	"seneca/env"
 	"seneca/internal/client/cloud/gcp"
-	"seneca/internal/client/cloud/gcpdatastore"
+	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/dao/rawlocationdao"
@@ -52,15 +52,15 @@ func main() {
 		return
 	}
 
-	sqlService, err := gcpdatastore.New(context.TODO(), projectID)
+	sqlService, err := datastore.New(context.TODO(), projectID)
 	if err != nil {
-		logger.Critical(fmt.Sprintf("gcpdatastore.New() returns - err: %v", err))
+		logger.Critical(fmt.Sprintf("datastore.New() returns - err: %v", err))
 		return
 	}
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, (time.Second * 5))
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
-	userDAO := userdao.NewSQLUserDao(sqlService)
+	userDAO := userdao.NewSQLUserDAO(sqlService)
 
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {

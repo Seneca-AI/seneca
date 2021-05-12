@@ -22,15 +22,15 @@ type UserClientFactory interface {
 type Syncer struct {
 	intraSeneca   intraSenecaRequestInterface
 	gdriveFactory UserClientFactory
-	userDao       dao.UserDAO
+	userDAO       dao.UserDAO
 	logger        logging.LoggingInterface
 }
 
-func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactory, userDao dao.UserDAO, logger logging.LoggingInterface) *Syncer {
+func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactory, userDAO dao.UserDAO, logger logging.LoggingInterface) *Syncer {
 	return &Syncer{
 		intraSeneca:   intraSeneca,
 		gdriveFactory: gdriveFactory,
-		userDao:       userDao,
+		userDAO:       userDAO,
 		logger:        logger,
 	}
 }
@@ -38,7 +38,7 @@ func New(intraSeneca intraSenecaRequestInterface, gdriveFactory UserClientFactor
 // ScanAllUsers scans all users' Google Drive folders for newly uploaded files.
 func (sync *Syncer) ScanAllUsers() {
 	sync.logger.Log(fmt.Sprintf("Scanning all users at %q", time.Now().String()))
-	userIDs, err := sync.userDao.ListAllUserIDs()
+	userIDs, err := sync.userDAO.ListAllUserIDs()
 	if err != nil {
 		sync.logger.Critical(fmt.Sprintf("Error listing all users - err: %v", err))
 		return
@@ -52,7 +52,7 @@ func (sync *Syncer) ScanAllUsers() {
 }
 
 func (sync *Syncer) SyncUser(id string) error {
-	user, err := sync.userDao.GetUserByID(id)
+	user, err := sync.userDAO.GetUserByID(id)
 	if err != nil {
 		return fmt.Errorf("GetUserByID(%s) returns err: %w", id, err)
 	}
