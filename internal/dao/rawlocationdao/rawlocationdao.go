@@ -3,9 +3,9 @@ package rawlocationdao
 import (
 	"fmt"
 	"seneca/api/constants"
+	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
-	"seneca/internal/dao"
+	"seneca/internal/client/database"
 )
 
 const (
@@ -14,17 +14,17 @@ const (
 )
 
 type SQLRawLocationDAO struct {
-	sql dao.SQLInterface
+	sql database.SQLInterface
 }
 
-func NewSQLRawLocationDAO(sqlInterface dao.SQLInterface) *SQLRawLocationDAO {
+func NewSQLRawLocationDAO(sqlInterface database.SQLInterface) *SQLRawLocationDAO {
 	return &SQLRawLocationDAO{
 		sql: sqlInterface,
 	}
 }
 
 func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error) {
-	ids, err := rdao.sql.ListIDs(constants.RawLocationsTable, []*cloud.QueryParam{
+	ids, err := rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
 			Operand:   "=",
@@ -67,7 +67,7 @@ func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, e
 	}
 
 	if rawLocationObj == nil {
-		return nil, nil
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("rawLocation with ID %q not found in the store", id))
 	}
 
 	rawLocation, ok := rawLocationObj.(*st.RawLocation)
@@ -79,7 +79,7 @@ func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, e
 }
 
 func (rdao *SQLRawLocationDAO) ListUserRawLocationIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawLocationsTable, []*cloud.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawLocationDAO) DeleteRawLocationByID(id string) error {

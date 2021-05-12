@@ -6,7 +6,7 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
+	"seneca/internal/client/database"
 	"seneca/internal/dao"
 	"seneca/internal/util"
 	"sort"
@@ -18,9 +18,17 @@ const (
 )
 
 type SQLDrivingConditionDAO struct {
-	sql      dao.SQLInterface
+	sql      database.SQLInterface
 	tripDAO  dao.TripDAO
 	eventDAO dao.EventDAO
+}
+
+func NewSQLDrivingConditionDAO(sql database.SQLInterface, tripDAO dao.TripDAO, eventDAO dao.EventDAO) *SQLDrivingConditionDAO {
+	return &SQLDrivingConditionDAO{
+		sql:      sql,
+		tripDAO:  tripDAO,
+		eventDAO: eventDAO,
+	}
 }
 
 func (ddao *SQLDrivingConditionDAO) CreateDrivingCondition(ctx context.Context, drivingCondition *st.DrivingConditionInternal) (*st.DrivingConditionInternal, error) {
@@ -46,13 +54,18 @@ func (ddao *SQLDrivingConditionDAO) CreateDrivingCondition(ctx context.Context, 
 	if err := ddao.sql.Insert(constants.DrivingConditionTable, drivingCondition.Id, drivingCondition); err != nil {
 		return nil, fmt.Errorf("error updating drivingConditionID %q: %w", drivingCondition.Id, err)
 	}
+
+	fmt.Printf("Created drivingCondition %v\n", drivingCondition)
 	return drivingCondition, nil
 }
 
 func (ddao *SQLDrivingConditionDAO) GetDrivingConditionByID(userID, tripID, drivingConditionID string) (*st.DrivingConditionInternal, error) {
-	drivingConditionObj, err := ddao.sql.GetByID(constants.EventTable, drivingConditionID)
+	drivingConditionObj, err := ddao.sql.GetByID(constants.DrivingConditionTable, drivingConditionID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting event by ID: %w", err)
+	}
+	if drivingConditionObj == nil {
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("drivingCondition with ID %q not found in the store", drivingConditionID))
 	}
 
 	drivingCondition, ok := drivingConditionObj.(*st.DrivingConditionInternal)
@@ -68,7 +81,7 @@ func (ddao *SQLDrivingConditionDAO) GetDrivingConditionByID(userID, tripID, driv
 }
 
 func (ddao *SQLDrivingConditionDAO) ListTripDrivingConditionIDs(userID, tripID string) ([]string, error) {
-	return ddao.sql.ListIDs(constants.DrivingConditionTable, []*cloud.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
+	return ddao.sql.ListIDs(constants.DrivingConditionTable, []*database.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
 }
 func (ddao *SQLDrivingConditionDAO) DeleteDrivingConditionByID(ctx context.Context, userID, tripID, drivingConditionID string) error {
 	return ddao.sql.DeleteByID(constants.DrivingConditionTable, drivingConditionID)
@@ -85,7 +98,7 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 	}
 	if len(tripIDs) > 0 {
 		for _, tid := range tripIDs {
-			trip, err := ddao.tripDAO.GetTripByID(context.TODO(), tid)
+			trip, err := ddao.tripDAO.GetTripByID(drivingCondition.UserId, tid)
 			if err != nil {
 				return "", fmt.Errorf("error getting trip by ID %q - err: %w", tid, err)
 			}
@@ -104,8 +117,8 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 		}
 	}
 
-	if winnerTrip.Id == "" {
-		newTrip, err := ddao.tripDAO.CreateUniqueTrip(context.TODO(), winnerTrip)
+	if winnerTrip == nil {
+		newTrip, err := ddao.tripDAO.CreateUniqueTrip(context.TODO(), trips[0])
 		if err != nil {
 			return "", fmt.Errorf("erroring creating new trip: %w", err)
 		}
@@ -122,7 +135,7 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 			newEndTime = tp.EndTimeMs
 		}
 
-		if tp.Id == winnerTrip.Id {
+		if tp.Id == winnerTrip.Id || tp.Id == "" {
 			continue
 		}
 
@@ -137,7 +150,7 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 				return "", fmt.Errorf("error getting event by ID %q - err: %w", eid, err)
 			}
 			event.TripId = winnerTrip.Id
-			if err := ddao.eventDAO.PutEventByID(context.TODO(), event.Id, event); err != nil {
+			if err := ddao.eventDAO.PutEventByID(context.TODO(), event.UserId, event.TripId, event.Id, event); err != nil {
 				return "", fmt.Errorf("error putting event %v - err: %w", event, err)
 			}
 		}
@@ -149,7 +162,7 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 		for _, edci := range existingDrivingConditionIDs {
 			condition, err := ddao.GetDrivingConditionByID(drivingCondition.UserId, tp.Id, edci)
 			if err != nil {
-				return "", fmt.Errorf("error getting existingDrivingCondition by ID %q - err: %w", edci, err)
+				return "", fmt.Errorf("error getting existingDrivingCondition with userID %q, tripID %q, ID %q  - err: %w", tp.UserId, tp.Id, edci, err)
 			}
 			condition.TripId = winnerTrip.Id
 			if err := ddao.sql.Insert(constants.DrivingConditionTable, condition.Id, condition); err != nil {
@@ -167,6 +180,15 @@ func (ddao SQLDrivingConditionDAO) mergeTrips(drivingCondition *st.DrivingCondit
 
 	if err := ddao.tripDAO.PutTripByID(context.TODO(), winnerTrip.Id, winnerTrip); err != nil {
 		return "", fmt.Errorf("error updating new trip with ID %q: %w", winnerTrip.Id, err)
+	}
+
+	// Delete old trips.
+	for _, tp := range trips {
+		if tp.Id != winnerTrip.Id && tp.Id != "" {
+			if err := ddao.tripDAO.DeleteTripByID(context.TODO(), tp.Id); err != nil {
+				return "", fmt.Errorf("error deleting trip %q by ID: %w", tp.Id, err)
+			}
+		}
 	}
 
 	return winnerTrip.Id, nil

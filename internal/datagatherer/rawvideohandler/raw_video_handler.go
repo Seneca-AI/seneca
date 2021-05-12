@@ -36,9 +36,9 @@ type RawVideoHandler struct {
 	logger        logging.LoggingInterface
 	projectID     string
 
-	rawVideoDao    dao.RawVideoDAO
-	rawLocationDao dao.RawLocationDAO
-	rawMotionDao   dao.RawMotionDAO
+	rawVideoDAO    dao.RawVideoDAO
+	rawLocationDAO dao.RawLocationDAO
+	rawMotionDAO   dao.RawMotionDAO
 }
 
 // NewRawVideoHandler initializes a new RawVideoHandler with the given parameters.
@@ -52,15 +52,15 @@ type RawVideoHandler struct {
 // Returns:
 //		*RawVideoHandler: the handler
 //		error
-func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, mp4ToolInterface mp4.MP4ToolInterface, rawVideoDao dao.RawVideoDAO, rawLocationDao dao.RawLocationDAO, rawMotionDao dao.RawMotionDAO, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, mp4ToolInterface mp4.MP4ToolInterface, rawVideoDAO dao.RawVideoDAO, rawLocationDAO dao.RawLocationDAO, rawMotionDAO dao.RawMotionDAO, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
 	return &RawVideoHandler{
 		simpleStorage:  simpleStorageInterface,
 		mp4Tool:        mp4ToolInterface,
 		logger:         logger,
 		projectID:      projectID,
-		rawVideoDao:    rawVideoDao,
-		rawLocationDao: rawLocationDao,
-		rawMotionDao:   rawMotionDao,
+		rawVideoDAO:    rawVideoDAO,
+		rawLocationDAO: rawLocationDAO,
+		rawMotionDAO:   rawMotionDAO,
 	}, nil
 }
 
@@ -98,7 +98,7 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest took %s", time.Since(startTime)))
 	}(nowTime)
 
-	cleanUp := newCleanUp(rvh.rawVideoDao, rvh.rawLocationDao, rvh.rawMotionDao, rvh.logger)
+	cleanUp := newCleanUp(rvh.rawVideoDAO, rvh.rawLocationDAO, rvh.rawMotionDAO, rvh.logger)
 	defer cleanUp.cleanUpFailure()
 
 	if req.UserId == "" {
@@ -173,12 +173,12 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}
 	for i := range rawLocations {
 		cleanUp.rawLocationIDs = append(cleanUp.rawLocationIDs, rawLocations[i].Id)
-		if _, err := rvh.rawLocationDao.InsertUniqueRawLocation(rawLocations[i]); err != nil {
+		if _, err := rvh.rawLocationDAO.InsertUniqueRawLocation(rawLocations[i]); err != nil {
 			cleanUp.clean = true
 			return nil, fmt.Errorf("InsertUniqueRawLocation(%v) returns err: %w", rawLocations[i], err)
 		}
 		cleanUp.rawMotionIDs = append(cleanUp.rawMotionIDs, rawMotions[i].Id)
-		if _, err := rvh.rawMotionDao.InsertUniqueRawMotion(rawMotions[i]); err != nil {
+		if _, err := rvh.rawMotionDAO.InsertUniqueRawMotion(rawMotions[i]); err != nil {
 			cleanUp.clean = true
 			return nil, fmt.Errorf("InsertUniqueRawMotion(%v) returns err: %w", rawMotions[i], err)
 		}
@@ -194,7 +194,7 @@ func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName str
 	rawVideo.UserId = userID
 	rawVideo.CloudStorageFileName = bucketFileName
 
-	newRawVideo, err := rvh.rawVideoDao.InsertUniqueRawVideo(rawVideo)
+	newRawVideo, err := rvh.rawVideoDAO.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
 		return "", fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
@@ -276,9 +276,9 @@ func getMP4BytesFromForm(userID string, r *http.Request) ([]byte, string, error)
 }
 
 type cleanUp struct {
-	rawVideoDao    dao.RawVideoDAO
-	rawLocationDao dao.RawLocationDAO
-	rawMotionDao   dao.RawMotionDAO
+	rawVideoDAO    dao.RawVideoDAO
+	rawLocationDAO dao.RawLocationDAO
+	rawMotionDAO   dao.RawMotionDAO
 	logger         logging.LoggingInterface
 
 	clean      bool
@@ -288,11 +288,11 @@ type cleanUp struct {
 	rawMotionIDs   []string
 }
 
-func newCleanUp(rawVideoDao dao.RawVideoDAO, rawLocationDao dao.RawLocationDAO, rawMotionDao dao.RawMotionDAO, logger logging.LoggingInterface) *cleanUp {
+func newCleanUp(rawVideoDAO dao.RawVideoDAO, rawLocationDAO dao.RawLocationDAO, rawMotionDAO dao.RawMotionDAO, logger logging.LoggingInterface) *cleanUp {
 	return &cleanUp{
-		rawVideoDao:    rawVideoDao,
-		rawLocationDao: rawLocationDao,
-		rawMotionDao:   rawMotionDao,
+		rawVideoDAO:    rawVideoDAO,
+		rawLocationDAO: rawLocationDAO,
+		rawMotionDAO:   rawMotionDAO,
 		logger:         logger,
 	}
 }
@@ -305,15 +305,15 @@ func (cu *cleanUp) cleanUpFailure() {
 	errs := []error{}
 
 	if cu.rawVideoID != "" {
-		errs = append(errs, cu.rawVideoDao.DeleteRawVideoByID(cu.rawVideoID))
+		errs = append(errs, cu.rawVideoDAO.DeleteRawVideoByID(cu.rawVideoID))
 	}
 
 	for _, rlid := range cu.rawLocationIDs {
-		errs = append(errs, cu.rawLocationDao.DeleteRawLocationByID(rlid))
+		errs = append(errs, cu.rawLocationDAO.DeleteRawLocationByID(rlid))
 	}
 
 	for _, rmid := range cu.rawMotionIDs {
-		errs = append(errs, cu.rawMotionDao.DeleteRawMotionByID(rmid))
+		errs = append(errs, cu.rawMotionDAO.DeleteRawMotionByID(rmid))
 	}
 
 	for _, err := range errs {

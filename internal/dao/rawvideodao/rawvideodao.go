@@ -1,11 +1,15 @@
 package rawvideodao
 
+// TODO(): known risks:
+//	- No write failure handling (e.g. , if Insert fails Create is not cleaned up)
+//	- No context
+
 import (
 	"fmt"
 	"seneca/api/constants"
+	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
-	"seneca/internal/dao"
+	"seneca/internal/client/database"
 	"time"
 )
 
@@ -15,11 +19,11 @@ const (
 )
 
 type SQLRawVideoDAO struct {
-	sql                   dao.SQLInterface
+	sql                   database.SQLInterface
 	createTimeQueryOffset time.Duration
 }
 
-func NewSQLRawVideoDAO(sqlInterface dao.SQLInterface, createTimeQueryOffset time.Duration) *SQLRawVideoDAO {
+func NewSQLRawVideoDAO(sqlInterface database.SQLInterface, createTimeQueryOffset time.Duration) *SQLRawVideoDAO {
 	return &SQLRawVideoDAO{
 		sql:                   sqlInterface,
 		createTimeQueryOffset: createTimeQueryOffset,
@@ -27,7 +31,7 @@ func NewSQLRawVideoDAO(sqlInterface dao.SQLInterface, createTimeQueryOffset time
 }
 
 func (rdao *SQLRawVideoDAO) InsertUniqueRawVideo(rawVideo *st.RawVideo) (*st.RawVideo, error) {
-	params := append(cloud.GenerateTimeOffsetParams(createTimeFieldName, rawVideo.CreateTimeMs, rdao.createTimeQueryOffset), &cloud.QueryParam{FieldName: userIDFieldName, Operand: "=", Value: rawVideo.UserId})
+	params := append(database.GenerateTimeOffsetParams(createTimeFieldName, rawVideo.CreateTimeMs, rdao.createTimeQueryOffset), &database.QueryParam{FieldName: userIDFieldName, Operand: "=", Value: rawVideo.UserId})
 
 	ids, err := rdao.sql.ListIDs(constants.RawVideosTable, params)
 	if err != nil {
@@ -60,7 +64,7 @@ func (rdao *SQLRawVideoDAO) GetRawVideoByID(id string) (*st.RawVideo, error) {
 	}
 
 	if rawVideoObj == nil {
-		return nil, nil
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("rawVideo with ID %q not found in the store", id))
 	}
 
 	rawVideo, ok := rawVideoObj.(*st.RawVideo)
@@ -72,7 +76,7 @@ func (rdao *SQLRawVideoDAO) GetRawVideoByID(id string) (*st.RawVideo, error) {
 }
 
 func (rdao *SQLRawVideoDAO) ListUserRawVideoIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawVideosTable, []*cloud.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawVideosTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawVideoDAO) DeleteRawVideoByID(id string) error {

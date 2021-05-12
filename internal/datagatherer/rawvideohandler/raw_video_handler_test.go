@@ -14,6 +14,7 @@ import (
 	"seneca/internal/dao/rawvideodao"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
+	"seneca/test/testutil"
 	"testing"
 	"time"
 )
@@ -53,7 +54,7 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	}
 
 	request := &st.RawVideoProcessRequest{
-		UserId:    "123",
+		UserId:    testutil.TestUserID,
 		VideoName: "illegalname{&}",
 	}
 
@@ -169,12 +170,12 @@ func newRawVideoHandlerForTests() (*RawVideoHandler, *mp4.FakeMP4Tool, *cloud.Fa
 	localLogger := logging.NewLocalLogger(true /* silent */)
 
 	mockRawVideoDAO := &rawvideodao.MockRawVideoDAO{}
-	mockRawLocationDao := &rawlocationdao.MockRawLocatinDAO{}
+	mockRawLocationDAO := &rawlocationdao.MockRawLocatinDAO{}
 	mockRawMotionDAO := &rawmotiondao.MockRawMotionDAO{}
 
-	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeMP4Tool, mockRawVideoDAO, mockRawLocationDao, mockRawMotionDAO, localLogger, "")
+	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeMP4Tool, mockRawVideoDAO, mockRawLocationDAO, mockRawMotionDAO, localLogger, "")
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
 	}
-	return rawVideoHandler, fakeMP4Tool, fakeSimpleStorageClient, mockRawVideoDAO, mockRawLocationDao, mockRawMotionDAO, nil
+	return rawVideoHandler, fakeMP4Tool, fakeSimpleStorageClient, mockRawVideoDAO, mockRawLocationDAO, mockRawMotionDAO, nil
 }

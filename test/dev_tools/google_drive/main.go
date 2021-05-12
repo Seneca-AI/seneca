@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"seneca/internal/client/cloud/gcpdatastore"
+	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/dao/userdao"
 
@@ -62,9 +62,12 @@ func generateDriveToken(pathToOutputToken, scope string) error {
 }
 
 func resetFilePrefixes(email string) error {
-	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-sandbox")
+	sqlService, err := datastore.New(context.TODO(), "senecacam-sandbox")
+	if err != nil {
+		return err
+	}
 
-	userDAO := userdao.NewSQLUserDao(sqlService)
+	userDAO := userdao.NewSQLUserDAO(sqlService)
 
 	uids, err := userDAO.ListAllUserIDs()
 	if err != nil {
