@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	st "seneca/api/type"
+	"seneca/test/testutil"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -16,7 +17,7 @@ func main() {
 
 	postBody, _ := proto.Marshal(
 		&st.FollowingDistanceForVideoRequest{
-			RequestId:             "123",
+			RequestId:             testutil.TestUserID,
 			SimpleStorageVideoUrl: "gs://luca-sample-footage/20210416_170736_NF.mp4",
 		},
 	)

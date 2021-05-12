@@ -1,4 +1,4 @@
-package gcpdatastore
+package datastore
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
+	"seneca/internal/client/database"
 	"strconv"
 
 	"cloud.google.com/go/datastore"
@@ -78,7 +78,7 @@ func New(ctx context.Context, projectID string) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) ListIDs(tableName constants.TableName, queryParams []*cloud.QueryParam) ([]string, error) {
+func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database.QueryParam) ([]string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
 		return nil, fmt.Errorf("no Datstore key found for table %q", tableName)

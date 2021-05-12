@@ -7,11 +7,12 @@ import (
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/dao/userdao"
+	"seneca/test/testutil"
 	"testing"
 )
 
 func TestErrorHandling(t *testing.T) {
-	fakeUserIDs := []string{"123", "456", "789"}
+	fakeUserIDs := []string{testutil.TestUserID, "456", "789"}
 
 	logger := &logging.MockLogger{}
 	syncer, intraSeneca, fakeGDrive, mockUserDAO := newSyncerForTests(logger)
@@ -147,7 +148,7 @@ func newSyncerForTests(logger logging.LoggingInterface) (*Syncer, *fakeIntraSene
 	fakeSyncer := &Syncer{
 		intraSeneca:   intraSeneca,
 		gdriveFactory: fakeGDrive,
-		userDao:       mockUserDAO,
+		userDAO:       mockUserDAO,
 		logger:        logger,
 	}
 	return fakeSyncer, intraSeneca, fakeGDrive, mockUserDAO

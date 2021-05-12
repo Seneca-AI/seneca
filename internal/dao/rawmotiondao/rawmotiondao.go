@@ -3,9 +3,9 @@ package rawmotiondao
 import (
 	"fmt"
 	"seneca/api/constants"
+	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
-	"seneca/internal/dao"
+	"seneca/internal/client/database"
 )
 
 const (
@@ -14,17 +14,17 @@ const (
 )
 
 type SQLRawMotionDAO struct {
-	sql dao.SQLInterface
+	sql database.SQLInterface
 }
 
-func NewSQLRawMotionDAO(sqlInterface dao.SQLInterface) *SQLRawMotionDAO {
+func NewSQLRawMotionDAO(sqlInterface database.SQLInterface) *SQLRawMotionDAO {
 	return &SQLRawMotionDAO{
 		sql: sqlInterface,
 	}
 }
 
 func (rdao *SQLRawMotionDAO) InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st.RawMotion, error) {
-	ids, err := rdao.sql.ListIDs(constants.RawMotionsTable, []*cloud.QueryParam{
+	ids, err := rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
 			Operand:   "=",
@@ -67,7 +67,7 @@ func (rdao *SQLRawMotionDAO) GetRawMotionByID(id string) (*st.RawMotion, error) 
 	}
 
 	if rawMotionObj == nil {
-		return nil, nil
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("rawLocation with ID %q not found in the store", id))
 	}
 
 	rawMotion, ok := rawMotionObj.(*st.RawMotion)
@@ -79,7 +79,7 @@ func (rdao *SQLRawMotionDAO) GetRawMotionByID(id string) (*st.RawMotion, error) 
 }
 
 func (rdao *SQLRawMotionDAO) ListUserRawMotionIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawMotionsTable, []*cloud.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawMotionDAO) DeleteRawMotionByID(id string) error {

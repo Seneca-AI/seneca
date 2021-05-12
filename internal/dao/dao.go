@@ -3,19 +3,9 @@ package dao
 
 import (
 	"context"
-	"seneca/api/constants"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
 	"time"
 )
-
-type SQLInterface interface {
-	ListIDs(tableName constants.TableName, queryParams []*cloud.QueryParam) ([]string, error)
-	GetByID(tableName constants.TableName, id string) (interface{}, error)
-	Create(tableName constants.TableName, object interface{}) (string, error)
-	Insert(tableName constants.TableName, id string, object interface{}) error
-	DeleteByID(tableName constants.TableName, id string) error
-}
 
 type UserDAO interface {
 	InsertUniqueUser(user *st.User) (*st.User, error)
@@ -47,7 +37,7 @@ type RawMotionDAO interface {
 type TripDAO interface {
 	CreateUniqueTrip(ctx context.Context, trip *st.TripInternal) (*st.TripInternal, error)
 	PutTripByID(ctx context.Context, tripID string, trip *st.TripInternal) error
-	GetTripByID(ctx context.Context, tripID string) (*st.TripInternal, error)
+	GetTripByID(userID, tripID string) (*st.TripInternal, error)
 	ListUserTripIDs(userID string) ([]string, error)
 	ListUserTripIDsByTime(userID string, startTime time.Time, endTime time.Time) ([]string, error)
 	DeleteTripByID(ctx context.Context, tripID string) error
@@ -58,7 +48,7 @@ type EventDAO interface {
 	GetEventByID(userID, tripID, eventID string) (*st.EventInternal, error)
 	ListTripEventIDs(userID, tripID string) ([]string, error)
 	DeleteEventByID(ctx context.Context, userID, tripID, eventID string) error
-	PutEventByID(ctx context.Context, eventID string, event *st.EventInternal) error
+	PutEventByID(ctx context.Context, userID, tripID, eventID string, event *st.EventInternal) error
 }
 
 type DrivingConditionDAO interface {

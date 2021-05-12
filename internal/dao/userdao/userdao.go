@@ -5,26 +5,25 @@ import (
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud"
-	"seneca/internal/dao"
+	"seneca/internal/client/database"
 )
 
 const (
 	emailFieldName = "Email"
 )
 
-type SQLUserDao struct {
-	sqlInterface dao.SQLInterface
+type SQLUserDAO struct {
+	sqlInterface database.SQLInterface
 }
 
-func NewSQLUserDao(sqlInterface dao.SQLInterface) *SQLUserDao {
-	return &SQLUserDao{
+func NewSQLUserDAO(sqlInterface database.SQLInterface) *SQLUserDAO {
+	return &SQLUserDAO{
 		sqlInterface: sqlInterface,
 	}
 }
 
-func (udao *SQLUserDao) InsertUniqueUser(user *st.User) (*st.User, error) {
-	ids, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*cloud.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: user.Email}})
+func (udao *SQLUserDAO) InsertUniqueUser(user *st.User) (*st.User, error) {
+	ids, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: user.Email}})
 	if err != nil {
 		return nil, fmt.Errorf("error listing users by email %q: %w", user.Email, err)
 	}
@@ -47,14 +46,14 @@ func (udao *SQLUserDao) InsertUniqueUser(user *st.User) (*st.User, error) {
 	return user, nil
 }
 
-func (udao *SQLUserDao) GetUserByID(id string) (*st.User, error) {
+func (udao *SQLUserDAO) GetUserByID(id string) (*st.User, error) {
 	userObj, err := udao.sqlInterface.GetByID(constants.UsersTable, id)
 	if err != nil {
 		return nil, fmt.Errorf("sqlInterface.GetByID(%s, %s) returns err: %w", constants.UsersTable, id, err)
 	}
 
 	if userObj == nil {
-		return nil, nil
+		return nil, senecaerror.NewNotFoundError(fmt.Errorf("no user with id %q found", id))
 	}
 
 	user, ok := userObj.(*st.User)
@@ -64,12 +63,12 @@ func (udao *SQLUserDao) GetUserByID(id string) (*st.User, error) {
 	return user, nil
 }
 
-func (udao *SQLUserDao) ListAllUserIDs() ([]string, error) {
+func (udao *SQLUserDAO) ListAllUserIDs() ([]string, error) {
 	return udao.sqlInterface.ListIDs(constants.UsersTable, nil)
 }
 
-func (udao *SQLUserDao) GetUserByEmail(email string) (*st.User, error) {
-	userIDs, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*cloud.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: email}})
+func (udao *SQLUserDAO) GetUserByEmail(email string) (*st.User, error) {
+	userIDs, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: email}})
 	if err != nil {
 		return nil, fmt.Errorf("error listing users with email %q - err: %w", email, err)
 	}

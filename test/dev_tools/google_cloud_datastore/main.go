@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 	st "seneca/api/type"
-	"seneca/internal/client/cloud/gcpdatastore"
+	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-func insertUserWithToken(sqlService *gcpdatastore.Service, email, pathToOauthToken string) {
-	userDAO := userdao.NewSQLUserDao(sqlService)
+func insertUserWithToken(sqlService *datastore.Service, email, pathToOauthToken string) {
+	userDAO := userdao.NewSQLUserDAO(sqlService)
 
 	oauthFile, err := os.Open(pathToOauthToken)
 	if err != nil {
@@ -40,7 +40,7 @@ func insertUserWithToken(sqlService *gcpdatastore.Service, email, pathToOauthTok
 	}
 }
 
-func deleteAllRawVideosForUser(sqlService *gcpdatastore.Service, userID string) error {
+func deleteAllRawVideosForUser(sqlService *datastore.Service, userID string) error {
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, time.Second*5)
 
 	rawVideoIDs, err := rawVideoDAO.ListUserRawVideoIDs(userID)
@@ -57,7 +57,7 @@ func deleteAllRawVideosForUser(sqlService *gcpdatastore.Service, userID string) 
 	return nil
 }
 
-func deleteAllRawLocationsForUser(sqlService *gcpdatastore.Service, userID string) error {
+func deleteAllRawLocationsForUser(sqlService *datastore.Service, userID string) error {
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 
 	rawLocationIDs, err := rawLocationDAO.ListUserRawLocationIDs(userID)
@@ -74,7 +74,7 @@ func deleteAllRawLocationsForUser(sqlService *gcpdatastore.Service, userID strin
 	return nil
 }
 
-func deleteAllRawMotionsForUser(sqlService *gcpdatastore.Service, userID string) error {
+func deleteAllRawMotionsForUser(sqlService *datastore.Service, userID string) error {
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
 
 	rawMotionIDs, err := rawMotionDAO.ListUserRawMotionIDs(userID)
@@ -94,7 +94,7 @@ func deleteAllRawMotionsForUser(sqlService *gcpdatastore.Service, userID string)
 
 // For interfacing with cloud datastore.
 func main() {
-	sqlService, err := gcpdatastore.New(context.TODO(), "senecacam-staging")
+	sqlService, err := datastore.New(context.TODO(), "senecacam-staging")
 	if err != nil {
 		log.Fatalf("Error initializing datastore service %v", err)
 	}
