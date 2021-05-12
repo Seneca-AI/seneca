@@ -14,36 +14,43 @@ import (
 
 const (
 	// "kind" is a Cloud Datstore concept.
-	rawVideoKind        = "RawVideo"
-	rawVideoDirName     = "RawVideos"
-	rawMotionKind       = "RawMotion"
-	rawMotionDirName    = "RawMotions"
-	rawLocationKind     = "RawLocation"
-	rawLocationDirName  = "RawLocations"
-	userKind            = "User"
-	userDirName         = "Users"
-	directoryKind       = "Directory"
-	createTimeFieldName = "CreateTimeMs"
-	userIDFieldName     = "UserId"
-	emailFieldName      = "Email"
+	drivingConditionKind = "DrivingCondition"
+	tripKind             = "Trip"
+	eventKind            = "Event"
+	rawVideoKind         = "RawVideo"
+	rawMotionKind        = "RawMotion"
+	rawLocationKind      = "RawLocation"
+	userKind             = "User"
 )
 
 var (
+	tripKey = datastore.Key{
+		Kind: tripKind,
+		Name: constants.TripTable.String(),
+	}
+	drivingConditionKey = datastore.Key{
+		Kind: drivingConditionKind,
+		Name: constants.DrivingConditionTable.String(),
+	}
+	eventKey = datastore.Key{
+		Kind: eventKind,
+		Name: constants.EventTable.String(),
+	}
 	rawVideoKey = datastore.Key{
 		Kind: rawVideoKind,
-		Name: rawVideoDirName,
+		Name: constants.RawVideosTable.String(),
 	}
 	rawMotionKey = datastore.Key{
 		Kind: rawMotionKind,
-		Name: rawMotionDirName,
+		Name: string(constants.RawMotionsTable),
 	}
 	rawLocationKey = datastore.Key{
 		Kind: rawLocationKind,
-		Name: rawLocationDirName,
+		Name: constants.RawLocationsTable.String(),
 	}
 	userKey = datastore.Key{
 		Kind: userKind,
-		Name: userDirName,
+		Name: constants.UsersTable.String(),
 	}
 
 	tableNameToDatastoreKey = map[constants.TableName]datastore.Key{
@@ -51,6 +58,7 @@ var (
 		constants.RawVideosTable:    rawVideoKey,
 		constants.RawLocationsTable: rawLocationKey,
 		constants.RawMotionsTable:   rawMotionKey,
+		constants.EventTable:        eventKey,
 	}
 )
 
@@ -129,6 +137,24 @@ func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}
 		return out, nil
 	case constants.RawMotionsTable:
 		out := &st.RawMotion{}
+		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
+		}
+		return out, nil
+	case constants.EventTable:
+		out := &st.EventInternal{}
+		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
+		}
+		return out, nil
+	case constants.DrivingConditionTable:
+		out := &st.DrivingConditionInternal{}
+		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
+		}
+		return out, nil
+	case constants.TripTable:
+		out := &st.TripInternal{}
 		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}

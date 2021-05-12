@@ -17,10 +17,13 @@ const MaxVideoFileSizeMB int64 = 250
 type TableName string
 
 const (
-	UsersTable        TableName = "Users"
-	RawVideosTable    TableName = "RawVideos"
-	RawLocationsTable TableName = "RawLocations"
-	RawMotionsTable   TableName = "RawMotions"
+	UsersTable            TableName = "Users"
+	RawVideosTable        TableName = "RawVideos"
+	RawLocationsTable     TableName = "RawLocations"
+	RawMotionsTable       TableName = "RawMotions"
+	EventTable            TableName = "Events"
+	DrivingConditionTable TableName = "DrivingCondions"
+	TripTable             TableName = "Trips"
 )
 
 func (tn TableName) String() string {
