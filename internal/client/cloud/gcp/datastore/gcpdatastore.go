@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// "kind" is a Cloud Datstore concept.
+	// "kind" is a Cloud Datastore concept.
 	drivingConditionKind = "DrivingCondition"
 	tripKind             = "Trip"
 	eventKind            = "Event"
@@ -54,11 +54,13 @@ var (
 	}
 
 	tableNameToDatastoreKey = map[constants.TableName]datastore.Key{
-		constants.UsersTable:        userKey,
-		constants.RawVideosTable:    rawVideoKey,
-		constants.RawLocationsTable: rawLocationKey,
-		constants.RawMotionsTable:   rawMotionKey,
-		constants.EventTable:        eventKey,
+		constants.UsersTable:            userKey,
+		constants.RawVideosTable:        rawVideoKey,
+		constants.RawLocationsTable:     rawLocationKey,
+		constants.RawMotionsTable:       rawMotionKey,
+		constants.EventTable:            eventKey,
+		constants.TripTable:             tripKey,
+		constants.DrivingConditionTable: drivingConditionKey,
 	}
 )
 
@@ -81,7 +83,7 @@ func New(ctx context.Context, projectID string) (*Service, error) {
 func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database.QueryParam) ([]string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return nil, fmt.Errorf("no Datstore key found for table %q", tableName)
+		return nil, fmt.Errorf("no Datastore key found for table %q", tableName)
 	}
 
 	query := datastore.NewQuery(key.Kind).KeysOnly()
@@ -106,7 +108,7 @@ func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database
 func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return nil, fmt.Errorf("no Datstore key found for table %q", tableName)
+		return nil, fmt.Errorf("no Datastore key found for table %q", tableName)
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
@@ -168,7 +170,7 @@ func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}
 func (s *Service) Create(tableName constants.TableName, object interface{}) (string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return "", fmt.Errorf("no Datstore key found for table %q", tableName)
+		return "", fmt.Errorf("no Datastore key found for table %q", tableName)
 	}
 
 	incompleteKey := datastore.IncompleteKey(key.Kind, &key)
@@ -184,7 +186,7 @@ func (s *Service) Create(tableName constants.TableName, object interface{}) (str
 func (s *Service) Insert(tableName constants.TableName, id string, object interface{}) error {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return fmt.Errorf("no Datstore key found for table %q", tableName)
+		return fmt.Errorf("no Datastore key found for table %q", tableName)
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
@@ -203,7 +205,7 @@ func (s *Service) Insert(tableName constants.TableName, id string, object interf
 func (s *Service) DeleteByID(tableName constants.TableName, id string) error {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return fmt.Errorf("no Datstore key found for table %q", tableName)
+		return fmt.Errorf("no Datastore key found for table %q", tableName)
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
