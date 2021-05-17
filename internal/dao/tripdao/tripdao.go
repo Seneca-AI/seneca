@@ -83,7 +83,6 @@ func (tdao *SQLTripDAO) ListUserTripIDs(userID string) ([]string, error) {
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time, endTime time.Time) ([]string, error) {
-	// { [ } ] or [ {} ] -- [] are query bounds, {} are trips
 	overLappingStartQuery := []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
@@ -95,14 +94,8 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 			Operand:   ">=",
 			Value:     util.TimeToMilliseconds(startTime),
 		},
-		{
-			FieldName: endTimeFieldName,
-			Operand:   "<=",
-			Value:     util.TimeToMilliseconds(endTime),
-		},
 	}
 
-	// [ { ] } or [ {} ]
 	overLappingEndQuery := []*database.QueryParam{
 		{
 			FieldName: userIDFieldName,
@@ -111,30 +104,7 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 		},
 		{
 			FieldName: startTimeFieldName,
-			Operand:   ">=",
-			Value:     util.TimeToMilliseconds(startTime),
-		},
-		{
-			FieldName: startTimeFieldName,
 			Operand:   "<=",
-			Value:     util.TimeToMilliseconds(endTime),
-		},
-	}
-	// { [] }
-	superQuery := []*database.QueryParam{
-		{
-			FieldName: userIDFieldName,
-			Operand:   "=",
-			Value:     userID,
-		},
-		{
-			FieldName: startTimeFieldName,
-			Operand:   "<=",
-			Value:     util.TimeToMilliseconds(startTime),
-		},
-		{
-			FieldName: endTimeFieldName,
-			Operand:   ">=",
 			Value:     util.TimeToMilliseconds(endTime),
 		},
 	}
@@ -147,24 +117,21 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 	if err != nil {
 		return nil, fmt.Errorf("error listing tripIDs between %q and %q for user %q: %w", startTime, endTime, userID, err)
 	}
-	superIDs, err := tdao.sql.ListIDs(constants.TripTable, superQuery)
-	if err != nil {
-		return nil, fmt.Errorf("error listing tripIDs between %q and %q for user %q: %w", startTime, endTime, userID, err)
-	}
 
-	uniqueTripIDs := map[string]bool{}
+	uniqueTripIDs := map[string]int{}
+
 	for _, sid := range overLappingStartIDs {
-		uniqueTripIDs[sid] = true
+		uniqueTripIDs[sid]++
 	}
 	for _, eid := range overLappingEndIDs {
-		uniqueTripIDs[eid] = true
+		uniqueTripIDs[eid]++
 	}
-	for _, sid := range superIDs {
-		uniqueTripIDs[sid] = true
-	}
+
 	allTripIDs := []string{}
-	for k := range uniqueTripIDs {
-		allTripIDs = append(allTripIDs, k)
+	for k, v := range uniqueTripIDs {
+		if v > 1 {
+			allTripIDs = append(allTripIDs, k)
+		}
 	}
 
 	return allTripIDs, nil
