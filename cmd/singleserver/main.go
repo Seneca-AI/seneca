@@ -3,29 +3,40 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	st "seneca/api/type"
 	"seneca/env"
 	"seneca/internal/client/cloud/gcp"
 	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	"seneca/internal/controller/apiserver"
+	"seneca/internal/controller/syncer"
+	"seneca/internal/dao"
+	"seneca/internal/dao/drivingconditiondao"
+	"seneca/internal/dao/eventdao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
+	"seneca/internal/dao/tripdao"
 	"seneca/internal/dao/userdao"
 	"seneca/internal/datagatherer/rawvideohandler"
-	"seneca/internal/syncer"
+	"seneca/internal/util"
 	"seneca/internal/util/mp4"
+	"strings"
 	"time"
+
+	"github.com/golang/protobuf/proto"
 )
 
 const (
-	endpoint = "/syncer"
-	port     = "6060"
+	port = "6060"
 )
 
 func main() {
@@ -61,13 +72,11 @@ func main() {
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
 	userDAO := userdao.NewSQLUserDAO(sqlService)
-
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 		return
 	}
-
 	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, logger, projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
@@ -75,13 +84,22 @@ func main() {
 	}
 
 	gDriveFactory := &googledrive.UserClientFactory{}
-
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
+
+	tripDAO := tripdao.NewSQLTripDAO(sqlService)
+	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO)
+	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
+	sanitizer := apiserver.NewSanitizer(tripDAO, eventDAO, drivingConditionDAO)
+
 	handler := &HTTPHandler{
-		syncer: syncer,
+		syncer:              syncer,
+		eventDAO:            eventDAO,
+		drivingconditionDAO: drivingConditionDAO,
+		sanitizer:           sanitizer,
+		logger:              logger,
 	}
 
-	http.HandleFunc(endpoint, handler.RunSyncer)
+	http.HandleFunc("/", handler.handleHTTP)
 
 	fmt.Printf("Starting server at port %s\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
@@ -90,9 +108,215 @@ func main() {
 }
 
 type HTTPHandler struct {
-	syncer *syncer.Syncer
+	syncer              *syncer.Syncer
+	eventDAO            dao.EventDAO
+	drivingconditionDAO dao.DrivingConditionDAO
+	sanitizer           *apiserver.Sanitizer
+	logger              logging.LoggingInterface
 }
 
-func (handler *HTTPHandler) RunSyncer(w http.ResponseWriter, r *http.Request) {
+func (handler *HTTPHandler) handleHTTP(w http.ResponseWriter, r *http.Request) {
+	handler.logger.Log(fmt.Sprintf("Received %s request to %s", r.Method, r.URL))
+
+	if matchesRoute("/syncer", r.URL.Path) {
+		handler.runSyncer(w, r)
+	} else if matchesRoute("/users/*/events", r.URL.Path) {
+		handler.handleEventRequest(w, r)
+	} else if matchesRoute("/users/*/driving_conditions", r.URL.Path) {
+		handler.handleDrivingConditionRequest(w, r)
+	} else if matchesRoute("/users/*/trips", r.URL.Path) {
+		handler.handleTripsRequest(w, r)
+	} else {
+		fmt.Fprintf(w, "Unsupported request URL path.  Refer to discovery/discovery.json in the common repo.")
+		w.WriteHeader(400)
+	}
+}
+
+func (handler *HTTPHandler) runSyncer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		fmt.Fprintf(w, "/syncer only supports POST methods")
+		w.WriteHeader(400)
+		return
+	}
 	handler.syncer.ScanAllUsers()
+	w.WriteHeader(200)
+}
+
+func (handler *HTTPHandler) handleTripsRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		fmt.Fprintf(w, "/users/*/trips only supports GET methods")
+		w.WriteHeader(400)
+		return
+	}
+
+	response, err := func() (*st.TripListResponse, error) {
+		request := &st.TripListRequest{}
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse body of request")
+		}
+
+		if err := proto.UnmarshalText(string(bodyBytes), request); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal request body into TripListRequest")
+		}
+
+		trips, err := handler.sanitizer.ListTrips(request.UserId, util.MillisecondsToTime(request.StartTimeMs), util.MillisecondsToTime(request.EndTimeMs))
+		if err != nil {
+			return nil, fmt.Errorf("error listing trips: %w", err)
+		}
+
+		return &st.TripListResponse{
+			UserId: request.UserId,
+			Trip:   trips,
+		}, nil
+	}()
+
+	if err != nil {
+		response = &st.TripListResponse{
+			Header: &st.Header{
+				Code:    400,
+				Message: err.Error(),
+			},
+		}
+	} else {
+		response.Header = &st.Header{
+			Code: 200,
+		}
+	}
+
+	buffer := &bytes.Buffer{}
+	err = proto.MarshalText(buffer, response)
+	if err != nil {
+		fmt.Fprintf(w, "Error marshalling response body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Write(buffer.Bytes())
+	w.WriteHeader(int(response.Header.Code))
+}
+
+func (handler *HTTPHandler) handleEventRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		fmt.Fprintf(w, "/users/*/events only supports POST methods")
+		w.WriteHeader(400)
+		return
+	}
+
+	response, err := func() (*st.EventCreateResponse, error) {
+		request := &st.EventCreateRequest{}
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse body of request")
+		}
+
+		if err := proto.UnmarshalText(string(bodyBytes), request); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal request body into EventCreateRequest")
+		}
+
+		eventWithID, err := handler.eventDAO.CreateEvent(context.TODO(), request.Event)
+		if err != nil {
+			return nil, fmt.Errorf("error creating event: %w", err)
+		}
+
+		return &st.EventCreateResponse{
+			UserId: request.UserId,
+			Event:  eventWithID,
+		}, nil
+	}()
+
+	if err != nil {
+		response = &st.EventCreateResponse{
+			Header: &st.Header{
+				Code:    400,
+				Message: err.Error(),
+			},
+		}
+	} else {
+		response.Header = &st.Header{
+			Code: 200,
+		}
+	}
+
+	buffer := &bytes.Buffer{}
+	err = proto.MarshalText(buffer, response)
+	if err != nil {
+		fmt.Fprintf(w, "Error marshalling response body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Write(buffer.Bytes())
+	w.WriteHeader(int(response.Header.Code))
+}
+
+func (handler *HTTPHandler) handleDrivingConditionRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		fmt.Fprintf(w, "/users/*/driving_conditions only supports POST methods")
+		w.WriteHeader(400)
+		return
+	}
+
+	response, err := func() (*st.DrivingConditionCreateResponse, error) {
+		request := &st.DrivingConditionCreateRequest{}
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse body of request")
+		}
+
+		if err := proto.UnmarshalText(string(bodyBytes), request); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal request body into DrivingConditionCreateRequest")
+		}
+
+		drivingConditinWithID, err := handler.drivingconditionDAO.CreateDrivingCondition(context.TODO(), request.DrivingCondition)
+		if err != nil {
+			return nil, fmt.Errorf("error creating drivingCondition: %w", err)
+		}
+
+		return &st.DrivingConditionCreateResponse{
+			UserId:           request.UserId,
+			DrivingCondition: drivingConditinWithID,
+		}, nil
+	}()
+
+	if err != nil {
+		response = &st.DrivingConditionCreateResponse{
+			Header: &st.Header{
+				Code:    400,
+				Message: err.Error(),
+			},
+		}
+	} else {
+		response.Header = &st.Header{
+			Code: 200,
+		}
+	}
+
+	buffer := &bytes.Buffer{}
+	err = proto.MarshalText(buffer, response)
+	if err != nil {
+		fmt.Fprintf(w, "Error marshalling response body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Write(buffer.Bytes())
+	w.WriteHeader(int(response.Header.Code))
+}
+
+func matchesRoute(route, requestURLPath string) bool {
+	routeParts := strings.Split(route, "/")
+	requestURLPathParts := strings.Split(requestURLPath, "/")
+
+	if len(routeParts) != len(requestURLPathParts) {
+		return false
+	}
+
+	for i := range routeParts {
+		if routeParts[i] != "*" && requestURLPathParts[i] != routeParts[i] {
+			return false
+		}
+	}
+
+	return true
 }
