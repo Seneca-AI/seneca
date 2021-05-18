@@ -9,7 +9,7 @@ Seneca.AI/seneca implements all of the infrastucture for this application, aside
 ![architecture](./docs/architecture.png)
 #### Code Locations
 * ID001: internal/datagatherer
-* ID002: internal/syncer
+* ID002: internal/controller/syncer
 
 ## Dev Info
 
