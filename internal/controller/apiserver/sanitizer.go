@@ -179,7 +179,5 @@ func drivingConditionsInternalToDrivingConditionsExternal(drivingConditionsInter
 		return drivingConditionsExternal[i].StartTimeMs < drivingConditionsExternal[j].StartTimeMs
 	})
 
-	// Merge time periods that have the same condition type and severities.
-
 	return drivingConditionsExternal, nil
 }
