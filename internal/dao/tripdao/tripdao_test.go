@@ -8,6 +8,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -285,5 +286,6 @@ func TestListUserTripIDsByTime(t *testing.T) {
 
 func newTripDAOForTest() (*SQLTripDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	return NewSQLTripDAO(fakeSQLService), fakeSQLService
+	logger := logging.NewLocalLogger(false)
+	return NewSQLTripDAO(fakeSQLService, logger), fakeSQLService
 }

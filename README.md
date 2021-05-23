@@ -10,6 +10,7 @@ Seneca.AI/seneca implements all of the infrastucture for this application, aside
 #### Code Locations
 * ID001: internal/datagatherer
 * ID002: internal/controller/syncer
+* ID003: internal/dataaggregator
 
 ## Dev Info
 

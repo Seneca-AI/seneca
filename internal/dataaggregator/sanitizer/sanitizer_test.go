@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
 	"seneca/internal/dao/tripdao"
@@ -180,7 +181,8 @@ func TestListTrips(t *testing.T) {
 
 func newSanitizerForTests() (*Sanitizer, *tripdao.SQLTripDAO, *eventdao.SQLEventDAO, *drivingconditiondao.SQLDrivingConditionDAO) {
 	fakeSQL := database.NewFake()
-	tripDAO := tripdao.NewSQLTripDAO(fakeSQL)
+	logger := logging.NewLocalLogger(false)
+	tripDAO := tripdao.NewSQLTripDAO(fakeSQL, logger)
 	eventDAO := eventdao.NewSQLEventDAO(fakeSQL, tripDAO)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQL, tripDAO, eventDAO)
 	return New(eventDAO, dcDAO), tripDAO, eventDAO, dcDAO

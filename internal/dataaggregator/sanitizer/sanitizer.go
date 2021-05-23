@@ -79,6 +79,9 @@ func eventInternalToEventExternal(eventInternal *st.EventInternal) (*st.Event, e
 	if eventInternal.TimestampMs == 0 {
 		return nil, senecaerror.NewBadStateError(fmt.Errorf("event with ID %q for user %q has timestamp as 0", eventInternal.Id, eventInternal.UserId))
 	}
+
+	eventExternal.TimestampMs = eventInternal.TimestampMs
+
 	return eventExternal, nil
 }
 

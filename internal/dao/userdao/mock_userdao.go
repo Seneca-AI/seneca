@@ -9,6 +9,7 @@ type MockUserDAO struct {
 	InsertUniqueUserMock func(user *st.User) (*st.User, error)
 	GetUserByIDMock      func(id string) (*st.User, error)
 	ListAllUserIDsMock   func() ([]string, error)
+	GetUserByEmailMock   func(email string) (*st.User, error)
 }
 
 func (mudao *MockUserDAO) InsertUniqueUser(user *st.User) (*st.User, error) {
@@ -30,4 +31,11 @@ func (mudao *MockUserDAO) ListAllUserIDs() ([]string, error) {
 		log.Fatalf("ListAllUserIDsMock called but not set.")
 	}
 	return mudao.ListAllUserIDsMock()
+}
+
+func (mudao *MockUserDAO) GetUserByEmail(email string) (*st.User, error) {
+	if mudao.GetUserByEmailMock == nil {
+		log.Fatalf("GetUserByEmailMock called but not set.")
+	}
+	return mudao.GetUserByEmailMock(email)
 }

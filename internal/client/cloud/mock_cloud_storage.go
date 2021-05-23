@@ -14,6 +14,7 @@ type FakeSimpleStorageClient struct {
 	BucketFileExistsMock func(bucketName BucketName, bucketFileName string) (bool, error)
 	WriteBucketFileMock  func(bucketName BucketName, localFileNameAndPath, bucketFileName string) error
 	GetBucketFileMock    func(bucketName BucketName, bucketFileName string) (string, error)
+	DeleteBucketFileMock func(bucketName BucketName, bucketFileName string) error
 }
 
 // NewFakeSimpleStorageClient returns an instance of FakeSimpleStorageClient.
@@ -62,4 +63,11 @@ func (fssc *FakeSimpleStorageClient) GetBucketFile(bucketName BucketName, bucket
 		return "", fmt.Errorf("GetBucketFileMock not set")
 	}
 	return fssc.GetBucketFileMock(bucketName, bucketFileName)
+}
+
+func (fssc *FakeSimpleStorageClient) DeleteBucketFile(bucketName BucketName, bucketFileName string) error {
+	if fssc.DeleteBucketFileMock == nil {
+		return fmt.Errorf("GetBucketFileMock not set")
+	}
+	return fssc.DeleteBucketFileMock(bucketName, bucketFileName)
 }
