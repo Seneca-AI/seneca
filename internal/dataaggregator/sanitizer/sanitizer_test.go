@@ -1,4 +1,4 @@
-package apiserver
+package sanitizer
 
 import (
 	"context"
@@ -124,7 +124,7 @@ func TestListTrips(t *testing.T) {
 		},
 	}
 
-	sanitizer, _, eventDAO, dcDAO := newSanitizerForTests()
+	sanitizer, tripDAO, eventDAO, dcDAO := newSanitizerForTests()
 
 	for i := 0; i < 50; i++ {
 		event := &st.EventInternal{
@@ -145,26 +145,34 @@ func TestListTrips(t *testing.T) {
 		}
 	}
 
-	tripsExternal, err := sanitizer.ListTrips(userID, tripStart.Add(time.Hour*-100), tripStart.Add(time.Hour*100))
+	tripInteralList, err := tripDAO.ListUserTripIDs(userID)
+	if err != nil {
+		log.Fatalf("tripDAO.ListUserTripIDs() returns err: %v", err)
+	}
+	if len(tripInteralList) != 1 {
+		log.Fatalf("Want 1 trip for user, got %d", len(tripInteralList))
+	}
+	tripInternal, err := tripDAO.GetTripByID(userID, tripInteralList[0])
+	if err != nil {
+		log.Fatalf("tripDAO.GetTripByID() returns err: %v", err)
+	}
+
+	tripExternal, err := sanitizer.TripInternalToTripExternal(tripInternal)
 	if err != nil {
 		log.Fatalf("sanitizer.ListTrips() returns err: %v", err)
 	}
 
-	if len(tripsExternal) != 1 {
-		log.Fatalf("Want 1 trip for user, got %d", len(tripsExternal))
+	if len(tripExternal.Event) != 50 {
+		log.Fatalf("Wanted 50 events for trip, got %d", len(tripExternal.Event))
 	}
 
-	if len(tripsExternal[0].Event) != 50 {
-		log.Fatalf("Wanted 50 events for trip, got %d", len(tripsExternal[0].Event))
-	}
-
-	if len(expectedDrivingConditionsOut) != len(tripsExternal[0].DrivingCondition) {
-		log.Fatalf("Wanted %d drivingConditions for trip, got %d", len(expectedDrivingConditionsOut), len(tripsExternal[0].DrivingCondition))
+	if len(expectedDrivingConditionsOut) != len(tripExternal.DrivingCondition) {
+		log.Fatalf("Wanted %d drivingConditions for trip, got %d", len(expectedDrivingConditionsOut), len(tripExternal.DrivingCondition))
 	}
 
 	for i := range expectedDrivingConditionsOut {
-		if !drivingConditionExternalEqual(expectedDrivingConditionsOut[i], tripsExternal[0].DrivingCondition[i]) {
-			log.Fatalf("DrivingConditions not equal: %v != %v", expectedDrivingConditionsOut[i], tripsExternal[0].DrivingCondition[i])
+		if !drivingConditionExternalEqual(expectedDrivingConditionsOut[i], tripExternal.DrivingCondition[i]) {
+			log.Fatalf("DrivingConditions not equal: %v != %v", expectedDrivingConditionsOut[i], tripExternal.DrivingCondition[i])
 		}
 	}
 
@@ -175,7 +183,7 @@ func newSanitizerForTests() (*Sanitizer, *tripdao.SQLTripDAO, *eventdao.SQLEvent
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQL)
 	eventDAO := eventdao.NewSQLEventDAO(fakeSQL, tripDAO)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQL, tripDAO, eventDAO)
-	return NewSanitizer(tripDAO, eventDAO, dcDAO), tripDAO, eventDAO, dcDAO
+	return New(eventDAO, dcDAO), tripDAO, eventDAO, dcDAO
 }
 
 func drivingConditionExternalEqual(lhs *st.DrivingCondition, rhs *st.DrivingCondition) bool {
