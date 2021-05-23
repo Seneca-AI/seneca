@@ -1,4 +1,4 @@
-package apiserver
+package sanitizer
 
 import (
 	"fmt"
@@ -6,48 +6,21 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/dao"
 	"sort"
-	"time"
 )
 
 type Sanitizer struct {
-	tripDAO             dao.TripDAO
 	eventDAO            dao.EventDAO
 	drivingConditionDAO dao.DrivingConditionDAO
 }
 
-func NewSanitizer(tripDAO dao.TripDAO, eventDAO dao.EventDAO, drivingConditionDAO dao.DrivingConditionDAO) *Sanitizer {
+func New(eventDAO dao.EventDAO, drivingConditionDAO dao.DrivingConditionDAO) *Sanitizer {
 	return &Sanitizer{
-		tripDAO:             tripDAO,
 		eventDAO:            eventDAO,
 		drivingConditionDAO: drivingConditionDAO,
 	}
 }
 
-func (san *Sanitizer) ListTrips(userID string, startTime time.Time, endTime time.Time) ([]*st.Trip, error) {
-
-	trips := []*st.Trip{}
-
-	tripIDs, err := san.tripDAO.ListUserTripIDsByTime(userID, startTime, endTime)
-	if err != nil {
-		return nil, fmt.Errorf("ListUserTripIDsByTime(%s, %s, %s) returns err: %w", userID, startTime, endTime, err)
-	}
-
-	for _, tid := range tripIDs {
-		tripInternal, err := san.tripDAO.GetTripByID(userID, tid)
-		if err != nil {
-			return nil, fmt.Errorf("GetTripByID(%s) returns err: %w", tid, err)
-		}
-		tripExternal, err := san.tripInternalToTripExternal(tripInternal)
-		if err != nil {
-			return nil, fmt.Errorf("error converting internal trip %v to external trip: %w", tripInternal, err)
-		}
-		trips = append(trips, tripExternal)
-	}
-
-	return trips, nil
-}
-
-func (san *Sanitizer) tripInternalToTripExternal(tripInternal *st.TripInternal) (*st.Trip, error) {
+func (san *Sanitizer) TripInternalToTripExternal(tripInternal *st.TripInternal) (*st.Trip, error) {
 	externalEvents := []*st.Event{}
 	internalEventIDs, err := san.eventDAO.ListTripEventIDs(tripInternal.UserId, tripInternal.Id)
 	if err != nil {
