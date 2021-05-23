@@ -4,6 +4,7 @@ import (
 	"context"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
@@ -96,7 +97,8 @@ func TestGetListEventByID(t *testing.T) {
 
 func newEventDAOForTest() (*SQLEventDAO, *tripdao.SQLTripDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService)
+	logger := logging.NewLocalLogger(false)
+	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
 
 	return NewSQLEventDAO(fakeSQLService, tripDAO), tripDAO, fakeSQLService
 }

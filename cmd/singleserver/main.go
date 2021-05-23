@@ -87,7 +87,7 @@ func main() {
 	gDriveFactory := &googledrive.UserClientFactory{}
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
 
-	tripDAO := tripdao.NewSQLTripDAO(sqlService)
+	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
 	sanitizer := sanitizer.New(eventDAO, drivingConditionDAO)

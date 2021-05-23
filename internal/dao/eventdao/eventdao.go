@@ -65,7 +65,6 @@ func (edao *SQLEventDAO) CreateEvent(ctx context.Context, event *st.EventInterna
 		return nil, fmt.Errorf("error updating eventID %q: %w", event.Id, err)
 	}
 
-	fmt.Printf("Created event %v\n", event)
 	return event, nil
 }
 

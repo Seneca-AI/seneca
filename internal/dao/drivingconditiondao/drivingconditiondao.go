@@ -55,7 +55,6 @@ func (ddao *SQLDrivingConditionDAO) CreateDrivingCondition(ctx context.Context, 
 		return nil, fmt.Errorf("error updating drivingConditionID %q: %w", drivingCondition.Id, err)
 	}
 
-	fmt.Printf("Created drivingCondition %v\n", drivingCondition)
 	return drivingCondition, nil
 }
 

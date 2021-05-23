@@ -58,4 +58,5 @@ type SimpleStorageInterface interface {
 	//		string: the path to the temp file
 	//		error
 	GetBucketFile(bucketName BucketName, bucketFileName string) (string, error)
+	DeleteBucketFile(bucketName BucketName, bucketFileName string) error
 }

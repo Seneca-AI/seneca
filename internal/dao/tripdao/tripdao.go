@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"time"
 )
@@ -18,12 +19,14 @@ const (
 )
 
 type SQLTripDAO struct {
-	sql database.SQLInterface
+	sql    database.SQLInterface
+	logger logging.LoggingInterface
 }
 
-func NewSQLTripDAO(sql database.SQLInterface) *SQLTripDAO {
+func NewSQLTripDAO(sql database.SQLInterface, logger logging.LoggingInterface) *SQLTripDAO {
 	return &SQLTripDAO{
-		sql: sql,
+		sql:    sql,
+		logger: logger,
 	}
 }
 
@@ -48,7 +51,6 @@ func (tdao *SQLTripDAO) CreateUniqueTrip(ctx context.Context, trip *st.TripInter
 		return nil, fmt.Errorf("error patching trip's ID %q - err: %w", trip.Id, err)
 	}
 
-	fmt.Printf("Created trip %v\n", trip)
 	return trip, nil
 }
 
@@ -75,7 +77,11 @@ func (tdao *SQLTripDAO) GetTripByID(userID, tripID string) (*st.TripInternal, er
 }
 
 func (tdao *SQLTripDAO) PutTripByID(ctx context.Context, tripID string, trip *st.TripInternal) error {
-	return tdao.sql.Insert(constants.TripTable, tripID, trip)
+	err := tdao.sql.Insert(constants.TripTable, tripID, trip)
+	if err == nil {
+		tdao.logger.Log(fmt.Sprintf("Put trip for user %s between %v and %v", trip.UserId, util.MillisecondsToTime(trip.StartTimeMs), util.MillisecondsToTime(trip.EndTimeMs)))
+	}
+	return err
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDs(userID string) ([]string, error) {
@@ -136,6 +142,8 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 
 	return allTripIDs, nil
 }
+
+// TODO(lucaloncar): disallow deletion of non-empty trips.
 func (tdao *SQLTripDAO) DeleteTripByID(ctx context.Context, tripID string) error {
 	return tdao.sql.DeleteByID(constants.TripTable, tripID)
 }

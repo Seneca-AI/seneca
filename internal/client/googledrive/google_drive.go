@@ -114,6 +114,7 @@ func NewGoogleDriveUserClient(user *st.User, pathToOAuthCredentials string) (*Go
 	}, nil
 }
 
+// TODO(lucaloncar): make sure files in trash are not included
 // 	ListFileIDs returns a list of the IDs of all of the files in the Senecacam googleDriveFolderName
 // 	without the fileSuccessPrefix and fileErrorPrefix but with a ".mp4" suffix.
 // 	Params:

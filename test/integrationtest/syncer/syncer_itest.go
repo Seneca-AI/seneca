@@ -1,20 +1,18 @@
 package syncer
 
 import (
-	"context"
 	"fmt"
 	st "seneca/api/type"
 	"seneca/env"
 	"seneca/internal/client/cloud"
-	"seneca/internal/client/cloud/gcp"
-	"seneca/internal/client/cloud/gcp/datastore"
+	"seneca/internal/client/database"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/controller/syncer"
+	"seneca/internal/dao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
-	"seneca/internal/dao/userdao"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
@@ -22,22 +20,10 @@ import (
 	"time"
 )
 
-const testUserEmail = "itestuser000@senecacam.com"
-
-func E2ESyncer(projectID string) error {
+func E2ESyncer(projectID, testUserEmail string, sqlService database.SQLInterface, gcsc cloud.SimpleStorageInterface, userDAO dao.UserDAO, logger logging.LoggingInterface) error {
 	wantRawVideos := []*st.RawVideo{
 		{
 			CreateTimeMs: 1617572239000,
-			DurationMs:   60000,
-			UserId:       "5642368648740864",
-		},
-		{
-			CreateTimeMs: 1617574040000,
-			DurationMs:   60000,
-			UserId:       "5642368648740864",
-		},
-		{
-			CreateTimeMs: 1617574444000,
 			DurationMs:   60000,
 			UserId:       "5642368648740864",
 		},
@@ -49,24 +35,6 @@ func E2ESyncer(projectID string) error {
 		return fmt.Errorf("failed to validate environment variables: %w", err)
 	}
 
-	ctx := context.TODO()
-	// Initialize clients.
-	logger, err := logging.NewGCPLogger(ctx, "singleserver", projectID)
-	if err != nil {
-		return fmt.Errorf("logging.NewGCPLogger() returns - err: %v", err)
-	}
-
-	gcsc, err := gcp.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("cloud.NewGoogleCloudStorageClient() returns - err: %v", err))
-	}
-
-	sqlService, err := datastore.New(context.TODO(), projectID)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("error initializing sql service - err: %v", err))
-	}
-
-	userDAO := userdao.NewSQLUserDAO(sqlService)
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, time.Second*5)
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
