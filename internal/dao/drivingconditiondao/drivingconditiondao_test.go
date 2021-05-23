@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/dao/eventdao"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
@@ -96,7 +97,8 @@ func TestCreateDrivingCondition(t *testing.T) {
 
 func newDrivingConditionDAOForTest() (*SQLDrivingConditionDAO, *tripdao.SQLTripDAO, *eventdao.SQLEventDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService)
+	logger := logging.NewLocalLogger(false)
+	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
 	eventDAO := eventdao.NewSQLEventDAO(fakeSQLService, tripDAO)
 
 	return NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO), tripDAO, eventDAO, fakeSQLService

@@ -7,10 +7,13 @@ import (
 	"time"
 )
 
+// TODO(lucaloncar): remove parent ID params
+
 type UserDAO interface {
 	InsertUniqueUser(user *st.User) (*st.User, error)
 	GetUserByID(id string) (*st.User, error)
 	ListAllUserIDs() ([]string, error)
+	GetUserByEmail(email string) (*st.User, error)
 }
 
 type RawVideoDAO interface {
