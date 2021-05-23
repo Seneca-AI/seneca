@@ -26,6 +26,7 @@ import (
 	"seneca/internal/dao/rawvideodao"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/dao/userdao"
+	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
@@ -89,13 +90,14 @@ func main() {
 	tripDAO := tripdao.NewSQLTripDAO(sqlService)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
-	sanitizer := apiserver.NewSanitizer(tripDAO, eventDAO, drivingConditionDAO)
+	sanitizer := sanitizer.New(eventDAO, drivingConditionDAO)
+	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	handler := &HTTPHandler{
 		syncer:              syncer,
 		eventDAO:            eventDAO,
 		drivingconditionDAO: drivingConditionDAO,
-		sanitizer:           sanitizer,
+		apiserver:           apiserver,
 		logger:              logger,
 	}
 
@@ -111,7 +113,7 @@ type HTTPHandler struct {
 	syncer              *syncer.Syncer
 	eventDAO            dao.EventDAO
 	drivingconditionDAO dao.DrivingConditionDAO
-	sanitizer           *apiserver.Sanitizer
+	apiserver           *apiserver.APIServer
 	logger              logging.LoggingInterface
 }
 
@@ -160,7 +162,7 @@ func (handler *HTTPHandler) handleTripsRequest(w http.ResponseWriter, r *http.Re
 			return nil, fmt.Errorf("unable to unmarshal request body into TripListRequest")
 		}
 
-		trips, err := handler.sanitizer.ListTrips(request.UserId, util.MillisecondsToTime(request.StartTimeMs), util.MillisecondsToTime(request.EndTimeMs))
+		trips, err := handler.apiserver.ListTrips(request.UserId, util.MillisecondsToTime(request.StartTimeMs), util.MillisecondsToTime(request.EndTimeMs))
 		if err != nil {
 			return nil, fmt.Errorf("error listing trips: %w", err)
 		}
