@@ -150,14 +150,16 @@ func (fs *FakeSQLDBService) DeleteByID(tableName constants.TableName, id string)
 	return nil
 }
 
+// TODO(lucaloncar): centralize all of these constants.
 var (
-	userIDFieldName     = "UserId"
-	createTimeFieldName = "CreateTimeMs"
-	timestampFieldName  = "TimestampMs"
-	emailFieldName      = "Email"
-	startTimeFieldName  = "StartTimeMs"
-	endTimeFieldName    = "EndTimeMs"
-	tripIDFieldName     = "TripId"
+	userIDFieldName       = "UserId"
+	createTimeFieldName   = "CreateTimeMs"
+	timestampFieldName    = "TimestampMs"
+	emailFieldName        = "Email"
+	startTimeFieldName    = "StartTimeMs"
+	endTimeFieldName      = "EndTimeMs"
+	tripIDFieldName       = "TripId"
+	algosVersionFieldName = "AlgosVersion"
 )
 
 func satisfiesQueryParams(tableName constants.TableName, object interface{}, queryParams []*QueryParam) bool {
@@ -201,6 +203,8 @@ func getRawVideoField(fieldName string, rawVideoObj interface{}) interface{} {
 		return rawVideo.CreateTimeMs
 	case userIDFieldName:
 		return rawVideo.UserId
+	case algosVersionFieldName:
+		return rawVideo.AlgosVersion
 	default:
 		log.Fatalf("Getting RawVideo field name %q not supported", fieldName)
 	}
@@ -235,6 +239,8 @@ func getRawMotionField(fieldName string, rawMotionObj interface{}) interface{} {
 		return rawMotion.TimestampMs
 	case userIDFieldName:
 		return rawMotion.UserId
+	case algosVersionFieldName:
+		return rawMotion.AlgosVersion
 	default:
 		log.Fatalf("Getting RawMotion field name %q not supported", fieldName)
 	}
@@ -418,11 +424,11 @@ func compareInts(lhs interface{}, rhs interface{}, operand string) bool {
 }
 
 func compareFloat64s(lhs interface{}, rhs interface{}, operand string) bool {
-	lhsFloat64, ok := lhs.(int64)
+	lhsFloat64, ok := lhs.(float64)
 	if !ok {
 		log.Fatalf("Called compareFloat64s on type %T", lhs)
 	}
-	rhsFloat64, ok := rhs.(int64)
+	rhsFloat64, ok := rhs.(float64)
 	if !ok {
 		log.Fatalf("Called compareFloat64s on type %T", rhs)
 	}

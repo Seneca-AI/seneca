@@ -7,6 +7,7 @@ type LocalLogger struct {
 	silent bool
 }
 
+// TODO(lucaloncar): instead of 'silent', take min log level as input
 // 	NewLocalLogger returns an instance of the LocalLogger.
 // 	Params:
 //		silent bool: whether the logger shouldn't log anything

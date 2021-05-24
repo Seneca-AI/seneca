@@ -18,7 +18,9 @@ type UserDAO interface {
 
 type RawVideoDAO interface {
 	InsertUniqueRawVideo(rawVideo *st.RawVideo) (*st.RawVideo, error)
+	PutRawVideoByID(ctx context.Context, rawVideoID string, rawVideo *st.RawVideo) error
 	GetRawVideoByID(id string) (*st.RawVideo, error)
+	ListUnprocessedRawVideoIDs(userID string, latestVersion float64) ([]string, error)
 	ListUserRawVideoIDs(userID string) ([]string, error)
 	DeleteRawVideoByID(id string) error
 }
@@ -32,6 +34,8 @@ type RawLocationDAO interface {
 
 type RawMotionDAO interface {
 	InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st.RawMotion, error)
+	PutRawMotionByID(ctx context.Context, rawMotionID string, rawMotion *st.RawMotion) error
+	ListUnprocessedRawMotionIDs(userID string, latestVersion float64) ([]string, error)
 	GetRawMotionByID(id string) (*st.RawMotion, error)
 	ListUserRawMotionIDs(userID string) ([]string, error)
 	DeleteRawMotionByID(id string) error
