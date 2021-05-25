@@ -156,12 +156,17 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		return nil, fmt.Errorf("ParseOutGPSMetadata() returns err: %w", err)
 	}
 
-	rawLocations, err := data.ConstructRawLocationDatas(req.UserId, locations, times)
+	source := &st.Source{
+		SourceId:   rawVideo.Id,
+		SourceType: st.Source_RAW_VIDEO,
+	}
+
+	rawLocations, err := data.ConstructRawLocationDatas(req.UserId, source, locations, times)
 	if err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("ConstructRawLocationDatas() returns err: $%w", err)
 	}
-	rawMotions, err := data.ConstructRawMotionDatas(req.UserId, motions, times)
+	rawMotions, err := data.ConstructRawMotionDatas(req.UserId, source, motions, times)
 	if err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("ConstructRawMotionDatas() returns err: $%w", err)

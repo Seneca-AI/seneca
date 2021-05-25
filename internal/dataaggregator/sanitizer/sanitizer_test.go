@@ -183,7 +183,7 @@ func newSanitizerForTests() (*Sanitizer, *tripdao.SQLTripDAO, *eventdao.SQLEvent
 	fakeSQL := database.NewFake()
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQL, logger)
-	eventDAO := eventdao.NewSQLEventDAO(fakeSQL, tripDAO)
+	eventDAO := eventdao.NewSQLEventDAO(fakeSQL, tripDAO, logger)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQL, tripDAO, eventDAO)
 	return New(eventDAO, dcDAO), tripDAO, eventDAO, dcDAO
 }

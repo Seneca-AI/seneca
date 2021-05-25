@@ -46,7 +46,7 @@ func ConstructCutVideoData(cutVideoDuration time.Duration, rawVideo *st.RawVideo
 //	Returns:
 //		[]*st.RawLocation
 //		error
-func ConstructRawLocationDatas(userID string, locations []*st.Location, times []time.Time) ([]*st.RawLocation, error) {
+func ConstructRawLocationDatas(userID string, source *st.Source, locations []*st.Location, times []time.Time) ([]*st.RawLocation, error) {
 	if len(locations) != len(times) {
 		return nil, fmt.Errorf("locations has length %d, but times has legth %d", len(locations), len(times))
 	}
@@ -56,6 +56,7 @@ func ConstructRawLocationDatas(userID string, locations []*st.Location, times []
 			UserId:      userID,
 			Location:    locations[i],
 			TimestampMs: util.TimeToMilliseconds(times[i]),
+			Source:      source,
 		})
 	}
 	return rawLocations, nil
@@ -69,7 +70,9 @@ func ConstructRawLocationDatas(userID string, locations []*st.Location, times []
 //	Returns:
 //		[]*st.RawMotion
 //		error
-func ConstructRawMotionDatas(userID string, motions []*st.Motion, times []time.Time) ([]*st.RawMotion, error) {
+func ConstructRawMotionDatas(userID string, source *st.Source, motions []*st.Motion, times []time.Time) ([]*st.RawMotion, error) {
+	// TODO(lucaloncar): look for RawMotion right before and right after this list since beginning motions will always have
+	// zero acceleration
 	if len(motions) != len(times) {
 		return nil, fmt.Errorf("motions has length %d, but times has legth %d", len(motions), len(times))
 	}
@@ -79,6 +82,7 @@ func ConstructRawMotionDatas(userID string, motions []*st.Motion, times []time.T
 			UserId:      userID,
 			Motion:      motions[i],
 			TimestampMs: util.TimeToMilliseconds(times[i]),
+			Source:      source,
 		})
 	}
 	return rawMotions, nil

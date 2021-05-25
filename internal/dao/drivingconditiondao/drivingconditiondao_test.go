@@ -99,7 +99,7 @@ func newDrivingConditionDAOForTest() (*SQLDrivingConditionDAO, *tripdao.SQLTripD
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
-	eventDAO := eventdao.NewSQLEventDAO(fakeSQLService, tripDAO)
+	eventDAO := eventdao.NewSQLEventDAO(fakeSQLService, tripDAO, logger)
 
 	return NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO), tripDAO, eventDAO, fakeSQLService
 }

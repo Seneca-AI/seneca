@@ -4,21 +4,16 @@ import (
 	"context"
 	"fmt"
 	st "seneca/api/type"
-	"seneca/internal/client/database"
-	"seneca/internal/client/logging"
 	"seneca/internal/controller/apiserver"
-	"seneca/internal/dao"
-	"seneca/internal/dao/drivingconditiondao"
-	"seneca/internal/dao/eventdao"
-	"seneca/internal/dao/tripdao"
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/util"
+	"seneca/test/integrationtest/testenv"
 	"sort"
 	"time"
 )
 
-func E2EAPIServer(projectID, testUserEmail string, sqlService database.SQLInterface, userDAO dao.UserDAO, logger logging.LoggingInterface) error {
-	user, err := userDAO.GetUserByEmail(testUserEmail)
+func E2EAPIServer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
+	user, err := testEnv.UserDAO.GetUserByEmail(testUserEmail)
 	if err != nil {
 		return fmt.Errorf("GetUserByEmail(%s) returns err: %w", testUserEmail, err)
 	}
@@ -77,25 +72,22 @@ func E2EAPIServer(projectID, testUserEmail string, sqlService database.SQLInterf
 		EndTimeMs:     util.TimeToMilliseconds(tripStart.Add(time.Minute * 60)),
 	}
 
-	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
-	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO)
-	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
-	sanitizer := sanitizer.New(eventDAO, drivingConditionDAO)
-	apiserver := apiserver.New(sanitizer, tripDAO)
+	sanitizer := sanitizer.New(testEnv.EventDAO, testEnv.DrivingConditionDAO)
+	apiserver := apiserver.New(sanitizer, testEnv.TripDAO)
 
 	createdEventIDs := []string{}
 	createdDrivingConditionID := ""
 	createdTripID := ""
 
 	for _, ev := range eventsInternal {
-		createdEvent, err := eventDAO.CreateEvent(context.TODO(), ev)
+		createdEvent, err := testEnv.EventDAO.CreateEvent(context.TODO(), ev)
 		if err != nil {
 			return fmt.Errorf("CreateEvent() returns err: %w", err)
 		}
 		createdEventIDs = append(createdEventIDs, createdEvent.Id)
 	}
 
-	createdDrivingCondition, err := drivingConditionDAO.CreateDrivingCondition(context.TODO(), drivingConditionInternal)
+	createdDrivingCondition, err := testEnv.DrivingConditionDAO.CreateDrivingCondition(context.TODO(), drivingConditionInternal)
 	if err != nil {
 		return fmt.Errorf("CreateDrivingCondition() returns err: %w", err)
 	}
@@ -105,17 +97,17 @@ func E2EAPIServer(projectID, testUserEmail string, sqlService database.SQLInterf
 	// Cleanup.
 	defer func() {
 		for _, eid := range createdEventIDs {
-			if err := eventDAO.DeleteEventByID(context.TODO(), user.Id, createdTripID, eid); err != nil {
-				logger.Error(fmt.Sprintf("DeleteEventByID(%s) returns err: %v", eid, err))
+			if err := testEnv.EventDAO.DeleteEventByID(context.TODO(), user.Id, createdTripID, eid); err != nil {
+				testEnv.Logger.Error(fmt.Sprintf("DeleteEventByID(%s) returns err: %v", eid, err))
 			}
 		}
 
-		if err := drivingConditionDAO.DeleteDrivingConditionByID(context.TODO(), user.Id, createdTripID, createdDrivingConditionID); err != nil {
-			logger.Error(fmt.Sprintf("DeleteDrivingConditionByID(%s) returns err: %v", createdDrivingConditionID, err))
+		if err := testEnv.DrivingConditionDAO.DeleteDrivingConditionByID(context.TODO(), user.Id, createdTripID, createdDrivingConditionID); err != nil {
+			testEnv.Logger.Error(fmt.Sprintf("DeleteDrivingConditionByID(%s) returns err: %v", createdDrivingConditionID, err))
 		}
 
-		if err := tripDAO.DeleteTripByID(context.TODO(), createdTripID); err != nil {
-			logger.Error(fmt.Sprintf("DeleteTripByID(%s) returns err: %v", createdTripID, err))
+		if err := testEnv.TripDAO.DeleteTripByID(context.TODO(), createdTripID); err != nil {
+			testEnv.Logger.Error(fmt.Sprintf("DeleteTripByID(%s) returns err: %v", createdTripID, err))
 		}
 	}()
 

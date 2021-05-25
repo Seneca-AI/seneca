@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -164,5 +165,6 @@ func TestGetRawMotionByID(t *testing.T) {
 
 func newRawMotionDAOForTest() (*SQLRawMotionDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	return NewSQLRawMotionDAO(fakeSQLService), fakeSQLService
+	logger := logging.NewLocalLogger(true)
+	return NewSQLRawMotionDAO(fakeSQLService, logger), fakeSQLService
 }

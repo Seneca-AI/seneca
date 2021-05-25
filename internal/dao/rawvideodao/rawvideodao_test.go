@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -164,6 +165,7 @@ func TestGetRawVideoByID(t *testing.T) {
 
 func newRawVideoDAOForTest(offset time.Duration) (*SQLRawVideoDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
+	logger := logging.NewLocalLogger(true)
 
-	return NewSQLRawVideoDAO(fakeSQLService, offset), fakeSQLService
+	return NewSQLRawVideoDAO(fakeSQLService, logger, offset), fakeSQLService
 }
