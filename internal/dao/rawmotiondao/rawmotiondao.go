@@ -1,25 +1,31 @@
 package rawmotiondao
 
 import (
+	"context"
 	"fmt"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
+	"seneca/internal/util"
 )
 
 const (
-	userIDFieldName    = "UserId"
-	timestampFieldName = "TimestampMs"
+	userIDFieldName       = "UserId"
+	algosVersionFieldName = "AlgosVersion"
+	timestampFieldName    = "TimestampMs"
 )
 
 type SQLRawMotionDAO struct {
-	sql database.SQLInterface
+	sql    database.SQLInterface
+	logger logging.LoggingInterface
 }
 
-func NewSQLRawMotionDAO(sqlInterface database.SQLInterface) *SQLRawMotionDAO {
+func NewSQLRawMotionDAO(sqlInterface database.SQLInterface, logger logging.LoggingInterface) *SQLRawMotionDAO {
 	return &SQLRawMotionDAO{
-		sql: sqlInterface,
+		sql:    sqlInterface,
+		logger: logger,
 	}
 }
 
@@ -52,12 +58,23 @@ func (rdao *SQLRawMotionDAO) InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st
 	rawMotion.Id = newRawMotionID
 
 	// Now set the ID in the datastore object.
-	if err := rdao.sql.Insert(constants.RawMotionsTable, rawMotion.Id, rawMotion); err != nil {
-		return nil, fmt.Errorf("error updating rawMotionID for rawMotion %v - err: %w", rawMotion, err)
+	if err := rdao.PutRawMotionByID(context.TODO(), rawMotion.Id, rawMotion); err != nil {
+		return nil, fmt.Errorf("error putting rawMotion %v - err: %w", rawMotion, err)
 	}
 
-	rawMotion.Id = newRawMotionID
 	return rawMotion, nil
+}
+
+func (rdao *SQLRawMotionDAO) PutRawMotionByID(ctx context.Context, rawMotionID string, rawMotion *st.RawMotion) error {
+	err := rdao.sql.Insert(constants.RawMotionsTable, rawMotion.Id, rawMotion)
+	if err == nil {
+		rdao.logger.Log(fmt.Sprintf("Put rawMotion for user %s at %v", rawMotion.UserId, util.MillisecondsToTime(rawMotion.TimestampMs)))
+	}
+	return err
+}
+
+func (rdao *SQLRawMotionDAO) ListUnprocessedRawMotionIDs(userID string, latestVersion float64) ([]string, error) {
+	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}, {FieldName: algosVersionFieldName, Operand: "<", Value: latestVersion}})
 }
 
 func (rdao *SQLRawMotionDAO) GetRawMotionByID(id string) (*st.RawMotion, error) {

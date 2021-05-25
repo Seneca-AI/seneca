@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/client/logging"
 	"seneca/internal/dao"
 	"seneca/internal/util"
 )
@@ -19,12 +20,14 @@ const (
 type SQLEventDAO struct {
 	sql     database.SQLInterface
 	tripDAO dao.TripDAO
+	logger  logging.LoggingInterface
 }
 
-func NewSQLEventDAO(sql database.SQLInterface, tripDAO dao.TripDAO) *SQLEventDAO {
+func NewSQLEventDAO(sql database.SQLInterface, tripDAO dao.TripDAO, logger logging.LoggingInterface) *SQLEventDAO {
 	return &SQLEventDAO{
 		sql:     sql,
 		tripDAO: tripDAO,
+		logger:  logger,
 	}
 }
 
@@ -69,7 +72,11 @@ func (edao *SQLEventDAO) CreateEvent(ctx context.Context, event *st.EventInterna
 }
 
 func (edao *SQLEventDAO) PutEventByID(ctx context.Context, userID, tripID, eventID string, event *st.EventInternal) error {
-	return edao.sql.Insert(constants.EventTable, event.Id, event)
+	err := edao.sql.Insert(constants.EventTable, event.Id, event)
+	if err != nil {
+		edao.logger.Log(fmt.Sprintf("Put eventInternal for user %s for trip %s at %v", userID, tripID, util.MillisecondsToTime(event.TimestampMs)))
+	}
+	return err
 }
 
 func (edao *SQLEventDAO) GetEventByID(userID, tripID, eventID string) (*st.EventInternal, error) {

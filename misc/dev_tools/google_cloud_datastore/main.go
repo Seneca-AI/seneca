@@ -8,6 +8,7 @@ import (
 	"os"
 	st "seneca/api/type"
 	"seneca/internal/client/cloud/gcp/datastore"
+	"seneca/internal/client/logging"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -41,7 +42,8 @@ func insertUserWithToken(sqlService *datastore.Service, email, pathToOauthToken 
 }
 
 func deleteAllRawVideosForUser(sqlService *datastore.Service, userID string) error {
-	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, time.Second*5)
+	logger := logging.NewLocalLogger(false)
+	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, logger, time.Second*5)
 
 	rawVideoIDs, err := rawVideoDAO.ListUserRawVideoIDs(userID)
 	if err != nil {
@@ -75,7 +77,8 @@ func deleteAllRawLocationsForUser(sqlService *datastore.Service, userID string) 
 }
 
 func deleteAllRawMotionsForUser(sqlService *datastore.Service, userID string) error {
-	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
+	logger := logging.NewLocalLogger(false)
+	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, logger)
 
 	rawMotionIDs, err := rawMotionDAO.ListUserRawMotionIDs(userID)
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/controller/apiserver"
+	"seneca/internal/controller/runner"
 	"seneca/internal/controller/syncer"
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
@@ -28,6 +29,7 @@ import (
 	"seneca/internal/dao/userdao"
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
+	"seneca/internal/dataprocessor"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
 	"strings"
@@ -69,9 +71,9 @@ func main() {
 		logger.Critical(fmt.Sprintf("datastore.New() returns - err: %v", err))
 		return
 	}
-	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, (time.Second * 5))
+	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, logger, (time.Second * 5))
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
-	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService)
+	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, logger)
 	userDAO := userdao.NewSQLUserDAO(sqlService)
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
@@ -88,13 +90,16 @@ func main() {
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
 
 	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
-	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO)
+	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
+	dataprocessor := dataprocessor.New(dataprocessor.GetCurrentAlgorithms(), eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
+	runner := runner.New(userDAO, dataprocessor, logger)
 	sanitizer := sanitizer.New(eventDAO, drivingConditionDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	handler := &HTTPHandler{
 		syncer:              syncer,
+		runner:              runner,
 		eventDAO:            eventDAO,
 		drivingconditionDAO: drivingConditionDAO,
 		apiserver:           apiserver,
@@ -111,6 +116,7 @@ func main() {
 
 type HTTPHandler struct {
 	syncer              *syncer.Syncer
+	runner              *runner.Runner
 	eventDAO            dao.EventDAO
 	drivingconditionDAO dao.DrivingConditionDAO
 	apiserver           *apiserver.APIServer
@@ -122,6 +128,8 @@ func (handler *HTTPHandler) handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if matchesRoute("/syncer", r.URL.Path) {
 		handler.runSyncer(w, r)
+	} else if matchesRoute("/runner", r.URL.Path) {
+		handler.runRunner(w, r)
 	} else if matchesRoute("/users/*/events", r.URL.Path) {
 		handler.handleEventRequest(w, r)
 	} else if matchesRoute("/users/*/driving_conditions", r.URL.Path) {
@@ -140,7 +148,17 @@ func (handler *HTTPHandler) runSyncer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		return
 	}
-	handler.syncer.ScanAllUsers()
+	go handler.syncer.ScanAllUsers()
+	w.WriteHeader(200)
+}
+
+func (handler *HTTPHandler) runRunner(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		fmt.Fprintf(w, "/runner only supports POST methods")
+		w.WriteHeader(400)
+		return
+	}
+	go handler.runner.Run()
 	w.WriteHeader(200)
 }
 

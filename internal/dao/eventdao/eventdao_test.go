@@ -100,5 +100,5 @@ func newEventDAOForTest() (*SQLEventDAO, *tripdao.SQLTripDAO, *database.FakeSQLD
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
 
-	return NewSQLEventDAO(fakeSQLService, tripDAO), tripDAO, fakeSQLService
+	return NewSQLEventDAO(fakeSQLService, tripDAO, logger), tripDAO, fakeSQLService
 }
