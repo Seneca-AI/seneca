@@ -94,7 +94,7 @@ func main() {
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
 	dataprocessor := dataprocessor.New(dataprocessor.GetCurrentAlgorithms(), eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
 	runner := runner.New(userDAO, dataprocessor, logger)
-	sanitizer := sanitizer.New(eventDAO, drivingConditionDAO)
+	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, drivingConditionDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	handler := &HTTPHandler{
