@@ -1,11 +1,9 @@
-package apiserver
+package tests
 
 import (
 	"context"
 	"fmt"
 	st "seneca/api/type"
-	"seneca/internal/controller/apiserver"
-	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/util"
 	"seneca/test/integrationtest/testenv"
 	"sort"
@@ -13,9 +11,21 @@ import (
 )
 
 func E2EAPIServer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
+	defer testEnv.Clean()
+
 	user, err := testEnv.UserDAO.GetUserByEmail(testUserEmail)
 	if err != nil {
 		return fmt.Errorf("GetUserByEmail(%s) returns err: %w", testUserEmail, err)
+	}
+
+	// Create a RawVideo for the source.
+	rawVideo := &st.RawVideo{
+		UserId:               user.Id,
+		CloudStorageFileName: "",
+	}
+	rawVideo, err = testEnv.RawVideoDAO.InsertUniqueRawVideo(rawVideo)
+	if err != nil {
+		return fmt.Errorf("InsertUniqueRawVideo() returns err: %w", err)
 	}
 
 	tripStart := time.Date(2021, 5, 23, 1, 0, 0, 0, time.UTC)
@@ -54,6 +64,10 @@ func E2EAPIServer(testUserEmail string, testEnv *testenv.TestEnvironment) error 
 			Value:       5,
 			Severity:    10,
 			TimestampMs: util.TimeToMilliseconds(tripStart.Add(time.Minute * 15)),
+			Source: &st.Source{
+				SourceType: st.Source_RAW_VIDEO,
+				SourceId:   rawVideo.Id,
+			},
 		},
 		{
 			UserId:      user.Id,
@@ -61,6 +75,10 @@ func E2EAPIServer(testUserEmail string, testEnv *testenv.TestEnvironment) error 
 			Value:       6,
 			Severity:    20,
 			TimestampMs: util.TimeToMilliseconds(tripStart.Add(time.Minute * 45)),
+			Source: &st.Source{
+				SourceType: st.Source_RAW_VIDEO,
+				SourceId:   rawVideo.Id,
+			},
 		},
 	}
 
@@ -70,48 +88,23 @@ func E2EAPIServer(testUserEmail string, testEnv *testenv.TestEnvironment) error 
 		Severity:      7,
 		StartTimeMs:   util.TimeToMilliseconds(tripStart),
 		EndTimeMs:     util.TimeToMilliseconds(tripStart.Add(time.Minute * 60)),
+		Source: &st.Source{
+			SourceType: st.Source_RAW_VIDEO,
+			SourceId:   rawVideo.Id,
+		},
 	}
-
-	sanitizer := sanitizer.New(testEnv.EventDAO, testEnv.DrivingConditionDAO)
-	apiserver := apiserver.New(sanitizer, testEnv.TripDAO)
-
-	createdEventIDs := []string{}
-	createdDrivingConditionID := ""
-	createdTripID := ""
 
 	for _, ev := range eventsInternal {
-		createdEvent, err := testEnv.EventDAO.CreateEvent(context.TODO(), ev)
-		if err != nil {
+		if _, err := testEnv.EventDAO.CreateEvent(context.TODO(), ev); err != nil {
 			return fmt.Errorf("CreateEvent() returns err: %w", err)
 		}
-		createdEventIDs = append(createdEventIDs, createdEvent.Id)
 	}
 
-	createdDrivingCondition, err := testEnv.DrivingConditionDAO.CreateDrivingCondition(context.TODO(), drivingConditionInternal)
-	if err != nil {
+	if _, err := testEnv.DrivingConditionDAO.CreateDrivingCondition(context.TODO(), drivingConditionInternal); err != nil {
 		return fmt.Errorf("CreateDrivingCondition() returns err: %w", err)
 	}
-	createdDrivingConditionID = createdDrivingCondition.Id
-	createdTripID = createdDrivingCondition.TripId
 
-	// Cleanup.
-	defer func() {
-		for _, eid := range createdEventIDs {
-			if err := testEnv.EventDAO.DeleteEventByID(context.TODO(), user.Id, createdTripID, eid); err != nil {
-				testEnv.Logger.Error(fmt.Sprintf("DeleteEventByID(%s) returns err: %v", eid, err))
-			}
-		}
-
-		if err := testEnv.DrivingConditionDAO.DeleteDrivingConditionByID(context.TODO(), user.Id, createdTripID, createdDrivingConditionID); err != nil {
-			testEnv.Logger.Error(fmt.Sprintf("DeleteDrivingConditionByID(%s) returns err: %v", createdDrivingConditionID, err))
-		}
-
-		if err := testEnv.TripDAO.DeleteTripByID(context.TODO(), createdTripID); err != nil {
-			testEnv.Logger.Error(fmt.Sprintf("DeleteTripByID(%s) returns err: %v", createdTripID, err))
-		}
-	}()
-
-	trips, err := apiserver.ListTrips(user.Id, tripStart, tripStart.Add(time.Minute*50))
+	trips, err := testEnv.APIServer.ListTrips(user.Id, tripStart, tripStart.Add(time.Minute*50))
 	if err != nil {
 		return fmt.Errorf("ListTrips() returns err: %w", err)
 	}
