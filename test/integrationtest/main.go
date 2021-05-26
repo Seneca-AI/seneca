@@ -7,10 +7,8 @@ import (
 	"os"
 	"seneca/env"
 	"seneca/internal/client/logging"
-	"seneca/test/integrationtest/apiserver"
-	"seneca/test/integrationtest/runner"
-	"seneca/test/integrationtest/syncer"
 	"seneca/test/integrationtest/testenv"
+	"seneca/test/integrationtest/tests"
 	"time"
 )
 
@@ -40,18 +38,23 @@ func main() {
 		return
 	}
 
-	if err := syncer.E2ESyncer(testUserEmail, testEnv); err != nil {
+	if err := tests.E2ESyncer(testUserEmail, testEnv); err != nil {
 		failureMessage = fmt.Sprintf("E2ESyncerIntegrationTest failed: %v", err)
 		logger.Error(failureMessage)
 	}
 
-	if err := runner.E2ERunner(testUserEmail, testEnv); err != nil {
+	if err := tests.E2ERunner(testUserEmail, testEnv); err != nil {
 		failureMessage = fmt.Sprintf("E2ERunnerIntegrationTest failed: %v", err)
 		logger.Error(failureMessage)
 	}
 
-	if err := apiserver.E2EAPIServer(testUserEmail, testEnv); err != nil {
+	if err := tests.E2EAPIServer(testUserEmail, testEnv); err != nil {
 		failureMessage = fmt.Sprintf("E2EAPIServerIntegrationTest failed: %v", err)
+		logger.Error(failureMessage)
+	}
+
+	if err := tests.E2ESource(testUserEmail, testEnv); err != nil {
+		failureMessage = fmt.Sprintf("E2ESourcePlumbed failed: %v", err)
 		logger.Error(failureMessage)
 	}
 
