@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"seneca/api/senecaerror"
+	st "seneca/api/type"
 	"strconv"
 	"strings"
 	"time"
@@ -92,4 +93,34 @@ func IsCIEnv() bool {
 func GenerateRandID() string {
 	id := rand.Int63()
 	return strconv.FormatInt(id, 10)
+}
+
+func EventExternalToPrettyString(event *st.Event) string {
+	output := "Event: {\n"
+	output += fmt.Sprintf("  EventType: %s,\n", event.EventType)
+	output += fmt.Sprintf("  Value: %f,\n", event.Value)
+	output += fmt.Sprintf("  Severity: %f,\n", event.Severity)
+	output += fmt.Sprintf("  Timestamp: %v,\n", MillisecondsToTime(event.TimestampMs))
+	output += "  Source: {\n"
+	output += fmt.Sprintf("    SourceType: %s,\n", event.ExternalSource.SourceType)
+	output += fmt.Sprintf("    VideoURL: %s,\n", event.ExternalSource.VideoUrl)
+	output += "  }\n"
+	output += "}"
+
+	return output
+}
+
+func DrivingConditionExternalToPrettyString(dc *st.DrivingCondition) string {
+	output := "DrivingCondition: {\n"
+	output += fmt.Sprintf("  TimePeriod: [%v - %v],\n", MillisecondsToTime(dc.StartTimeMs), MillisecondsToTime(dc.EndTimeMs))
+	output += fmt.Sprintf("  Conditions: %12s,\n", dc.ConditionType)
+	output += fmt.Sprintf("  Severities: %12f,\n", dc.Severity)
+	output += "  Source: [\n"
+	for _, eSrc := range dc.ExternalSource {
+		output += fmt.Sprintf("    (%s, %s),\n", eSrc.SourceType, eSrc.VideoUrl)
+	}
+	output += "  ],\n"
+	output += "}"
+
+	return output
 }

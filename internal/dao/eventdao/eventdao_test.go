@@ -5,6 +5,8 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao"
+	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
@@ -63,6 +65,50 @@ func TestCreateEvent(t *testing.T) {
 	}
 }
 
+func TestCreateEventWhenTripAlreadyExists(t *testing.T) {
+	eventDAO, tripDAO, drivingConditionDAO := newEventDAOForTest()
+
+	startTime := time.Date(2021, 05, 25, 0, 0, 0, 0, time.UTC)
+
+	drivingCondition := &st.DrivingConditionInternal{
+		UserId:      testutil.TestUserID,
+		StartTimeMs: util.TimeToMilliseconds(startTime),
+		EndTimeMs:   util.TimeToMilliseconds(startTime.Add(time.Hour)),
+	}
+
+	if _, err := drivingConditionDAO.CreateDrivingCondition(context.TODO(), drivingCondition); err != nil {
+		t.Fatalf("CreateDrivingCondition() returns err: %v", err)
+	}
+
+	for i := 0; i < 60; i += 5 {
+		event := &st.EventInternal{
+			UserId:      testutil.TestUserID,
+			TimestampMs: util.TimeToMilliseconds(startTime.Add(time.Minute * time.Duration(i))),
+		}
+
+		if _, err := eventDAO.CreateEvent(context.TODO(), event); err != nil {
+			t.Fatalf("CreateEvent() returns err: %v", err)
+		}
+	}
+
+	tripIDs, err := tripDAO.ListUserTripIDs(testutil.TestUserID)
+	if err != nil {
+		t.Fatalf("ListUserTripIDs() returns err: %v", err)
+	}
+	if len(tripIDs) != 1 {
+		t.Fatalf("Want 1 trip ID, got %d", len(tripIDs))
+	}
+
+	eventIDs, err := eventDAO.ListTripEventIDs(testutil.TestUserID, tripIDs[0])
+	if err != nil {
+		t.Fatalf("ListTripEventIDs() returns err: %v", err)
+	}
+
+	if len(eventIDs) != 12 {
+		t.Fatalf("Want 12 event IDs, got %d", len(eventIDs))
+	}
+}
+
 func TestGetListEventByID(t *testing.T) {
 	event := &st.EventInternal{
 		UserId:      testutil.TestUserID,
@@ -95,10 +141,12 @@ func TestGetListEventByID(t *testing.T) {
 	}
 }
 
-func newEventDAOForTest() (*SQLEventDAO, *tripdao.SQLTripDAO, *database.FakeSQLDBService) {
+func newEventDAOForTest() (*SQLEventDAO, dao.TripDAO, dao.DrivingConditionDAO) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
+	eventDAO := NewSQLEventDAO(fakeSQLService, tripDAO, logger)
+	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO)
 
-	return NewSQLEventDAO(fakeSQLService, tripDAO, logger), tripDAO, fakeSQLService
+	return eventDAO, tripDAO, drivingConditionDAO
 }
