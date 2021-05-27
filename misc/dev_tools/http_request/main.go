@@ -19,15 +19,19 @@ func main() {
 	tripStart := time.Date(2021, 05, 16, 0, 0, 0, 0, time.UTC)
 	tripEnd := time.Date(2021, 05, 16, 1, 0, 0, 0, time.UTC)
 
-	// Create 50 event requests.
-	for i := 0; i < 50; i++ {
+	// Create 24 event requests.
+	for i := 0; i < 24; i++ {
 		eventCreateRequest := &st.EventCreateRequest{
-			UserId: "123",
+			UserId: "5685335367352320",
 			Event: &st.EventInternal{
-				UserId:      "123",
+				UserId:      "5685335367352320",
 				EventType:   st.EventType(1 + rand.Intn(3)),
 				Severity:    float64(rand.Intn(10)),
 				TimestampMs: util.TimeToMilliseconds(tripStart.Add(time.Duration(rand.Intn(60) * int(time.Minute)))),
+				Source: &st.Source{
+					SourceType: st.Source_RAW_VIDEO,
+					SourceId:   "5929195020484608",
+				},
 			},
 		}
 		err := sendHTTPEventCreateRequest(eventCreateRequest)
@@ -43,24 +47,49 @@ func main() {
 		endTime := startTime.Add(time.Duration(rand.Int63n(untilTripEnd.Nanoseconds())))
 
 		dcCreateRequest := &st.DrivingConditionCreateRequest{
-			UserId: "123",
+			UserId: "5685335367352320",
 			DrivingCondition: &st.DrivingConditionInternal{
-				UserId:        "123",
+				UserId:        "5685335367352320",
 				ConditionType: st.ConditionType(rand.Intn(9)),
 				Severity:      float64(rand.Intn(10)),
 				StartTimeMs:   util.TimeToMilliseconds(startTime),
 				EndTimeMs:     util.TimeToMilliseconds(endTime),
+				Source: &st.Source{
+					SourceType: st.Source_RAW_VIDEO,
+					SourceId:   "5929195020484608",
+				},
 			},
 		}
+
 		err := sendHTTPDrivingConditionCreateRequest(dcCreateRequest)
 		if err != nil {
 			log.Fatalf("Error sending DrivingConditionCreateRequest: %v - err: %v", dcCreateRequest, err)
 		}
 	}
 
+	// And one to merge them all together.
+	dcCreateRequest := &st.DrivingConditionCreateRequest{
+		UserId: "5685335367352320",
+		DrivingCondition: &st.DrivingConditionInternal{
+			UserId:        "5685335367352320",
+			ConditionType: st.ConditionType_NONE_CONDITION_TYPE,
+			Severity:      float64(rand.Intn(10)),
+			StartTimeMs:   util.TimeToMilliseconds(tripStart),
+			EndTimeMs:     util.TimeToMilliseconds(tripEnd),
+			Source: &st.Source{
+				SourceType: st.Source_RAW_VIDEO,
+				SourceId:   "5929195020484608",
+			},
+		},
+	}
+	err := sendHTTPDrivingConditionCreateRequest(dcCreateRequest)
+	if err != nil {
+		log.Fatalf("Error sending DrivingConditionCreateRequest: %v - err: %v", dcCreateRequest, err)
+	}
+
 	// Then get the trip.
 	tripRequest := &st.TripListRequest{
-		UserId:      "123",
+		UserId:      "5685335367352320",
 		StartTimeMs: util.TimeToMilliseconds(tripStart) - 1000,
 		EndTimeMs:   util.TimeToMilliseconds(tripEnd) + 1000,
 	}

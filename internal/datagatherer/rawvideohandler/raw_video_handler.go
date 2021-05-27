@@ -149,7 +149,6 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		return nil, fmt.Errorf("error writing mp4 to cloud storage: %w", err)
 	}
 
-	// TODO(lucaloncar): clean up previously created resources if this fails
 	locations, motions, times, err := rvh.mp4Tool.ParseOutGPSMetadata(mp4Path)
 	if err != nil {
 		cleanUp.clean = true
@@ -203,6 +202,8 @@ func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName str
 	if err != nil {
 		return "", fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
+
+	// TODO(lucaloncar): mark the google drive file a success
 
 	return newRawVideo.Id, nil
 }
