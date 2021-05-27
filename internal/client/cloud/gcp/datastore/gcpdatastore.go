@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
@@ -64,11 +65,19 @@ var (
 	}
 )
 
+// 	Service defines the datastore service.
 type Service struct {
 	client    *datastore.Client
 	projectID string
 }
 
+// 	New returns a new datastore Service object.
+//	Params:
+//		ctx context.Context
+//		projectID string
+//	Returns:
+//		*gcpdatastore.Service
+//		senecaerror.CloudError
 func New(ctx context.Context, projectID string) (*Service, error) {
 	client, err := datastore.NewClient(ctx, projectID)
 	if err != nil {
@@ -80,10 +89,17 @@ func New(ctx context.Context, projectID string) (*Service, error) {
 	}, nil
 }
 
+// 	ListIDs lists the IDs of the objects that satisfy the query.
+//	Params:
+//		tableName constants.TableName
+//		queryParams []*database.QueryParam: the parameters for the query to execute
+//	Returns:
+//		[]string: the list of IDs
+//		senecaerror.DevError, senecaerror.CloudError
 func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database.QueryParam) ([]string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return nil, fmt.Errorf("no Datastore key found for table %q", tableName)
+		return nil, senecaerror.NewDevError(fmt.Errorf("no Datastore key found for table %q", tableName))
 	}
 
 	query := datastore.NewQuery(key.Kind).KeysOnly()
@@ -94,7 +110,7 @@ func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database
 
 	keys, err := s.client.GetAll(context.TODO(), query, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GetAll() for query %v returns err: %w", query, err)
+		return nil, senecaerror.NewCloudError(fmt.Errorf("GetAll() for query %v returns err: %w", query, err))
 	}
 
 	ids := []string{}
@@ -105,15 +121,22 @@ func (s *Service) ListIDs(tableName constants.TableName, queryParams []*database
 	return ids, nil
 }
 
+//	GetByID gets the object with the given id from the table with the given tableName.
+//	Params:
+//		tableName constants.TableName
+//		id string
+//	Returns:
+//		interface{}: the untyped object
+//		senecaerror.DevError, senecaerror.BadStateError, senecaerror.CloudError, senecaerror.NotFoundError
 func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return nil, fmt.Errorf("no Datastore key found for table %q", tableName)
+		return nil, senecaerror.NewDevError(fmt.Errorf("no Datastore key found for table %q", tableName))
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing id %q into int64", id)
+		return nil, senecaerror.NewBadStateError(fmt.Errorf("error parsing id %q into int64", id))
 	}
 
 	idKey := datastore.IDKey(key.Kind, idInt, &key)
@@ -121,63 +144,76 @@ func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}
 	switch tableName {
 	case constants.UsersTable:
 		out := &st.User{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.RawVideosTable:
 		out := &st.RawVideo{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.RawLocationsTable:
 		out := &st.RawLocation{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.RawMotionsTable:
 		out := &st.RawMotion{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.EventTable:
 		out := &st.EventInternal{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.DrivingConditionTable:
 		out := &st.DrivingConditionInternal{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	case constants.TripTable:
 		out := &st.TripInternal{}
-		if err := s.client.Get(context.TODO(), idKey, out); err != nil {
+		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}
 		return out, nil
 	default:
-		// TODO(lucaloncar): make a DevError for this
-		return nil, fmt.Errorf("getting type not supported for %q", tableName)
+		return nil, senecaerror.NewDevError(fmt.Errorf("getting type not supported for %q", tableName))
 	}
+}
+
+// get adapts datastore errors to senecaerrors.
+func (s *Service) get(ctx context.Context, key *datastore.Key, dst interface{}) error {
+	// TODO(lucaloncar): better error handling here
+	err := s.client.Get(ctx, key, dst)
+	if err != nil {
+		dneErr := &datastore.ErrNoSuchEntity
+		if errors.As(err, dneErr) {
+			return senecaerror.NewNotFoundError(fmt.Errorf("object with key %v not found - err: %w", key, err))
+		}
+		return senecaerror.NewCloudError(fmt.Errorf("error getting object with key %v - err: %w", key, err))
+	}
+	return nil
 }
 
 func (s *Service) Create(tableName constants.TableName, object interface{}) (string, error) {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return "", fmt.Errorf("no Datastore key found for table %q", tableName)
+		return "", senecaerror.NewDevError(fmt.Errorf("no Datastore key found for table %q", tableName))
 	}
 
 	incompleteKey := datastore.IncompleteKey(key.Kind, &key)
 
 	fullKey, err := s.client.Put(context.TODO(), incompleteKey, object)
 	if err != nil {
-		return "", fmt.Errorf("error putting %v for table %q", object, tableName)
+		return "", senecaerror.NewCloudError(fmt.Errorf("error putting %v for table %q", object, tableName))
 	}
 
 	return fmt.Sprintf("%d", fullKey.ID), nil
@@ -186,17 +222,17 @@ func (s *Service) Create(tableName constants.TableName, object interface{}) (str
 func (s *Service) Insert(tableName constants.TableName, id string, object interface{}) error {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return fmt.Errorf("no Datastore key found for table %q", tableName)
+		return senecaerror.NewDevError(fmt.Errorf("no Datastore key found for table %q", tableName))
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		return fmt.Errorf("error parsing id %q - err: %w", id, err)
+		return senecaerror.NewBadStateError(fmt.Errorf("error parsing id %q into int64", id))
 	}
 
 	idKey := datastore.IDKey(key.Kind, idInt, &key)
 	if _, err = s.client.Put(context.TODO(), idKey, object); err != nil {
-		return fmt.Errorf("error putting %v with id %q for table %q - err: %w", object, id, tableName, err)
+		return senecaerror.NewCloudError(fmt.Errorf("error putting %v with id %q for table %q - err: %w", object, id, tableName, err))
 	}
 
 	return nil
@@ -205,17 +241,17 @@ func (s *Service) Insert(tableName constants.TableName, id string, object interf
 func (s *Service) DeleteByID(tableName constants.TableName, id string) error {
 	key, ok := tableNameToDatastoreKey[tableName]
 	if !ok {
-		return fmt.Errorf("no Datastore key found for table %q", tableName)
+		return senecaerror.NewDevError(fmt.Errorf("no Datastore key found for table %q", tableName))
 	}
 
 	idInt, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		return fmt.Errorf("error parsing id %q into int64", id)
+		return senecaerror.NewBadStateError(fmt.Errorf("error parsing id %q into int64", id))
 	}
 
 	idKey := datastore.IDKey(key.Kind, idInt, &key)
 	if err := s.client.Delete(context.TODO(), idKey); err != nil {
-		return fmt.Errorf("error deleting object with ID %q from table %q: %w", id, tableName, err)
+		return senecaerror.NewCloudError(fmt.Errorf("error deleting object with ID %q from table %q: %w", id, tableName, err))
 	}
 
 	return nil

@@ -195,7 +195,7 @@ func (handler *HTTPHandler) handleTripsRequest(w http.ResponseWriter, r *http.Re
 		response = &st.TripListResponse{
 			Header: &st.Header{
 				Code:    400,
-				Message: err.Error(),
+				Message: fmt.Sprintf("Error: %v", err),
 			},
 		}
 	} else {
@@ -249,7 +249,7 @@ func (handler *HTTPHandler) handleEventRequest(w http.ResponseWriter, r *http.Re
 		response = &st.EventCreateResponse{
 			Header: &st.Header{
 				Code:    400,
-				Message: err.Error(),
+				Message: fmt.Sprintf("Error: %v", err),
 			},
 		}
 	} else {
@@ -303,7 +303,7 @@ func (handler *HTTPHandler) handleDrivingConditionRequest(w http.ResponseWriter,
 		response = &st.DrivingConditionCreateResponse{
 			Header: &st.Header{
 				Code:    400,
-				Message: err.Error(),
+				Message: fmt.Sprintf("Error: %v", err),
 			},
 		}
 	} else {

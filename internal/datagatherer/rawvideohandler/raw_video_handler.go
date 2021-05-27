@@ -217,11 +217,16 @@ func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error 
 		}
 	}
 
-	if bucketFileExists, err := rvh.simpleStorage.BucketFileExists(cloud.RawVideoBucketName, bucketFileName); !bucketFileExists {
-		rvh.logger.Log(fmt.Sprintf("bucketFileExists(_, %s, %s) returns err %v, assuming bucket file does not exist\n", cloud.RawVideoBucketName, bucketFileName, err))
+	bucketFileExists, err := rvh.simpleStorage.BucketFileExists(cloud.RawVideoBucketName, bucketFileName)
+	if err != nil {
+		return fmt.Errorf("error writing file to remote storage: %w", err)
+	}
+	if !bucketFileExists {
 		if err := rvh.simpleStorage.WriteBucketFile(cloud.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
 			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", cloud.RawVideoBucketName, bucketFileName, mp4Path, err)
 		}
+	} else {
+		return senecaerror.NewBadStateError(fmt.Errorf("attempting to overwrite existing file %q", bucketFileName))
 	}
 
 	return nil
