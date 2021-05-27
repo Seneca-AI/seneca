@@ -31,7 +31,6 @@ type UserError struct {
 	ExternalMessage string
 }
 
-// NewUserError creates a new UserError for the given UserError with the given error message.
 func NewUserError(userID string, err error, externalMessage string) *UserError {
 	return &UserError{
 		Err:             err,
@@ -40,12 +39,10 @@ func NewUserError(userID string, err error, externalMessage string) *UserError {
 	}
 }
 
-// Error returns the full error message for a UserError.
 func (ue *UserError) Error() string {
 	return ue.UserID + ": " + ue.Err.Error()
 }
 
-// Unwrap returns the error stored.
 func (ue *UserError) Unwrap() error {
 	return ue.Err
 }
@@ -55,37 +52,31 @@ type CloudError struct {
 	Err error
 }
 
-// Error returns the full error message for a CloudError.
 func (ce *CloudError) Error() string {
 	return ce.Err.Error()
 }
 
-// NewCloudError creates a new CloudError with the given error.
 func NewCloudError(err error) *CloudError {
 	return &CloudError{Err: err}
 }
 
-// Unwrap returns the error stored.
 func (ce *CloudError) Unwrap() error {
 	return ce.Err
 }
 
-// BadStateError indicates that Seneca's data is in a bad state.
+// BadStateError indicates that Seneca's data or configuration is in a bad state.
 type BadStateError struct {
 	Err error
 }
 
-// Error returns the full error message for a BadStateError.
 func (bse *BadStateError) Error() string {
 	return bse.Err.Error()
 }
 
-// NewBadStateError returns a new BadStateError.
 func NewBadStateError(err error) *BadStateError {
 	return &BadStateError{Err: err}
 }
 
-// Unwrap returns the error stored.
 func (bse *BadStateError) Unwrap() error {
 	return bse.Err
 }
@@ -95,17 +86,14 @@ type NotFoundError struct {
 	Err error
 }
 
-// Error returns the full error message for a NotFoundError.
 func (nfe *NotFoundError) Error() string {
 	return nfe.Err.Error()
 }
 
-// NewNotFoundError returns a new NotFoundError.
 func NewNotFoundError(err error) *NotFoundError {
 	return &NotFoundError{Err: err}
 }
 
-// Unwrap returns the error stored.
 func (nfe *NotFoundError) Unwrap() error {
 	return nfe.Err
 }
@@ -115,17 +103,31 @@ type ServerError struct {
 	Err error
 }
 
-// Error returns the full error message for a ServerError.
 func (se *ServerError) Error() string {
 	return se.Err.Error()
 }
 
-// NewServerError returns a new ServerError.
 func NewServerError(err error) *ServerError {
 	return &ServerError{Err: err}
 }
 
-// Unwrap returns the error stored.
 func (se *ServerError) Unwrap() error {
 	return se.Err
+}
+
+// DevError indicates that the developer made an error.
+type DevError struct {
+	Err error
+}
+
+func (de *DevError) Error() string {
+	return de.Err.Error()
+}
+
+func NewDevError(err error) *DevError {
+	return &DevError{Err: err}
+}
+
+func (de *DevError) Unwrap() error {
+	return de.Err
 }

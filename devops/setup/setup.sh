@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO(lucaloncar): fix this
 
 # Set path variables that are always necessary.
 export GOPATH=$HOME/go

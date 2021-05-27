@@ -43,8 +43,6 @@ func (edao *SQLEventDAO) CreateEvent(ctx context.Context, event *st.EventInterna
 	}
 
 	if len(tripIDs) == 0 {
-		edao.logger.Error(fmt.Sprintf("DEBUG got 0 trip IDs at %d", event.TimestampMs))
-
 		newTripNoID := &st.TripInternal{
 			UserId:      event.UserId,
 			StartTimeMs: event.TimestampMs,
