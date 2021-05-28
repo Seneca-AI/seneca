@@ -1,5 +1,4 @@
 #!/bin/bash
-# TODO(lucaloncar): fix this
 
 # Set path variables that are always necessary.
 export GOPATH=$HOME/go
@@ -96,7 +95,7 @@ start_singleserver() {
 
 	echo "Starting single server."
 	cd ../../cmd/singleserver
-	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
+	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . > start.txt 2>&1 </dev/null &
 }
 
 deploy_run_syncer() {

@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Send HTTP request
         run: |
-          output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://35.188.190.79:5050/integration_test)
+          output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://34.95.3.199:5050/integration_test)
           if [[ $output != *"SUCCESS"* ]]; then
             exit 1
           fi

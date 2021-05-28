@@ -7,7 +7,7 @@ import (
 )
 
 func DeleteAllUserDataInDB(userID string, includeUser bool, dbClient database.SQLInterface) error {
-	for _, tableName := range constants.TableNames {
+	for _, tableName := range constants.DataTableNames {
 		if tableName == constants.UsersTable && includeUser {
 			if err := dbClient.DeleteByID(tableName, userID); err != nil {
 				return fmt.Errorf("DeleteByID(%s, %s) returns err: %w", tableName, userID, err)

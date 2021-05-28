@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/datastore v1.1.0
 	cloud.google.com/go/logging v1.3.0
 	cloud.google.com/go/storage v1.14.0
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.5

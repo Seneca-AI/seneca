@@ -10,8 +10,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"seneca/api/constants"
 	st "seneca/api/type"
 	"seneca/env"
+	"seneca/internal/authenticator"
 	"seneca/internal/client/cloud/gcp"
 	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
@@ -59,6 +61,8 @@ func main() {
 		fmt.Printf("logging.NewGCPLogger() returns - err: %v", err)
 		return
 	}
+
+	logger.Log(fmt.Sprintf("Starting singleserver"))
 
 	gcsc, err := gcp.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
 	if err != nil {
@@ -126,7 +130,13 @@ type HTTPHandler struct {
 func (handler *HTTPHandler) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	handler.logger.Log(fmt.Sprintf("Received %s request to %s", r.Method, r.URL))
 
-	if matchesRoute("/syncer", r.URL.Path) {
+	if err := authenticator.AuthorizeHTTPRequest(w, r); err != nil {
+		return
+	}
+
+	if matchesRoute(fmt.Sprintf("/%s", constants.HeartbeatEndpoint), r.URL.Path) {
+		handler.handleHeartbeat(w, r)
+	} else if matchesRoute("/syncer", r.URL.Path) {
 		handler.runSyncer(w, r)
 	} else if matchesRoute("/runner", r.URL.Path) {
 		handler.runRunner(w, r)
@@ -268,6 +278,10 @@ func (handler *HTTPHandler) handleEventRequest(w http.ResponseWriter, r *http.Re
 
 	w.Write(buffer.Bytes())
 	w.WriteHeader(int(response.Header.Code))
+}
+
+func (handler *HTTPHandler) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
 }
 
 func (handler *HTTPHandler) handleDrivingConditionRequest(w http.ResponseWriter, r *http.Request) {
