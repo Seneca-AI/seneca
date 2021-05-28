@@ -29,3 +29,5 @@ const (
 func (tn TableName) String() string {
 	return string(tn)
 }
+
+var TableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable}

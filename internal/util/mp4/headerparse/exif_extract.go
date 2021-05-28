@@ -40,7 +40,7 @@ func (emt *ExifMP4Tool) extractData(rawData map[string]interface{}) (DashCamName
 	for _, subMapObj := range rawData {
 		subMap, ok := subMapObj.(map[string]interface{})
 		if !ok {
-			emt.logger.Warning("expected map[string]interface{} ")
+			emt.logger.Warning("Expected map[string]interface{}")
 		}
 
 		gpsData, err := extractGPSData(dashCamName, subMap)
