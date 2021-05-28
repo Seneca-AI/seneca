@@ -14,7 +14,7 @@ func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
 
 	wantRawVideos := []*st.RawVideo{
 		{
-			CreateTimeMs: 1617572239000,
+			CreateTimeMs: 1617554180000,
 			DurationMs:   60000,
 			UserId:       "5642368648740864",
 		},
