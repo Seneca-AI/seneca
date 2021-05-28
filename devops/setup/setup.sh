@@ -6,6 +6,7 @@ export GOPATH=$HOME/go
 export PATH=$PATH:$HOME/go/bin
 export GO_VERSION=1.16.2
 export PROTOC_ZIP=protoc-3.14.0-linux-x86_64.zip
+export DEBIAN_FRONTEND=noninteractive
 
 # Define a spinner.
 spin() {
@@ -52,13 +53,13 @@ setup() {
 	rm Image-ExifTool-12.22.tar.gz 
 
 	echo "Getting protos"
-	cd ../..
-	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/deploy/setup.log
-	cp -r common/proto_out/go/api seneca > seneca/deploy/setup.log
+	cd ../../..
+	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/devops/setup/setup.log
+	cp -r common/proto_out/go/api seneca > seneca/devops/setup/setup.log
 	cd seneca
 
 	echo "Installing golang libraries"
-	sudo env "PATH=$PATH" "GOPATH=$GOPATH" go mod tidy > setup.log
+	sudo env "PATH=$PATH" "GOPATH=$GOPATH" go mod tidy > devops/setup/setup.log
 
 	echo "Done"
 }
@@ -88,7 +89,7 @@ start_singleserver() {
 	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
 	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
 	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
-	cd ../cmd/singleserver
+	cd ../../cmd/singleserver
 	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
 }
 
