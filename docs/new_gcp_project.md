@@ -21,6 +21,7 @@
         * `$ gcloud iam service-accounts create full-admin`
         * `$ gcloud iam service-accounts add-iam-policy-binding full-admin@${PROJECT_ID}.iam.gserviceaccount.com --member='user:${EMAIL}' --role='roles/owner'`
         * `$ gcloud iam service-accounts keys create ${PROJECT_ID}-full-admin-google-application-credentials.json  --iam-account=full-admin@${PROJECT_ID}.iam.gserviceaccount.com`
+        * TODO(lucaloncar): need to add to actual IAM page? follow the guide again
     1. Setup OAuth consent screen for getting OAuth tokens from users.
         * This cannot be done through gcloud.  Visit console.cloud.google.com --> Top-left hamburger menu --> APIs & Services --> OAuth consent screen
             * Configure OAuth Consent Screen
@@ -63,7 +64,10 @@
     1. Open up port 6060 to external traffic
         * `$ bash setup.sh open_port`
     1. Start the server
-        * `$ bash setup.sh start_singleserver`
+        * `$ export GOOGLE_CLOUD_PROJECT=<google cloud project>`
+        * `$ export APP_CRED=<absolute path to APPLICATION_CREDENTIALS_JSON_FILE>`
+        * `$ export OAUTH_CRED=<absolute path to OAUTH_CREDENTIALS_JSON_FILE>`
+        * `$ bash setup.sh start_singleserver ${GOOGLE_CLOUD_PROJECT} ${APP_CRED} ${OAUTH_CRED}`
 1. You'll need to get a user's oauth token and add it to the DB yourself, for now.  To make requests to the VM, note the VM's external IP.
 
 TODO: setup zone file, setup API key to hit single server, get token using golang

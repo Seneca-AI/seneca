@@ -85,10 +85,16 @@ start_datagatherer() {
 
 # Start the singleserver.
 start_singleserver() {
+	if [ -z "$3" ]; then
+		echo "Must specify 'bash setup.sh start_singleserver [GOOGLE_CLOUD_PROJECT] [ABSOLUTE_PATH_TO_GOOGLE_APPLICATION_CREDENTIALS] [ABSOLUTE_PATH_TO_GOOGLE_OAUTH_CREDENTIALS]'"
+		exit 1
+	fi
+
+	export GOOGLE_CLOUD_PROJECT=$1
+	export GOOGLE_APPLICATION_CREDENTIALS=$2
+	export GOOGLE_OAUTH_CREDENTIALS=$3
+
 	echo "Starting single server."
-	read -p "Enter GOOGLE_CLOUD_PROJECT: " GOOGLE_CLOUD_PROJECT
-	read -p "Enter absolute path to GOOGLE_APPLICATION_CREDENTIALS json file: " GOOGLE_APPLICATION_CREDENTIALS
-	read -p "Enter absolute path to GOOGLE_OAUTH_CREDENTIALS json file: " GOOGLE_OAUTH_CREDENTIALS
 	cd ../../cmd/singleserver
 	nohup sudo env "PATH=$PATH" "GOPATH=$GOPATH" "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" "GOOGLE_OAUTH_CREDENTIALS=$GOOGLE_OAUTH_CREDENTIALS" go run . &
 }
@@ -102,7 +108,7 @@ deploy_run_syncer() {
 }
 
 if [ -z "$1" ]; then 
-	echo "Must specify a command.  Options are [ setup, open_port, start_datagatherer, start_singleserver, deploy_run_syncer ]."
+	echo "Must specify a command.  Options are [ help, setup, open_port, start_datagatherer, start_singleserver, deploy_run_syncer ]."
 	exit 1
 fi
 
@@ -117,14 +123,14 @@ if [ $1 == "help" ]; then
 		elif [ $2 == "start_datagatherer" ]; then
 			echo "Start the datagatherer."
 		elif [ $2 == "start_singleserver" ]; then
-			echo "Start the singleserver."
+			echo "Start the singleserver, specifying [GOOGLE_CLOUD_PROJECT] [ABSOLUTE_PATH_TO_GOOGLE_APPLICATION_CREDENTIALS] [ABSOLUTE_PATH_TO_GOOGLE_OAUTH_CREDENTIALS]"
 		elif [ $2 == "deploy_run_syncer" ]; then
 			echo "Start deploy run_syncer cloud function."
 		else 
 			echo "Invalid argument."
 		fi
 	fi
-	exit 1
+	exit 0
 fi
 
 if [ $1 == "setup" ]; then
@@ -140,7 +146,7 @@ elif [ $1 == "open_port" ]; then
 elif [ $1 == "start_datagatherer" ]; then
 	start_datagatherer
 elif [ $1 == "start_singleserver" ]; then
-	start_singleserver
+	start_singleserver $2 $3 $4
 elif [ $1 == "deploy_run_syncer" ]; then
 	deploy_run_syncer
 else
