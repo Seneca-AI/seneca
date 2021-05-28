@@ -4,6 +4,7 @@ package rawvideohandler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -126,8 +127,13 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	}
 
 	// Extract metadata.
-	rawVideo, err := rvh.mp4Tool.ParseOutRawVideoMetadata(mp4Path)
+	rawVideo, locations, motions, times, err := rvh.mp4Tool.ParseVideoMetadata(mp4Path)
 	if err != nil {
+		var devErr *senecaerror.DevError
+		if errors.As(err, &devErr) {
+			rvh.logger.Critical(fmt.Sprintf("ParseVideoMetadata(%s) returns DevError: %v", mp4Path, err))
+		}
+
 		return nil, fmt.Errorf("mp4Tool.ParseOutRawVideoMetadata(%s) returns - err: %w", mp4Path, err)
 	}
 
@@ -147,12 +153,6 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing mp4 to cloud storage: %w", err)
-	}
-
-	locations, motions, times, err := rvh.mp4Tool.ParseOutGPSMetadata(mp4Path)
-	if err != nil {
-		cleanUp.clean = true
-		return nil, fmt.Errorf("ParseOutGPSMetadata() returns err: %w", err)
 	}
 
 	source := &st.Source{

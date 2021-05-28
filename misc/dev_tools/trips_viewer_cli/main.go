@@ -73,7 +73,7 @@ func main() {
 		selection := scanOrExit()
 		selectionInt, err := strconv.Atoi(selection)
 		if err != nil {
-			fmt.Printf("Invalid selection string %q leads to err: %v", selection, err)
+			fmt.Printf("Invalid selection string %q leads to err: %v\n", selection, err)
 			goto selectTrip
 		}
 
@@ -86,7 +86,7 @@ func main() {
 		}
 
 		if len(selection) != 2 {
-			fmt.Printf("Invalid selection string %q", selection)
+			fmt.Printf("Invalid selection string %q\n", selection)
 			goto selectEvent
 		}
 		if selection[0:1] == "E" {
@@ -94,7 +94,7 @@ func main() {
 		} else if selection[0:1] == "C" {
 			fmt.Printf("DrivingCondition: %s\n", util.DrivingConditionExternalToPrettyString(drivingConditions[selection[1:2]]))
 		} else {
-			fmt.Printf("Invalid selection string %q", selection)
+			fmt.Printf("Invalid selection string %q\n", selection)
 		}
 
 		goto selectEvent
