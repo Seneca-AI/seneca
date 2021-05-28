@@ -6,6 +6,7 @@ import (
 	"seneca/internal/client/cloud"
 	"seneca/internal/client/cloud/gcp"
 	"seneca/internal/client/cloud/gcp/datastore"
+	"seneca/internal/client/database"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
 	"seneca/internal/controller/apiserver"
@@ -22,6 +23,7 @@ import (
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/dataprocessor"
+	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
 	"time"
 )
@@ -29,6 +31,7 @@ import (
 type TestEnvironment struct {
 	ProjectID           string
 	Logger              logging.LoggingInterface
+	sqlService          database.SQLInterface
 	SimpleStorage       cloud.SimpleStorageInterface
 	UserDAO             dao.UserDAO
 	RawVideoDAO         dao.RawVideoDAO
@@ -80,6 +83,7 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	return &TestEnvironment{
 		ProjectID:           projectID,
 		Logger:              logger,
+		sqlService:          sqlService,
 		SimpleStorage:       gcsc,
 		UserDAO:             userDAO,
 		RawVideoDAO:         rawVideoDAO,
@@ -121,10 +125,6 @@ func (te *TestEnvironment) Clean() {
 			if err := te.SimpleStorage.DeleteBucketFile(cloud.RawVideoBucketName, rawVideo.CloudStorageFileName); err != nil {
 				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", cloud.RawVideoBucketName, rawVideo.CloudStorageFileName, err))
 			}
-
-			if err := te.RawVideoDAO.DeleteRawVideoByID(rvid); err != nil {
-				te.Logger.Error(fmt.Sprintf("DeleteRawVideoByID(%s) returns err: %v", rvid, err))
-			}
 		}
 
 		gDrive, err := te.GDriveFactory.New(user)
@@ -145,54 +145,8 @@ func (te *TestEnvironment) Clean() {
 			}
 		}
 
-		rawMotionIDs, err := te.RawMotionDAO.ListUserRawMotionIDs(uid)
-		if err != nil {
-			te.Logger.Error(fmt.Sprintf("ListUserRawMotionIDs(%s) returns err: %v", uid, err))
-		}
-		for _, rmid := range rawMotionIDs {
-			if err := te.RawMotionDAO.DeleteRawMotionByID(rmid); err != nil {
-				te.Logger.Error(fmt.Sprintf("DeleteRawMotionByID(%s) returns err: %v", rmid, err))
-			}
-		}
-
-		rawLocationIDs, err := te.RawLocationDAO.ListUserRawLocationIDs(uid)
-		if err != nil {
-			te.Logger.Error(fmt.Sprintf("ListUserRawLocationIDs(%s) returns err: %v", uid, err))
-		}
-		for _, rlid := range rawLocationIDs {
-			if err := te.RawLocationDAO.DeleteRawLocationByID(rlid); err != nil {
-				te.Logger.Error(fmt.Sprintf("DeleteRawLocationByID(%s) returns err: %v", rlid, err))
-			}
-		}
-
-		tripIDs, err := te.TripDAO.ListUserTripIDs(uid)
-		if err != nil {
-			te.Logger.Error(fmt.Sprintf("ListUserTripIDs(%s) returns err: %v", uid, err))
-		}
-		for _, tid := range tripIDs {
-			eventIDs, err := te.EventDAO.ListTripEventIDs(uid, tid)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("ListTripEventIDs(%s, %s) returns err: %v", uid, tid, err))
-			}
-			for _, eid := range eventIDs {
-				if err := te.EventDAO.DeleteEventByID(context.TODO(), uid, tid, eid); err != nil {
-					te.Logger.Error(fmt.Sprintf("DeleteEventByID(%s, %s, %s) returns err: %v", uid, tid, eid, err))
-				}
-			}
-
-			dcIDs, err := te.DrivingConditionDAO.ListTripDrivingConditionIDs(uid, tid)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("DrivingConditionDAO(%s, %s) returns err: %v", uid, tid, err))
-			}
-			for _, dcid := range dcIDs {
-				if err := te.DrivingConditionDAO.DeleteDrivingConditionByID(context.TODO(), uid, tid, dcid); err != nil {
-					te.Logger.Error(fmt.Sprintf("DeleteDrivingConditionByID(%s, %s, %s) returns err: %v", uid, tid, dcid, err))
-				}
-			}
-
-			if err := te.TripDAO.DeleteTripByID(context.TODO(), tid); err != nil {
-				te.Logger.Error(fmt.Sprintf("DeleteTripByID(%s) returns err: %v", tid, err))
-			}
+		if err := data.DeleteAllUserDataInDB(uid, false, te.sqlService); err != nil {
+			te.Logger.Error(fmt.Sprintf("DeleteAllUserDataInDB(%s, %t, _) returns err: %v", uid, false, err))
 		}
 	}
 }
