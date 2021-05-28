@@ -19,6 +19,7 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 	testCases := []struct {
 		desc             string
 		pathToVideo      string
+		dashCamName      DashCamName
 		wantCreateTimeMs int64
 		wantDurationMs   int64
 	}{
@@ -31,7 +32,7 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 		{
 			desc:             "blackvue",
 			pathToVideo:      "../../../../test/testdata/blackvue_example.mp4",
-			wantCreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.April, 4, 21, 50, 29, 0, time.UTC)),
+			wantCreateTimeMs: util.TimeToMilliseconds(time.Date(2021, time.April, 4, 16, 49, 30, 0, time.UTC)),
 			wantDurationMs:   time.Minute.Milliseconds(),
 		},
 	}
@@ -40,9 +41,10 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			rawVideo, err := exifMP4Tool.ParseOutRawVideoMetadata(tc.pathToVideo)
+
+			rawVideo, _, _, _, err := exifMP4Tool.ParseVideoMetadata(tc.pathToVideo)
 			if err != nil {
-				t.Errorf("ParseOutRawVideoMetadata(%s) returns err: %v", tc.pathToVideo, err)
+				t.Errorf("parseOutRawVideoMetadata() for video %q returns err: %v", tc.pathToVideo, err)
 				return
 			}
 
@@ -64,8 +66,7 @@ func TestGetMetadataHasRejectsFileWithZeroCreationTime(t *testing.T) {
 	exifMP4Tool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
 	pathToNoMetadataMP4 := "../../../../test/testdata/no_metadata.mp4"
-	_, err := exifMP4Tool.ParseOutRawVideoMetadata(pathToNoMetadataMP4)
-	if err == nil {
+	if _, _, _, _, err := exifMP4Tool.ParseVideoMetadata(pathToNoMetadataMP4); err == nil {
 		t.Errorf("Expected err from exifMP4Tool.ParseOutRawVideoMetadata(%q), got nil", pathToNoMetadataMP4)
 	}
 }
@@ -77,7 +78,7 @@ func TestGetMetadataDoesntCrashWitoutVideoFile(t *testing.T) {
 
 	exifMP4Tool := NewExifMP4Tool(logging.NewLocalLogger(false))
 
-	_, err := exifMP4Tool.ParseOutRawVideoMetadata("../idontexist")
+	_, _, _, _, err := exifMP4Tool.ParseVideoMetadata("../idontexist")
 	if err == nil {
 		t.Errorf("Want non-nil error from bogus input file, got nil")
 	}
@@ -245,9 +246,9 @@ func TestParseOutGPSMetadata(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, motions, _, err := exifTool.ParseOutGPSMetadata(tc.pathToVideo)
+			_, _, motions, _, err := exifTool.ParseVideoMetadata(tc.pathToVideo)
 			if err != nil {
-				t.Errorf("ParseOutGPSMetadata() returns err - %v", err)
+				t.Fatalf("ParseOutGPSMetadata() returns err - %v", err)
 			}
 
 			if len(motions) != len(tc.expectedAccelerations) {

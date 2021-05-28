@@ -78,23 +78,20 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 		t.Errorf("Want err from RawVideoRequest with no metadata, got nil")
 	}
 
-	fakeMP4Tool.ParseOutRawVideoMetadataMock = func(pathToVideo string) (*st.RawVideo, error) {
+	fakeMP4Tool.ParseVideoMetadataMock = func(pathToVideo string) (*st.RawVideo, []*st.Location, []*st.Motion, []time.Time, error) {
 		return &st.RawVideo{
 			DurationMs: time.Hour.Milliseconds(),
-		}, nil
-	}
-	fakeMP4Tool.ParseOutGPSMetadataMock = func(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
-		return nil, nil, nil, nil
+		}, nil, nil, nil, nil
 	}
 
 	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
 	if err == nil {
 		t.Errorf("Want err from RawVideoRequest with long video, got nil")
 	}
-	fakeMP4Tool.ParseOutRawVideoMetadataMock = func(pathToVideo string) (*st.RawVideo, error) {
+	fakeMP4Tool.ParseVideoMetadataMock = func(pathToVideo string) (*st.RawVideo, []*st.Location, []*st.Motion, []time.Time, error) {
 		return &st.RawVideo{
 			DurationMs: time.Minute.Milliseconds(),
-		}, nil
+		}, nil, nil, nil, nil
 	}
 
 	mockRawVideoDAO.DeleteRawVideoByIDMock = func(id string) error {

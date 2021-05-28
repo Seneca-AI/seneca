@@ -12,22 +12,16 @@ import (
 // throughout Seneca.
 //nolint
 type MP4ToolInterface interface {
-	// ParseOutRawVideoMetadata extracts *st.RawVideo metadata from the mp4 at the given path.
+	// ParseVideoMetadata extracts metadata from the mp4 at the given path.
 	// Params:
 	// 		string pathToVideo: path to mp4 to get RawVideo metadata from
 	// Returns:
-	// 		*st.RawVideo: the RawVideo object
-	//		error
-	ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error)
-	// 	ParseOutGPSMetadata extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
-	//	Params:
-	//		 pathToVideo string: the video to analyze
-	//	Returns:
-	//		[]*st.Location
+	// 		*st.RawVideo
+	// 		[]*st.Location
 	//		[]*st.Motion
-	//		[]*time.Time
-	//		error
-	ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error)
+	//		[]time.Time
+	//		error, senecaerror.DevError
+	ParseVideoMetadata(pathToVideo string) (*st.RawVideo, []*st.Location, []*st.Motion, []time.Time, error)
 	// 	CutRawVideo cuts the raw video mp4 into smaller clips.
 	// 	Params:
 	//		cutVideoDur time.Duration: the duration the cut videos should be
@@ -52,12 +46,8 @@ func NewMP4Tool(logger logging.LoggingInterface) (*MP4Tool, error) {
 	}, nil
 }
 
-func (mt *MP4Tool) ParseOutRawVideoMetadata(pathToVideo string) (*st.RawVideo, error) {
-	return mt.exifTool.ParseOutRawVideoMetadata(pathToVideo)
-}
-
-func (mt *MP4Tool) ParseOutGPSMetadata(pathToVideo string) ([]*st.Location, []*st.Motion, []time.Time, error) {
-	return mt.exifTool.ParseOutGPSMetadata(pathToVideo)
+func (mt *MP4Tool) ParseVideoMetadata(pathToVideo string) (*st.RawVideo, []*st.Location, []*st.Motion, []time.Time, error) {
+	return mt.exifTool.ParseVideoMetadata(pathToVideo)
 }
 
 func (mt *MP4Tool) CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.CutVideo, []string, error) {

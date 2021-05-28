@@ -39,7 +39,7 @@ func TimeToMilliseconds(t time.Time) int64 {
 // Returns:
 //		time.Time
 func MillisecondsToTime(ms int64) time.Time {
-	return time.Unix(0, ms*int64(time.Millisecond))
+	return time.Unix(0, ms*int64(time.Millisecond)).In(time.UTC)
 }
 
 // MillisecondsToDuration converts milliseconds to a time.Duration object.
