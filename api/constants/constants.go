@@ -38,3 +38,20 @@ func (tn TableName) String() string {
 }
 
 var DataTableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable}
+
+type SenecaTypeFieldName string
+
+const (
+	UserIDFieldName       SenecaTypeFieldName = "UserId"
+	CreateTimeFieldName   SenecaTypeFieldName = "CreateTimeMs"
+	TimestampFieldName    SenecaTypeFieldName = "TimestampMs"
+	EmailFieldName        SenecaTypeFieldName = "Email"
+	StartTimeFieldName    SenecaTypeFieldName = "StartTimeMs"
+	EndTimeFieldName      SenecaTypeFieldName = "EndTimeMs"
+	TripIDFieldName       SenecaTypeFieldName = "TripId"
+	AlgosVersionFieldName SenecaTypeFieldName = "AlgosVersion"
+)
+
+func (stfn SenecaTypeFieldName) String() string {
+	return string(stfn)
+}

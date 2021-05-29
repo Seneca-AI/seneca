@@ -150,18 +150,6 @@ func (fs *FakeSQLDBService) DeleteByID(tableName constants.TableName, id string)
 	return nil
 }
 
-// TODO(lucaloncar): centralize all of these constants.
-var (
-	userIDFieldName       = "UserId"
-	createTimeFieldName   = "CreateTimeMs"
-	timestampFieldName    = "TimestampMs"
-	emailFieldName        = "Email"
-	startTimeFieldName    = "StartTimeMs"
-	endTimeFieldName      = "EndTimeMs"
-	tripIDFieldName       = "TripId"
-	algosVersionFieldName = "AlgosVersion"
-)
-
 func satisfiesQueryParams(tableName constants.TableName, object interface{}, queryParams []*QueryParam) bool {
 	for _, qp := range queryParams {
 		evaluateResult := func() bool {
@@ -192,18 +180,18 @@ func satisfiesQueryParams(tableName constants.TableName, object interface{}, que
 	return true
 }
 
-func getRawVideoField(fieldName string, rawVideoObj interface{}) interface{} {
+func getRawVideoField(fieldName constants.SenecaTypeFieldName, rawVideoObj interface{}) interface{} {
 	rawVideo, ok := rawVideoObj.(*st.RawVideo)
 	if !ok {
 		log.Fatalf("Passed %T to getRawVideoField()", rawVideoObj)
 	}
 
 	switch fieldName {
-	case createTimeFieldName:
+	case constants.CreateTimeFieldName:
 		return rawVideo.CreateTimeMs
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return rawVideo.UserId
-	case algosVersionFieldName:
+	case constants.AlgosVersionFieldName:
 		return rawVideo.AlgosVersion
 	default:
 		log.Fatalf("Getting RawVideo field name %q not supported", fieldName)
@@ -211,16 +199,16 @@ func getRawVideoField(fieldName string, rawVideoObj interface{}) interface{} {
 	return nil
 }
 
-func getRawLocationField(fieldName string, rawLocationObj interface{}) interface{} {
+func getRawLocationField(fieldName constants.SenecaTypeFieldName, rawLocationObj interface{}) interface{} {
 	rawLocation, ok := rawLocationObj.(*st.RawLocation)
 	if !ok {
 		log.Fatalf("Passed %T to getRawLocationField()", rawLocationObj)
 	}
 
 	switch fieldName {
-	case timestampFieldName:
+	case constants.TimestampFieldName:
 		return rawLocation.TimestampMs
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return rawLocation.UserId
 	default:
 		log.Fatalf("Getting RawLocation field name %q not supported", fieldName)
@@ -228,18 +216,18 @@ func getRawLocationField(fieldName string, rawLocationObj interface{}) interface
 	return nil
 }
 
-func getRawMotionField(fieldName string, rawMotionObj interface{}) interface{} {
+func getRawMotionField(fieldName constants.SenecaTypeFieldName, rawMotionObj interface{}) interface{} {
 	rawMotion, ok := rawMotionObj.(*st.RawMotion)
 	if !ok {
 		log.Fatalf("Passed %T to getRawMotionField()", rawMotionObj)
 	}
 
 	switch fieldName {
-	case timestampFieldName:
+	case constants.TimestampFieldName:
 		return rawMotion.TimestampMs
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return rawMotion.UserId
-	case algosVersionFieldName:
+	case constants.AlgosVersionFieldName:
 		return rawMotion.AlgosVersion
 	default:
 		log.Fatalf("Getting RawMotion field name %q not supported", fieldName)
@@ -247,14 +235,14 @@ func getRawMotionField(fieldName string, rawMotionObj interface{}) interface{} {
 	return nil
 }
 
-func getUserField(fieldName string, userObj interface{}) interface{} {
+func getUserField(fieldName constants.SenecaTypeFieldName, userObj interface{}) interface{} {
 	user, ok := userObj.(*st.User)
 	if !ok {
 		log.Fatalf("Passed %T to getUserField()", userObj)
 	}
 
 	switch fieldName {
-	case emailFieldName:
+	case constants.EmailFieldName:
 		return user.Email
 	default:
 		log.Fatalf("Getting User field name %q not supported", fieldName)
@@ -262,18 +250,18 @@ func getUserField(fieldName string, userObj interface{}) interface{} {
 	return nil
 }
 
-func getTripField(fieldName string, tripObj interface{}) interface{} {
+func getTripField(fieldName constants.SenecaTypeFieldName, tripObj interface{}) interface{} {
 	trip, ok := tripObj.(*st.TripInternal)
 	if !ok {
 		log.Fatalf("Passed %T to getTripField()", tripObj)
 	}
 
 	switch fieldName {
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return trip.UserId
-	case startTimeFieldName:
+	case constants.StartTimeFieldName:
 		return trip.StartTimeMs
-	case endTimeFieldName:
+	case constants.EndTimeFieldName:
 		return trip.EndTimeMs
 	default:
 		log.Fatalf("Getting TripInternal field name %q not supported", fieldName)
@@ -281,16 +269,16 @@ func getTripField(fieldName string, tripObj interface{}) interface{} {
 	return nil
 }
 
-func getEventField(fieldName string, eventObj interface{}) interface{} {
+func getEventField(fieldName constants.SenecaTypeFieldName, eventObj interface{}) interface{} {
 	event, ok := eventObj.(*st.EventInternal)
 	if !ok {
 		log.Fatalf("Passed %T to getEventField()", eventObj)
 	}
 
 	switch fieldName {
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return event.UserId
-	case tripIDFieldName:
+	case constants.TripIDFieldName:
 		return event.TripId
 	default:
 		log.Fatalf("Getting EventInternal field name %q not supported", fieldName)
@@ -298,20 +286,20 @@ func getEventField(fieldName string, eventObj interface{}) interface{} {
 	return nil
 }
 
-func getDrivingConditionField(fieldName string, drivingConditionObj interface{}) interface{} {
+func getDrivingConditionField(fieldName constants.SenecaTypeFieldName, drivingConditionObj interface{}) interface{} {
 	drivingCondition, ok := drivingConditionObj.(*st.DrivingConditionInternal)
 	if !ok {
 		log.Fatalf("Passed %T to getDrivingConditionField()", drivingConditionObj)
 	}
 
 	switch fieldName {
-	case userIDFieldName:
+	case constants.UserIDFieldName:
 		return drivingCondition.UserId
-	case startTimeFieldName:
+	case constants.StartTimeFieldName:
 		return drivingCondition.StartTimeMs
-	case endTimeFieldName:
+	case constants.EndTimeFieldName:
 		return drivingCondition.EndTimeMs
-	case tripIDFieldName:
+	case constants.TripIDFieldName:
 		return drivingCondition.TripId
 	default:
 		log.Fatalf("Getting DrivingConditionInternal field name %q not supported", fieldName)

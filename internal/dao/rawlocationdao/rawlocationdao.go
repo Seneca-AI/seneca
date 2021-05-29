@@ -8,11 +8,6 @@ import (
 	"seneca/internal/client/database"
 )
 
-const (
-	userIDFieldName    = "UserId"
-	timestampFieldName = "TimestampMs"
-)
-
 type SQLRawLocationDAO struct {
 	sql database.SQLInterface
 }
@@ -26,12 +21,12 @@ func NewSQLRawLocationDAO(sqlInterface database.SQLInterface) *SQLRawLocationDAO
 func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error) {
 	ids, err := rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{
 		{
-			FieldName: userIDFieldName,
+			FieldName: constants.UserIDFieldName,
 			Operand:   "=",
 			Value:     rawLocation.UserId,
 		},
 		{
-			FieldName: timestampFieldName,
+			FieldName: constants.TimestampFieldName,
 			Operand:   "=",
 			Value:     rawLocation.TimestampMs,
 		},
@@ -79,7 +74,7 @@ func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, e
 }
 
 func (rdao *SQLRawLocationDAO) ListUserRawLocationIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawLocationDAO) DeleteRawLocationByID(id string) error {

@@ -14,7 +14,7 @@ func DeleteAllUserDataInDB(userID string, includeUser bool, dbClient database.SQ
 			}
 		}
 
-		ids, err := dbClient.ListIDs(tableName, []*database.QueryParam{{FieldName: "UserId", Operand: "=", Value: userID}})
+		ids, err := dbClient.ListIDs(tableName, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 		if err != nil {
 			return fmt.Errorf("ListIDs(%s, %s) returns err: %w", tableName, userID, err)
 		}

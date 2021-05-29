@@ -8,10 +8,6 @@ import (
 	"seneca/internal/client/database"
 )
 
-const (
-	emailFieldName = "Email"
-)
-
 type SQLUserDAO struct {
 	sqlInterface database.SQLInterface
 }
@@ -23,7 +19,7 @@ func NewSQLUserDAO(sqlInterface database.SQLInterface) *SQLUserDAO {
 }
 
 func (udao *SQLUserDAO) InsertUniqueUser(user *st.User) (*st.User, error) {
-	ids, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: user.Email}})
+	ids, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: constants.EmailFieldName, Operand: "=", Value: user.Email}})
 	if err != nil {
 		return nil, fmt.Errorf("error listing users by email %q: %w", user.Email, err)
 	}
@@ -68,7 +64,7 @@ func (udao *SQLUserDAO) ListAllUserIDs() ([]string, error) {
 }
 
 func (udao *SQLUserDAO) GetUserByEmail(email string) (*st.User, error) {
-	userIDs, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: emailFieldName, Operand: "=", Value: email}})
+	userIDs, err := udao.sqlInterface.ListIDs(constants.UsersTable, []*database.QueryParam{{FieldName: constants.EmailFieldName, Operand: "=", Value: email}})
 	if err != nil {
 		return nil, fmt.Errorf("error listing users with email %q - err: %w", email, err)
 	}
