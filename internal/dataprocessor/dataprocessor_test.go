@@ -17,18 +17,22 @@ import (
 
 func TestRun(t *testing.T) {
 	tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger := newDataProcessorPartsForTest()
-	alg := newAccelerationV0()
-	dp := New([]AlgorithmInterface{alg}, eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
+	dp := New([]AlgorithmInterface{newAccelerationV0(), newDecelerationV0()}, eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
 
 	// Create a few raw motions.
-	for _, acc := range []int{5, 10, 15, 20} {
+	for _, acc := range []int{-35, -22, -12, -2, 5, 10, 15, 20} {
 		rawMotion := &st.RawMotion{
 			UserId: "123",
 			Motion: &st.Motion{
 				AccelerationMphS: float64(acc),
 			},
-			TimestampMs: util.TimeToMilliseconds(time.Date(2021, 05, 05, 0, 0, acc, 0, time.UTC)),
 		}
+
+		if acc < 0 {
+			acc *= -1
+		}
+
+		rawMotion.TimestampMs = util.TimeToMilliseconds(time.Date(2021, 05, 05, 0, 0, acc, 0, time.UTC))
 
 		if _, err := rawMotionDAO.InsertUniqueRawMotion(rawMotion); err != nil {
 			t.Fatalf("InsertUniqueRawMotion() returns err: %v", err)
@@ -61,7 +65,7 @@ func TestRun(t *testing.T) {
 		t.Fatalf("ListTripEventIDs() returns err: %v", err)
 	}
 
-	if len(eventIDs) != 3 {
+	if len(eventIDs) != 6 {
 		t.Fatalf("Want 3 event ID, got %d", len(eventIDs))
 	}
 
@@ -76,14 +80,14 @@ func TestRun(t *testing.T) {
 
 	// Values don't matter too much, just that fields are non-nil.
 	for _, ev := range events {
-		if ev.AlgoTag != alg.Tag() {
-			t.Fatalf("Want AlgoTag %q for event, got %q", alg.tag, ev.AlgoTag)
+		if ev.AlgoTag == "" {
+			t.Fatalf("Empty AlgoTag for event")
 		}
-		if ev.EventType != st.EventType_FAST_ACCELERATION {
-			t.Fatalf("Want EventType %q, got %q", st.EventType_FAST_ACCELERATION.String(), ev.EventType.String())
+		if ev.EventType != st.EventType_FAST_ACCELERATION && ev.EventType != st.EventType_FAST_DECELERATION {
+			t.Fatalf("Want EventType %q or %q, got %q", st.EventType_FAST_ACCELERATION, st.EventType_FAST_DECELERATION, ev.EventType)
 		}
 		if ev.Source.SourceType != st.Source_RAW_MOTION {
-			t.Fatalf("Want SourceType %q, got %q", st.Source_RAW_MOTION.String(), ev.Source.SourceType.String())
+			t.Fatalf("Want SourceType %q, got %q", st.Source_RAW_MOTION, ev.Source.SourceType)
 		}
 	}
 

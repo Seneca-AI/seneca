@@ -26,7 +26,7 @@ type AlgorithmInterface interface {
 }
 
 func GetCurrentAlgorithms() []AlgorithmInterface {
-	return []AlgorithmInterface{newAccelerationV0()}
+	return []AlgorithmInterface{newAccelerationV0(), newDecelerationV0()}
 }
 
 func New(algorithmList []AlgorithmInterface, eventDAO dao.EventDAO, drivingConditionDAO dao.DrivingConditionDAO, rawMotionDAO dao.RawMotionDAO, rawVideoDAO dao.RawVideoDAO, logger logging.LoggingInterface) *DataProcessor {
