@@ -1,0 +1,16 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Trigger main push
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP request
+        run: |
+          output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://34.95.3.199:5050/push_main)
+          if [[ $output != *"SUCCESS"* ]]; then
+            exit 1
+          fi
