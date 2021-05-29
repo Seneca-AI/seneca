@@ -39,10 +39,10 @@
                 * mv ~/Downloads/*.apps.googleusercontent.com.json ./${PROJECT_ID}-oauth-credentials.json
                 * Mke sure to save this key in a safe place and note its location.
 1. Setup the server
-    1. Create an entry in the 'senecacam-core' datastore SingleServer DB.
     1. Add '510673558724-compute@developer.gserviceaccount.com' to your project with the role 'Compute Admin' so new code can be added when one pushes to main.
     1. Create a VM for the Seneca server, and give it some time to setup
         * `$ gcloud compute instances create singleserver --image=ubuntu-minimal-2104-hirsute-v20210511 --image-project=ubuntu-os-cloud --zone=northamerica-northeast1-a && sleep 30`
+    1. Create an entry in the 'senecacam-core' datastore SingleServer DB.
     1. Copy the JSON credentials you previously created into the VM
         * `$ gcloud compute scp ${APPLICATION_CREDENTIALS_JSON_FILE} singleserver:~`
         * `$ gcloud compute scp ${OAUTH_CREDENTIALS_JSON_FILE} singleserver:~`

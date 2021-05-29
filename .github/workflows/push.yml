@@ -11,6 +11,6 @@ jobs:
       - name: Send HTTP request
         run: |
           output=$(curl -i -H "Authorization: lSfsjS3nebraYqbzbpFS" http://34.95.3.199:5050/push_main)
-          if [[ $output != *"SUCCESS"* ]]; then
+          if [[ $output != *"200 OK"* ]]; then
             exit 1
           fi
