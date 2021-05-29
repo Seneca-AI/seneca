@@ -14,6 +14,13 @@ const KilometersToMiles = float64(1.60934)
 // MaxVideoFileSizeMB dictates the maximum size of video files Seneca will accept.
 const MaxVideoFileSizeMB int64 = 250
 
+// HeartbeatEndpoint defines the HTTP endpoint that the server will answer heartbeat requests on.
+const HeartbeatEndpoint = "heartbeat"
+
+// SenecaAPIKey defines the key HTTP requests must have in their header to be accepted by all Seneca servers.  This will soon be replaced by reasonable
+// auth methods.
+const SenecaAPIKey = "lSfsjS3nebraYqbzbpFS"
+
 type TableName string
 
 const (
@@ -30,4 +37,4 @@ func (tn TableName) String() string {
 	return string(tn)
 }
 
-var TableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable}
+var DataTableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable}

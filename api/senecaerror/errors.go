@@ -131,3 +131,20 @@ func NewDevError(err error) *DevError {
 func (de *DevError) Unwrap() error {
 	return de.Err
 }
+
+// OutageError indicates that Seneca is experience an outage that requires human intervention.
+type OutageError struct {
+	Err error
+}
+
+func (oe *OutageError) Error() string {
+	return oe.Err.Error()
+}
+
+func NewOutageError(err error) *OutageError {
+	return &OutageError{Err: err}
+}
+
+func (oe *OutageError) Unwrap() error {
+	return oe.Err
+}
