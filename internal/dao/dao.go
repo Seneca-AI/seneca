@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// TODO(lucaloncar): remove parent ID params
+// TODO(lucaloncar): remove parent ID params, but enforce parent IDs upon insertion
 
 type UserDAO interface {
 	InsertUniqueUser(user *st.User) (*st.User, error)

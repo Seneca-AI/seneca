@@ -4,9 +4,11 @@ import (
 	"fmt"
 	st "seneca/api/type"
 	"seneca/env"
+	"seneca/internal/client/googledrive"
 	"seneca/internal/util/data"
 	"seneca/test/integrationtest/testenv"
 	"sort"
+	"strings"
 )
 
 func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
@@ -14,9 +16,10 @@ func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
 
 	wantRawVideos := []*st.RawVideo{
 		{
-			CreateTimeMs: 1617554180000,
-			DurationMs:   60000,
-			UserId:       "5642368648740864",
+			CreateTimeMs:     1617554180000,
+			DurationMs:       60000,
+			UserId:           "5642368648740864",
+			OriginalFileName: "three.mp4",
 		},
 	}
 
@@ -59,6 +62,28 @@ func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
 	for i := range gotRawVideos {
 		if err := data.RawVideosEqual(gotRawVideos[i], wantRawVideos[i]); err != nil {
 			return fmt.Errorf("raw videos not equal (got != want): %w", err)
+		}
+	}
+
+	// Make sure all files are marked SUCCESS.
+	userGDriveClient, err := testEnv.GDriveFactory.New(user)
+	if err != nil {
+		return fmt.Errorf("GDriveFactory.New() returns err: %w", err)
+	}
+
+	fileIDs, err := userGDriveClient.ListFileIDs(googledrive.AllMP4s)
+	if err != nil {
+		return fmt.Errorf("userGDriveClient.ListFileIDs() returns err: %w", err)
+	}
+
+	for _, fid := range fileIDs {
+		fileInfo, err := userGDriveClient.GetFileInfo(fid)
+		if err != nil {
+			return fmt.Errorf("userGDriveClient.GetFileInfo() returns err: %w", err)
+		}
+
+		if !strings.HasPrefix(fileInfo.FileName, googledrive.Success.String()) {
+			return fmt.Errorf("file with name %q for user with email %q not marked with SUCECSS_ prefix", fileInfo.FileName, user.Email)
 		}
 	}
 

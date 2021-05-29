@@ -136,9 +136,8 @@ func (te *TestEnvironment) Clean() {
 		if err != nil {
 			te.Logger.Error(fmt.Sprintf("Error listing all file IDs for user %q", user.Id))
 		}
-		prefixes := []googledrive.FilePrefix{googledrive.WorkInProgress, googledrive.Error}
 		for _, fid := range fileIDs {
-			for _, prefix := range prefixes {
+			for _, prefix := range googledrive.FilePrefixes {
 				if err := gDrive.MarkFileByID(fid, prefix, true); err != nil {
 					te.Logger.Error(fmt.Sprintf("gDrive.MarkFileByID(%s, %s, true) for user %q returns err: %v", fid, prefix, user.Id, err))
 				}

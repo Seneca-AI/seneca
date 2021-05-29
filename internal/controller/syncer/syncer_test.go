@@ -19,12 +19,15 @@ func TestErrorHandling(t *testing.T) {
 
 	callsMap := map[string]int{"critical": 0, "error": 0}
 	logger.CriticalMock = func(message string) {
+		fmt.Printf("Critical: %q\n", message)
 		callsMap["critical"]++
 	}
 	logger.ErrorMock = func(message string) {
+		fmt.Printf("Error: %q\n", message)
 		callsMap["error"]++
 	}
 	logger.LogMock = func(message string) {
+		fmt.Printf("Log: %q\n", message)
 		callsMap["log"]++
 	}
 
@@ -90,11 +93,14 @@ func TestErrorHandling(t *testing.T) {
 		fakeClient.DownloadFileByIDMock = func(fileID string) (string, error) {
 			return "", fmt.Errorf("error")
 		}
+		fakeClient.GetFileInfoMock = func(fileID string) (*googledrive.FileInfo, error) {
+			return nil, fmt.Errorf("error")
+		}
 		fakeGDrive.InsertFakeClient(fuid, fakeClient, nil)
 	}
 	syncer.ScanAllUsers()
-	if callsMap["error"] != 3 {
-		t.Errorf("Want 3 calls to logger.Error, got %d", callsMap["error"])
+	if callsMap["error"] != 15 {
+		t.Errorf("Want 15 calls to logger.Error, got %d", callsMap["error"])
 	}
 	callsMap["error"] = 0
 
@@ -115,6 +121,9 @@ func TestErrorHandling(t *testing.T) {
 		fakeClient.DownloadFileByIDMock = func(fileID string) (string, error) {
 			return fileID, nil
 		}
+		fakeClient.GetFileInfoMock = func(fileID string) (*googledrive.FileInfo, error) {
+			return &googledrive.FileInfo{}, nil
+		}
 		fakeClient.MarkFileByIDMock = func(fileID string, prefix googledrive.FilePrefix, remove bool) error {
 			return fmt.Errorf("error")
 		}
@@ -124,7 +133,7 @@ func TestErrorHandling(t *testing.T) {
 	if numRequests != 15 {
 		t.Errorf("Want 15 calls to HandleRawVideoProcessRequest, got %d", numRequests)
 	}
-	if callsMap["error"] != 30 {
+	if callsMap["error"] != 45 {
 		t.Errorf("Want 30 calls to logger.Error, got %d", callsMap["error"])
 	}
 }
