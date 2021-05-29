@@ -13,10 +13,6 @@ import (
 	"time"
 )
 
-const (
-	tripIDFieldName = "TripId"
-)
-
 type SQLDrivingConditionDAO struct {
 	sql      database.SQLInterface
 	tripDAO  dao.TripDAO
@@ -80,7 +76,7 @@ func (ddao *SQLDrivingConditionDAO) GetDrivingConditionByID(userID, tripID, driv
 }
 
 func (ddao *SQLDrivingConditionDAO) ListTripDrivingConditionIDs(userID, tripID string) ([]string, error) {
-	return ddao.sql.ListIDs(constants.DrivingConditionTable, []*database.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
+	return ddao.sql.ListIDs(constants.DrivingConditionTable, []*database.QueryParam{{FieldName: constants.TripIDFieldName, Operand: "=", Value: tripID}})
 }
 func (ddao *SQLDrivingConditionDAO) DeleteDrivingConditionByID(ctx context.Context, userID, tripID, drivingConditionID string) error {
 	return ddao.sql.DeleteByID(constants.DrivingConditionTable, drivingConditionID)

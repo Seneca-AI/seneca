@@ -12,11 +12,6 @@ import (
 	"seneca/internal/util"
 )
 
-const (
-	eventIDFieldName = "EventId"
-	tripIDFieldName  = "TripId"
-)
-
 type SQLEventDAO struct {
 	sql     database.SQLInterface
 	tripDAO dao.TripDAO
@@ -98,7 +93,7 @@ func (edao *SQLEventDAO) GetEventByID(userID, tripID, eventID string) (*st.Event
 }
 
 func (edao *SQLEventDAO) ListTripEventIDs(userID, tripID string) ([]string, error) {
-	return edao.sql.ListIDs(constants.EventTable, []*database.QueryParam{{FieldName: tripIDFieldName, Operand: "=", Value: tripID}})
+	return edao.sql.ListIDs(constants.EventTable, []*database.QueryParam{{FieldName: constants.TripIDFieldName, Operand: "=", Value: tripID}})
 }
 
 func (edao *SQLEventDAO) DeleteEventByID(ctx context.Context, userID, tripID, eventID string) error {

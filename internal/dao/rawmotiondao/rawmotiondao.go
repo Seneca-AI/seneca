@@ -11,12 +11,6 @@ import (
 	"seneca/internal/util"
 )
 
-const (
-	userIDFieldName       = "UserId"
-	algosVersionFieldName = "AlgosVersion"
-	timestampFieldName    = "TimestampMs"
-)
-
 type SQLRawMotionDAO struct {
 	sql    database.SQLInterface
 	logger logging.LoggingInterface
@@ -32,12 +26,12 @@ func NewSQLRawMotionDAO(sqlInterface database.SQLInterface, logger logging.Loggi
 func (rdao *SQLRawMotionDAO) InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st.RawMotion, error) {
 	ids, err := rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{
 		{
-			FieldName: userIDFieldName,
+			FieldName: constants.UserIDFieldName,
 			Operand:   "=",
 			Value:     rawMotion.UserId,
 		},
 		{
-			FieldName: timestampFieldName,
+			FieldName: constants.TimestampFieldName,
 			Operand:   "=",
 			Value:     rawMotion.TimestampMs,
 		},
@@ -74,7 +68,7 @@ func (rdao *SQLRawMotionDAO) PutRawMotionByID(ctx context.Context, rawMotionID s
 }
 
 func (rdao *SQLRawMotionDAO) ListUnprocessedRawMotionIDs(userID string, latestVersion float64) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}, {FieldName: algosVersionFieldName, Operand: "<", Value: latestVersion}})
+	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}, {FieldName: constants.AlgosVersionFieldName, Operand: "<", Value: latestVersion}})
 }
 
 func (rdao *SQLRawMotionDAO) GetRawMotionByID(id string) (*st.RawMotion, error) {
@@ -96,7 +90,7 @@ func (rdao *SQLRawMotionDAO) GetRawMotionByID(id string) (*st.RawMotion, error) 
 }
 
 func (rdao *SQLRawMotionDAO) ListUserRawMotionIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawMotionsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawMotionDAO) DeleteRawMotionByID(id string) error {
