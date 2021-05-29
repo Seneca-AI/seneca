@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"seneca/internal/authenticator"
 )
 
 const (
-	authHeaderKey = "Authorization"
-	authToken     = "lSfsjS3nebraYqbzbpFS"
-	port          = "5050"
-	endpoint      = "/integration_test"
+	port     = "5050"
+	endpoint = "/integration_test"
 )
 
 var lock = false
@@ -28,6 +27,10 @@ func main() {
 func runIntegrationTest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received integration test request")
 
+	if err := authenticator.AuthorizeHTTPRequest(w, r); err != nil {
+		return
+	}
+
 	if lock {
 		w.WriteHeader(400)
 		fmt.Fprintf(w, "An integration test is already running.")
@@ -35,14 +38,6 @@ func runIntegrationTest(w http.ResponseWriter, r *http.Request) {
 	}
 	lock = true
 	defer func() { lock = false }()
-
-	// Since this is a public endpoint, check for auth.
-	auth := r.Header.Get(authHeaderKey)
-	if auth != authToken {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Invalid auth token %q\n", auth)
-		return
-	}
 
 	defer cleanUpRepos()
 	output, err := exec.Command("/bin/sh", "itest.sh").Output()
