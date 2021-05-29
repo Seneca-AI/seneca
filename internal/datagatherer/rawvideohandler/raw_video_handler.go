@@ -136,6 +136,7 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 
 		return nil, fmt.Errorf("mp4Tool.ParseOutRawVideoMetadata(%s) returns - err: %w", mp4Path, err)
 	}
+	rawVideo.OriginalFileName = req.VideoName
 
 	if rawVideo.DurationMs > constants.MaxInputVideoDuration.Milliseconds() {
 		return nil, senecaerror.NewUserError(req.UserId, fmt.Errorf("error handling RawVideoProcessRequest - duration %v is longer than maxVideoDuration %v", util.MillisecondsToDuration(rawVideo.DurationMs), constants.MaxInputVideoDuration), fmt.Sprintf("Max video duration is %v", constants.MaxInputVideoDuration))
@@ -202,8 +203,6 @@ func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName str
 	if err != nil {
 		return "", fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
 	}
-
-	// TODO(lucaloncar): mark the google drive file a success
 
 	return newRawVideo.Id, nil
 }

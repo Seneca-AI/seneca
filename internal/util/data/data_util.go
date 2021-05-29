@@ -102,6 +102,10 @@ func RawVideosEqual(lhs *st.RawVideo, rhs *st.RawVideo) error {
 		errorString = errorString + fmt.Sprintf(" DurationMs: %d != DurationMs: %d", lhs.DurationMs, rhs.DurationMs)
 	}
 
+	if lhs.OriginalFileName != rhs.OriginalFileName {
+		errorString = errorString + fmt.Sprintf(" OriginalFileName: %q != OriginalFileName: %q", lhs.OriginalFileName, rhs.OriginalFileName)
+	}
+
 	if errorString != "" {
 		return fmt.Errorf(errorString)
 	}

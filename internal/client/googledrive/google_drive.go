@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	// TODO(lucaloncar): upgrade to v3.
 	"google.golang.org/api/drive/v2"
 )
 
@@ -20,6 +22,11 @@ const (
 	googleDriveFolderName = "Senecacam"
 )
 
+type FileInfo struct {
+	FileName string
+}
+
+// <<< BEGIN FilePrefix definition.
 type FilePrefix string
 
 const (
@@ -33,9 +40,12 @@ func (fp FilePrefix) String() string {
 }
 
 var (
-	filePrefixes = []FilePrefix{Success, WorkInProgress, Error}
+	FilePrefixes = []FilePrefix{Success, WorkInProgress, Error}
 )
 
+// >>> END FilePrefix definition.
+
+// <<< BEGIN GDriveQuery definition.
 type GDriveQuery string
 
 const (
@@ -47,6 +57,8 @@ func (gdq GDriveQuery) String() string {
 	return string(gdq)
 }
 
+// >>> END GDriveQuery definition.
+
 //nolint
 type GoogleDriveUserInterface interface {
 	// 	ListFileIDs lists all of the relevant files from the user's Google Drive.
@@ -55,6 +67,7 @@ type GoogleDriveUserInterface interface {
 	DownloadFileByID(fileID string) (string, error)
 	// 	MarkFileByID marks the file with the given ID by adding or removing the prefix.
 	MarkFileByID(fileID string, prefix FilePrefix, remove bool) error
+	GetFileInfo(fileID string) (*FileInfo, error)
 }
 
 //nolint
@@ -114,7 +127,6 @@ func NewGoogleDriveUserClient(user *st.User, pathToOAuthCredentials string) (*Go
 	}, nil
 }
 
-// TODO(lucaloncar): make sure files in trash are not included
 // 	ListFileIDs returns a list of the IDs of all of the files in the Senecacam googleDriveFolderName
 // 	without the fileSuccessPrefix and fileErrorPrefix but with a ".mp4" suffix.
 // 	Params:
@@ -178,6 +190,17 @@ func (gduc *GoogleDriveUserClient) DownloadFileByID(fileID string) (string, erro
 	return tempFile.Name(), nil
 }
 
+func (gduc *GoogleDriveUserClient) GetFileInfo(fileID string) (*FileInfo, error) {
+	file, err := gduc.service.Files.Get(fileID).Do()
+	if err != nil {
+		return nil, fmt.Errorf("Files.Get() returns err: %w", err)
+	}
+
+	return &FileInfo{
+		FileName: file.Title,
+	}, nil
+}
+
 // 	MarkFileByID marks the file with the given ID with the fileSuccessPrefix or fileErrorPrefix.
 //	Params:
 //		fileID string: the ID of the file to mark
@@ -199,6 +222,14 @@ func (gduc *GoogleDriveUserClient) MarkFileByID(fileID string, prefix FilePrefix
 		}
 		newName = originalName[len(prefix):]
 	} else {
+		// Replace if it already has a prefix.
+		for _, pfx := range FilePrefixes {
+			if strings.HasPrefix(originalName, pfx.String()) {
+				originalName = originalName[len(pfx):]
+				break
+			}
+		}
+
 		newName = fmt.Sprintf("%s%s", prefix, originalName)
 	}
 
@@ -211,12 +242,13 @@ func (gduc *GoogleDriveUserClient) MarkFileByID(fileID string, prefix FilePrefix
 }
 
 func (gduc *GoogleDriveUserClient) generateQuery(gdq GDriveQuery) string {
+	allQueriesPrefix := fmt.Sprintf("parents in '%s' and trashed = false and title contains '.mp4'", gduc.folderID)
 	switch gdq.String() {
 	case AllMP4s.String():
-		return fmt.Sprintf("parents in '%s' and title contains '.mp4'", gduc.folderID)
+		return allQueriesPrefix
 	case UnprocessedMP4s.String():
-		query := fmt.Sprintf("parents in '%s' and title contains '.mp4'", gduc.folderID)
-		for _, prefix := range filePrefixes {
+		query := allQueriesPrefix
+		for _, prefix := range FilePrefixes {
 			query = query + fmt.Sprintf(" and not title contains '%s'", prefix.String())
 		}
 		return query
