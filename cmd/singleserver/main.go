@@ -96,7 +96,11 @@ func main() {
 	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
-	dataprocessor := dataprocessor.New(dataprocessor.GetCurrentAlgorithms(), eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
+	dataprocessor, err := dataprocessor.New(nil, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+	if err != nil {
+		logger.Critical(fmt.Sprintf("dataprocessor.New() returns - err: %v", err))
+		return
+	}
 	runner := runner.New(userDAO, dataprocessor, logger)
 	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, drivingConditionDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
