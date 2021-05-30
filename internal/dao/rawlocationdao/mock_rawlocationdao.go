@@ -6,10 +6,11 @@ import (
 )
 
 type MockRawLocatinDAO struct {
-	InsertUniqueRawLocationMock func(rawLocation *st.RawLocation) (*st.RawLocation, error)
-	GetRawLocationByIDMock      func(id string) (*st.RawLocation, error)
-	ListUserRawLocationIDsMock  func(userID string) ([]string, error)
-	DeleteRawLocationByIDMock   func(id string) error
+	InsertUniqueRawLocationMock        func(rawLocation *st.RawLocation) (*st.RawLocation, error)
+	GetRawLocationByIDMock             func(id string) (*st.RawLocation, error)
+	ListUserRawLocationIDsMock         func(userID string) ([]string, error)
+	DeleteRawLocationByIDMock          func(id string) error
+	ListUnprocessedRawLocationsIDsMock func(userID string, latestVersion float64) ([]string, error)
 }
 
 func (mrld *MockRawLocatinDAO) InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error) {
@@ -31,6 +32,13 @@ func (mrld *MockRawLocatinDAO) ListUserRawLocationIDs(userID string) ([]string, 
 		log.Fatal("ListUserRawLocationIDsMock called but not set")
 	}
 	return mrld.ListUserRawLocationIDsMock(userID)
+}
+
+func (mrld *MockRawLocatinDAO) ListUnprocessedRawLocationsIDs(userID string, latestVersion float64) ([]string, error) {
+	if mrld.ListUnprocessedRawLocationsIDsMock == nil {
+		log.Fatal("ListUnprocessedRawLocationsIDsMock called but not set")
+	}
+	return mrld.ListUnprocessedRawLocationsIDsMock(userID, latestVersion)
 }
 
 func (mrld *MockRawLocatinDAO) DeleteRawLocationByID(id string) error {
