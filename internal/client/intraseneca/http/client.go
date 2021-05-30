@@ -13,13 +13,17 @@ import (
 type Client struct {
 	hostName   string
 	hostPort   string
+	authKey    string
+	authToken  string
 	httpClient *http.Client
 }
 
-func New(hostName, hostPort string) *Client {
+func New(hostName, hostPort, authKey, authToken string) *Client {
 	return &Client{
 		hostName:   hostName,
 		hostPort:   hostPort,
+		authKey:    authKey,
+		authToken:  authToken,
 		httpClient: &http.Client{},
 	}
 }
@@ -34,6 +38,7 @@ func (ct *Client) ListTrips(req *st.TripListRequest) (*st.TripListResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("error initializing HTTP get request: %w", err)
 	}
+	httpReq.Header.Add(ct.authKey, ct.authToken)
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
