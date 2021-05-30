@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"seneca/api/constants"
 	st "seneca/api/type"
 	"seneca/internal/util"
 	"time"
@@ -30,7 +31,7 @@ func main() {
 				TimestampMs: util.TimeToMilliseconds(tripStart.Add(time.Duration(rand.Intn(60) * int(time.Minute)))),
 				Source: &st.Source{
 					SourceType: st.Source_RAW_VIDEO,
-					SourceId:   "5929195020484608",
+					SourceId:   "4727288956452864",
 				},
 			},
 		}
@@ -56,7 +57,7 @@ func main() {
 				EndTimeMs:     util.TimeToMilliseconds(endTime),
 				Source: &st.Source{
 					SourceType: st.Source_RAW_VIDEO,
-					SourceId:   "5929195020484608",
+					SourceId:   "4727288956452864",
 				},
 			},
 		}
@@ -78,7 +79,7 @@ func main() {
 			EndTimeMs:     util.TimeToMilliseconds(tripEnd),
 			Source: &st.Source{
 				SourceType: st.Source_RAW_VIDEO,
-				SourceId:   "5929195020484608",
+				SourceId:   "4727288956452864",
 			},
 		},
 	}
@@ -105,10 +106,11 @@ func sendHTTPTripListRequest(req *st.TripListRequest) error {
 
 	client := &http.Client{}
 
-	httpReq, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:6060/users/%s/trips", req.UserId), buffer)
+	httpReq, err := http.NewRequest("GET", fmt.Sprintf("http://34.134.193.24:6060/users/%s/trips", req.UserId), buffer)
 	if err != nil {
 		return fmt.Errorf("error initializing HTTP get request: %w", err)
 	}
+	httpReq.Header.Add("Authorization", constants.SenecaAPIKey)
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
@@ -135,7 +137,15 @@ func sendHTTPEventCreateRequest(req *st.EventCreateRequest) error {
 	buffer := &bytes.Buffer{}
 	proto.MarshalText(buffer, req)
 
-	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:6060/users/%s/events", req.UserId), "application/json", buffer)
+	client := &http.Client{}
+
+	httpReq, err := http.NewRequest("POST", fmt.Sprintf("http://34.134.193.24:6060/users/%s/events", req.UserId), buffer)
+	if err != nil {
+		return fmt.Errorf("error ctring request: %w", err)
+	}
+	httpReq.Header.Add("Authorization", constants.SenecaAPIKey)
+
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}
@@ -158,8 +168,15 @@ func sendHTTPEventCreateRequest(req *st.EventCreateRequest) error {
 func sendHTTPDrivingConditionCreateRequest(req *st.DrivingConditionCreateRequest) error {
 	buffer := &bytes.Buffer{}
 	proto.MarshalText(buffer, req)
+	client := &http.Client{}
 
-	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:6060/users/%s/driving_conditions", req.UserId), "application/json", buffer)
+	httpReq, err := http.NewRequest("POST", fmt.Sprintf("http://34.134.193.24:6060/users/%s/driving_conditions", req.UserId), buffer)
+	if err != nil {
+		return fmt.Errorf("error ctring request: %w", err)
+	}
+	httpReq.Header.Add("Authorization", constants.SenecaAPIKey)
+
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}

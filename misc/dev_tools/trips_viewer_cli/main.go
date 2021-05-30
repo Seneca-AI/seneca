@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"seneca/api/constants"
 	st "seneca/api/type"
 	"seneca/internal/client/intraseneca/http"
 	"seneca/internal/util"
@@ -19,7 +20,7 @@ const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 var screenWidth = 0
 
 func main() {
-	intraSenecaClient := http.New("127.0.0.1", "6060")
+	intraSenecaClient := http.New("34.134.193.24", "6060", "Authorization", constants.SenecaAPIKey)
 
 	for {
 		var err error
