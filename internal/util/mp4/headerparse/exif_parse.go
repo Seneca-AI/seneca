@@ -13,7 +13,7 @@ import (
 )
 
 // In the form "<deg> deg <deg_mins>' <deg_sconds>\"".
-func parseDegrees(degreesStr string) (float64, float64, float64, error) {
+func parseDegrees(degreesStr string) (int32, int32, float64, error) {
 	degreesStrSplit := strings.Split(degreesStr, " ")
 	if len(degreesStrSplit) != 4 {
 		return 0, 0, 0, fmt.Errorf("invalid length for lat/long degrees string %q", degreesStr)
@@ -22,18 +22,20 @@ func parseDegrees(degreesStr string) (float64, float64, float64, error) {
 	if degreesStrSplit[1] != "deg" {
 		return 0, 0, 0, fmt.Errorf("invalid format for latitude string %q", degreesStr)
 	}
-	degrees, err := strconv.ParseFloat(degreesStrSplit[0], 64)
+	degrees64, err := strconv.ParseInt(degreesStrSplit[0], 10, 32)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("error parsing float from deg in %q", degreesStr)
 	}
+	degrees := int32(degrees64)
 
 	if degreesStrSplit[2][len(degreesStrSplit[2])-1:] != "'" {
 		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeMins symbol", degreesStr)
 	}
-	degreeMins, err := strconv.ParseFloat(degreesStrSplit[2][:len(degreesStrSplit[2])-1], 64)
+	degreeMins64, err := strconv.ParseInt(degreesStrSplit[2][:len(degreesStrSplit[2])-1], 10, 32)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("error parsing float from deg mins in %q", degreesStr)
 	}
+	degreeMins := int32(degreeMins64)
 
 	if degreesStrSplit[3][len(degreesStrSplit[3])-1:] != "\"" {
 		return 0, 0, 0, fmt.Errorf("error parsing lat/long degrees string %q, missing degreeSecs symbol - %q != %q", degreesStr, degreesStrSplit[3][len(degreesStrSplit[3])-1:], "\\\"")
