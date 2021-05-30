@@ -317,10 +317,10 @@ func TestStringToLatitude(t *testing.T) {
 		},
 		{
 			desc:     "test string with all decimals and south succeeds",
-			inputStr: "40.35 deg 24.56' 57.78\" S",
+			inputStr: "40 deg 24' 57.78\" S",
 			want: &st.Latitude{
-				Degrees:       40.35,
-				DegreeMinutes: 24.56,
+				Degrees:       40,
+				DegreeMinutes: 24,
 				DegreeSeconds: 57.78,
 				LatDirection:  st.Latitude_SOUTH,
 			},
@@ -398,10 +398,10 @@ func TestStringToLongitude(t *testing.T) {
 		},
 		{
 			desc:     "test string with all decimals and west succeeds",
-			inputStr: "40.35 deg 24.56' 57.78\" W",
+			inputStr: "40 deg 24' 57.78\" W",
 			want: &st.Longitude{
-				Degrees:       40.35,
-				DegreeMinutes: 24.56,
+				Degrees:       40,
+				DegreeMinutes: 24,
 				DegreeSeconds: 57.78,
 				LongDirection: st.Longitude_WEST,
 			},
