@@ -8,7 +8,6 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
-	"seneca/internal/util"
 )
 
 type SQLRawMotionDAO struct {
@@ -60,11 +59,7 @@ func (rdao *SQLRawMotionDAO) InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st
 }
 
 func (rdao *SQLRawMotionDAO) PutRawMotionByID(ctx context.Context, rawMotionID string, rawMotion *st.RawMotion) error {
-	err := rdao.sql.Insert(constants.RawMotionsTable, rawMotion.Id, rawMotion)
-	if err == nil {
-		rdao.logger.Log(fmt.Sprintf("Put rawMotion for user %s at %v", rawMotion.UserId, util.MillisecondsToTime(rawMotion.TimestampMs)))
-	}
-	return err
+	return rdao.sql.Insert(constants.RawMotionsTable, rawMotionID, rawMotion)
 }
 
 func (rdao *SQLRawMotionDAO) ListUnprocessedRawMotionIDs(userID string, latestVersion float64) ([]string, error) {

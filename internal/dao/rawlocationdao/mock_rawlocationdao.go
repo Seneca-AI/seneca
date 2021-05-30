@@ -1,12 +1,14 @@
 package rawlocationdao
 
 import (
+	"context"
 	"log"
 	st "seneca/api/type"
 )
 
 type MockRawLocatinDAO struct {
 	InsertUniqueRawLocationMock        func(rawLocation *st.RawLocation) (*st.RawLocation, error)
+	PutRawLocationByIDMock             func(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error
 	GetRawLocationByIDMock             func(id string) (*st.RawLocation, error)
 	ListUserRawLocationIDsMock         func(userID string) ([]string, error)
 	DeleteRawLocationByIDMock          func(id string) error
@@ -46,4 +48,11 @@ func (mrld *MockRawLocatinDAO) DeleteRawLocationByID(id string) error {
 		log.Fatal("DeleteRawLocationByIDMock called but not set")
 	}
 	return mrld.DeleteRawLocationByIDMock(id)
+}
+
+func (mrld *MockRawLocatinDAO) PutRawLocationByID(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error {
+	if mrld.PutRawLocationByIDMock == nil {
+		log.Fatal("PutRawLocationByIDMock called but not set")
+	}
+	return mrld.PutRawLocationByIDMock(ctx, rawLocationID, rawLocation)
 }

@@ -1,6 +1,7 @@
 package rawlocationdao
 
 import (
+	"context"
 	"fmt"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
@@ -47,12 +48,16 @@ func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocati
 	rawLocation.Id = newRawLocationID
 
 	// Now set the ID in the datastore object.
-	if err := rdao.sql.Insert(constants.RawLocationsTable, rawLocation.Id, rawLocation); err != nil {
+	if err := rdao.PutRawLocationByID(context.TODO(), rawLocation.Id, rawLocation); err != nil {
 		return nil, fmt.Errorf("error updating rawLocationID for rawLocation %v - err: %w", rawLocation, err)
 	}
 
 	rawLocation.Id = newRawLocationID
 	return rawLocation, nil
+}
+
+func (rdao *SQLRawLocationDAO) PutRawLocationByID(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error {
+	return rdao.sql.Insert(constants.RawLocationsTable, rawLocationID, rawLocation)
 }
 
 func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, error) {
