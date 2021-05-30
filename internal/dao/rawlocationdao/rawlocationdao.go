@@ -77,6 +77,10 @@ func (rdao *SQLRawLocationDAO) ListUserRawLocationIDs(userID string) ([]string, 
 	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 }
 
+func (rdao *SQLRawLocationDAO) ListUnprocessedRawLocationsIDs(userID string, latestVersion float64) ([]string, error) {
+	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}, {FieldName: constants.AlgosVersionFieldName, Operand: "<", Value: latestVersion}})
+}
+
 func (rdao *SQLRawLocationDAO) DeleteRawLocationByID(id string) error {
 	return rdao.sql.DeleteByID(constants.RawLocationsTable, id)
 }

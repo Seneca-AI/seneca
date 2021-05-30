@@ -210,6 +210,8 @@ func getRawLocationField(fieldName constants.SenecaTypeFieldName, rawLocationObj
 		return rawLocation.TimestampMs
 	case constants.UserIDFieldName:
 		return rawLocation.UserId
+	case constants.AlgosVersionFieldName:
+		return rawLocation.AlgosVersion
 	default:
 		log.Fatalf("Getting RawLocation field name %q not supported", fieldName)
 	}
