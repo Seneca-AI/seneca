@@ -27,6 +27,7 @@ type RawVideoDAO interface {
 
 type RawLocationDAO interface {
 	InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error)
+	PutRawLocationByID(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error
 	GetRawLocationByID(id string) (*st.RawLocation, error)
 	ListUnprocessedRawLocationsIDs(userID string, latestVersion float64) ([]string, error)
 	ListUserRawLocationIDs(userID string) ([]string, error)
