@@ -6,7 +6,6 @@ import (
 	"os"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -126,25 +125,25 @@ func DrivingConditionExternalToPrettyString(dc *st.DrivingCondition) string {
 	return output
 }
 
-type Range struct {
-	L float64
-	U float64
-}
-
-// TODO(lucaloncar): enforce invariants (such as ordered non-overlapping keys)  with a New() function.
-type RangeMap struct {
-	Keys   []Range
-	Values []interface{}
-}
-
-func (rm RangeMap) Get(key float64) (interface{}, bool) {
-	i := sort.Search(len(rm.Keys), func(i int) bool {
-		return key < rm.Keys[i].L
-	})
-
-	i--
-	if i >= 0 && i < len(rm.Keys) && key <= rm.Keys[i].U {
-		return rm.Values[i], true
+func StringToInterfaceMapOrFalse(key string, mapObj map[string]interface{}) (map[string]interface{}, bool) {
+	subMapObj, ok := mapObj[key]
+	if !ok {
+		return nil, false
 	}
-	return "", false
+	subMap, ok := subMapObj.(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	return subMap, true
+}
+
+func RemoveTrailingZeroes(in string) string {
+	for i := len(in) - 1; i > 0; i-- {
+		if in[i:i+1] == "0" || in[i:i+1] == "." {
+			in = in[:i]
+		} else {
+			break
+		}
+	}
+	return in
 }

@@ -30,7 +30,7 @@ import (
 
 type TestEnvironment struct {
 	ProjectID           string
-	Logger              logging.LoggingInterface
+	Logger              *ErrorCounterLogWrapper
 	sqlService          database.SQLInterface
 	SimpleStorage       cloud.SimpleStorageInterface
 	UserDAO             dao.UserDAO
@@ -47,6 +47,8 @@ type TestEnvironment struct {
 }
 
 func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, error) {
+	wrappedLogger := NewErrorCounterLogWrapper(logger)
+
 	gcsc, err := gcp.NewGoogleCloudStorageClient(context.Background(), projectID, time.Second*10, time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("cloud.NewGoogleCloudStorageClient() returns - err: %w", err)
@@ -58,31 +60,34 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	}
 
 	userDAO := userdao.NewSQLUserDAO(sqlService)
-	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, logger, time.Second*5)
+	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, wrappedLogger, time.Second*5)
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
-	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, logger)
-	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
-	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
+	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, wrappedLogger)
+	tripDAO := tripdao.NewSQLTripDAO(sqlService, wrappedLogger)
+	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, wrappedLogger)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
 
-	mp4Tool, err := mp4.NewMP4Tool(logger)
+	mp4Tool, err := mp4.NewMP4Tool(wrappedLogger)
 	if err != nil {
 		return nil, fmt.Errorf(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 	}
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, logger, projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, wrappedLogger, projectID)
 	if err != nil {
 		return nil, fmt.Errorf(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 	}
 	gDriveFactory := &googledrive.UserClientFactory{}
-	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
-	dataprocessor := dataprocessor.New(dataprocessor.GetCurrentAlgorithms(), eventDAO, dcDAO, rawMotionDAO, rawVideoDAO, logger)
-	runner := runner.New(userDAO, dataprocessor, logger)
+	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, wrappedLogger)
+	dataprocessor, err := dataprocessor.New(nil, eventDAO, dcDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, wrappedLogger)
+	if err != nil {
+		return nil, fmt.Errorf("dataprocessor.New() returns err: %w", err)
+	}
+	runner := runner.New(userDAO, dataprocessor, wrappedLogger)
 	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, dcDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	return &TestEnvironment{
 		ProjectID:           projectID,
-		Logger:              logger,
+		Logger:              wrappedLogger,
 		sqlService:          sqlService,
 		SimpleStorage:       gcsc,
 		UserDAO:             userDAO,
@@ -148,4 +153,39 @@ func (te *TestEnvironment) Clean() {
 			te.Logger.Error(fmt.Sprintf("DeleteAllUserDataInDB(%s, %t, _) returns err: %v", uid, false, err))
 		}
 	}
+}
+
+// ErrorCounterLogWrapper counts how many calls to Error() and Critical() there were.
+type ErrorCounterLogWrapper struct {
+	logger   logging.LoggingInterface
+	failures int
+}
+
+func NewErrorCounterLogWrapper(logger logging.LoggingInterface) *ErrorCounterLogWrapper {
+	return &ErrorCounterLogWrapper{
+		logger:   logger,
+		failures: 0,
+	}
+}
+
+func (foe *ErrorCounterLogWrapper) Log(message string) {
+	foe.logger.Log(message)
+}
+
+func (foe *ErrorCounterLogWrapper) Warning(message string) {
+	foe.logger.Warning(message)
+}
+
+func (foe *ErrorCounterLogWrapper) Error(message string) {
+	foe.failures++
+	foe.logger.Error(message)
+}
+
+func (foe *ErrorCounterLogWrapper) Critical(message string) {
+	foe.failures++
+	foe.logger.Critical(message)
+}
+
+func (foe *ErrorCounterLogWrapper) Failures() int {
+	return foe.failures
 }

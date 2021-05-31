@@ -87,5 +87,9 @@ func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
 		}
 	}
 
+	if testEnv.Logger.Failures() > 0 {
+		return fmt.Errorf("got %d logging failures", testEnv.Logger.Failures())
+	}
+
 	return nil
 }
