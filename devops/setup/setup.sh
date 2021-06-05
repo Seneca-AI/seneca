@@ -51,6 +51,9 @@ setup() {
 	sudo rm -r Image-ExifTool-12.22 
 	rm Image-ExifTool-12.22.tar.gz 
 
+	echo "Installing ffmpeg"
+	sudo apt install ffmpeg -y
+
 	echo "Getting protos"
 	cd ../../..
 	git clone https://${GITHUB_TOKEN}@github.com/Seneca-AI/common.git > seneca/devops/setup/setup.log
