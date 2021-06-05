@@ -17,7 +17,7 @@ func (bn *BucketName) String() string {
 }
 
 func (bn *BucketName) RealName(projectID string) string {
-	return fmt.Sprintf("%s-%s/", projectID, string(*bn))
+	return fmt.Sprintf("%s-%s", projectID, string(*bn))
 }
 
 // SimpleStorageInterface is the interface used for interacting with
