@@ -13,8 +13,13 @@ import (
 	"time"
 )
 
-// ffmpeg -i <input file name> -ss <start timestamp> -t <cut duration> copy <output file name>.
-const ffmpegCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
+const (
+	// ffmpeg -i <input file name> -ss <start timestamp> -t <cut duration> copy <output file name>.
+	cutVideoCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
+
+	// ffmpeg -i <intput file name> -vf fps=<frames per second> <prefix>%05.png.
+	videoToFramesCommand = "ffmpeg -i %s -vf fps=%s %s%%05d.png"
+)
 
 // 	CutRawVideo utilizes ffmpeg to cut the raw video mp4.
 func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.RawVideo, dryRun bool) ([]*st.CutVideo, []string, error) {
@@ -68,7 +73,7 @@ func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.
 		startTimeString := util.DurationToString(startTime)
 		cutLengthString := util.DurationToString(util.MillisecondsToDuration(cutVideo.DurationMs))
 
-		commandString := fmt.Sprintf(ffmpegCommand, pathToRawVideo, startTimeString, cutLengthString, cutVideoFileName)
+		commandString := fmt.Sprintf(cutVideoCommand, pathToRawVideo, startTimeString, cutLengthString, cutVideoFileName)
 		commandStringParts := strings.Split(commandString, " ")
 		if len(commandStringParts) != 10 {
 			return nil, nil, senecaerror.NewBadStateError(fmt.Errorf("malformed command string for ffmpeg: %q", commandString))
@@ -89,4 +94,79 @@ func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.
 	}
 
 	return cutVideos, cutVideoFileNames, nil
+}
+
+// 	RawVideoToFrames converts a rawVideo to constituent frames.
+// 	Params:
+//
+//	Returns:
+//		[]*st.RawFrame
+//		string: path to temp directory holding the raw frames
+//		error
+func RawVideoToFrames(fps float64, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.RawFrame, string, error) {
+	rawVideoFileName, err := util.GetFileNameFromPath(pathToRawVideo)
+	if err != nil {
+		return nil, "", fmt.Errorf("error extracting pathToRawVideo %q - err: %v", pathToRawVideo, err)
+	}
+
+	rawVideoFileNameParts := strings.Split(rawVideoFileName, ".")
+	if len(rawVideoFileNameParts) < 2 {
+		return nil, "", fmt.Errorf("pathToRawVideo %q in invalid format", pathToRawVideo)
+	}
+	rawVideoFileNameNoSuffix := strings.Join(rawVideoFileNameParts[:len(rawVideoFileNameParts)-1], ".")
+
+	if rawVideo.UserId == "" {
+		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no userID set", rawVideo))
+	}
+
+	if rawVideo.DurationMs == 0 {
+		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no duration set", rawVideo))
+	}
+
+	rawFrames := []*st.RawFrame{}
+
+	rawVideoDurationSeconds := util.MillisecondsToDuration(rawVideo.DurationMs).Seconds()
+
+	for i := float64(0); i < float64(rawVideoDurationSeconds)*fps; i++ {
+		timestampMS := rawVideo.CreateTimeMs + int64(i*(1/fps))
+		rf := &st.RawFrame{
+			UserId:               rawVideo.UserId,
+			TimestampMs:          timestampMS,
+			CloudStorageFileName: fmt.Sprintf("%d.%s.png", timestampMS, rawVideo.UserId),
+			Source: &st.Source{
+				SourceId:   rawVideo.Id,
+				SourceType: st.Source_RAW_VIDEO,
+			},
+		}
+		rawFrames = append(rawFrames, rf)
+	}
+
+	// Create the temp dir for the CutVideos to be staged.
+	tempDirName := ""
+	tempDirName, err = ioutil.TempDir("", fmt.Sprintf("%s.RawFrames.*", rawVideo.UserId))
+	if err != nil {
+		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("error creating default temp dir with pattern %s.CutVideos.* - err: %v", rawVideo.UserId, err))
+	}
+
+	commandString := fmt.Sprintf(videoToFramesCommand, pathToRawVideo, decimalToFractionString(fps), fmt.Sprintf("%s/%s", tempDirName, rawVideoFileNameNoSuffix))
+	commandStringParts := strings.Split(commandString, " ")
+	if len(commandStringParts) != 6 {
+		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("malformed command string for ffmpeg: %q", commandString))
+	}
+
+	// Strangely, a first string arg is required, then the rest can come.
+	cmd := exec.Command(commandStringParts[0], commandStringParts[1:]...)
+
+	if err := cmd.Run(); err != nil {
+		return nil, "", fmt.Errorf("error executing command %q - err: %v", commandString, err)
+	}
+
+	return rawFrames, tempDirName, nil
+}
+
+func decimalToFractionString(decimal float64) string {
+	if decimal >= 1 {
+		return fmt.Sprintf("%d", int64(decimal))
+	}
+	return fmt.Sprintf("1/%d", int(1/decimal))
 }

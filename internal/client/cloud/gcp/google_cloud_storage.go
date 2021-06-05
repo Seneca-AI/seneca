@@ -162,6 +162,9 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketNam
 	if err := wc.Close(); err != nil {
 		return senecaerror.NewBadStateError(fmt.Errorf("error closing writer: %w", err))
 	}
+
+	// TODO(lucaloncar): remove localFileNameAndPath
+
 	return nil
 }
 
