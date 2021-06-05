@@ -8,6 +8,8 @@ type BucketName string
 const (
 	// RawVideoBucketName defines the bucket used for raw videos.
 	RawVideoBucketName BucketName = "raw_videos"
+
+	RawFrameBucketName BucketName = "raw_frames"
 )
 
 func (bn *BucketName) String() string {
@@ -15,7 +17,7 @@ func (bn *BucketName) String() string {
 }
 
 func (bn *BucketName) RealName(projectID string) string {
-	return fmt.Sprintf("%s-%s", projectID, string(*bn))
+	return fmt.Sprintf("%s-%s/", projectID, string(*bn))
 }
 
 // SimpleStorageInterface is the interface used for interacting with
