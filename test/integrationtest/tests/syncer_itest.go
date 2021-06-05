@@ -63,6 +63,67 @@ func E2ESyncer(testUserEmail string, testEnv *testenv.TestEnvironment) error {
 		if err := data.RawVideosEqual(gotRawVideos[i], wantRawVideos[i]); err != nil {
 			return fmt.Errorf("raw videos not equal (got != want): %w", err)
 		}
+
+		bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(gotRawVideos[i].CloudStorageFileName)
+		if err != nil {
+			return fmt.Errorf("GCSURLToBucketNameAndFileName() returns err: %w", err)
+		}
+
+		exists, err := testEnv.SimpleStorage.BucketFileExists(bucketName, fileName)
+		if err != nil {
+			return fmt.Errorf("BucketFileExists(%s, %s) returns err: %w", bucketName, fileName, err)
+		}
+
+		if !exists {
+			return fmt.Errorf("BucketFileExists(%s, %s) returns false", bucketName, fileName)
+		}
+	}
+
+	// Verify derivative data exists.
+	rawLocationIDs, err := testEnv.RawLocationDAO.ListUserRawLocationIDs(user.Id)
+	if err != nil {
+		return fmt.Errorf("ListUserRawLocationIDs() returns err: %w", err)
+	}
+	if len(rawLocationIDs) != 60 {
+		return fmt.Errorf("want %d rawLocationIDs, got %d", 60, len(rawLocationIDs))
+	}
+	rawMotionIDs, err := testEnv.RawMotionDAO.ListUserRawMotionIDs(user.Id)
+	if err != nil {
+		return fmt.Errorf("ListUserRawMotionIDs() returns err: %w", err)
+	}
+	if len(rawMotionIDs) != 60 {
+		return fmt.Errorf("want %d rawMotionIDs, got %d", 60, len(rawMotionIDs))
+	}
+	rawFrameIDs, err := testEnv.RawFrameDAO.ListUserRawFrameIDs(user.Id)
+	if err != nil {
+		return fmt.Errorf("ListUserRawFrameIDs() returns err: %w", err)
+	}
+	if len(rawFrameIDs) != 60 {
+		return fmt.Errorf("want %d rawFrameIDs, got %d", 60, len(rawFrameIDs))
+	}
+	for _, rfid := range rawFrameIDs {
+		rawFrame, err := testEnv.RawFrameDAO.GetRawFrameByID(rfid)
+		if err != nil {
+			return fmt.Errorf("GetRawFrameByID(%s) returns err: %w", rfid, err)
+		}
+
+		if rawFrame.Source.SourceType != st.Source_RAW_VIDEO {
+			return fmt.Errorf("want %q for rawFrame.Source.SourceType, got %q", st.Source_RAW_VIDEO, rawFrame.Source.SourceType)
+		}
+
+		bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawFrame.CloudStorageFileName)
+		if err != nil {
+			return fmt.Errorf("GCSURLToBucketNameAndFileName() returns err: %w", err)
+		}
+
+		exists, err := testEnv.SimpleStorage.BucketFileExists(bucketName, fileName)
+		if err != nil {
+			return fmt.Errorf("BucketFileExists(%s, %s) returns err: %w", bucketName, fileName, err)
+		}
+
+		if !exists {
+			return fmt.Errorf("BucketFileExists(%s, %s) returns false", bucketName, fileName)
+		}
 	}
 
 	// Make sure all files are marked SUCCESS.

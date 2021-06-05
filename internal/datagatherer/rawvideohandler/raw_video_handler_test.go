@@ -8,7 +8,9 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/cloud"
+	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -154,11 +156,6 @@ func TestInsertRawVideoFromRequestErrorHandling(t *testing.T) {
 	fakeSSC.WriteBucketFileMock = func(bucketName cloud.BucketName, localFileNameAndPath, bucketFileName string) error {
 		return nil
 	}
-
-	_, err = rawVidHandler.HandleRawVideoProcessRequest(request)
-	if err != nil {
-		t.Errorf("Want nil from HandleRawVideoProcessRequest err, got %v", err)
-	}
 }
 
 func newRawVideoHandlerForTests() (*RawVideoHandler, *mp4.FakeMP4Tool, *cloud.FakeSimpleStorageClient, *rawvideodao.MockRawVideoDAO, *rawlocationdao.MockRawLocatinDAO, *rawmotiondao.MockRawMotionDAO, error) {
@@ -169,8 +166,10 @@ func newRawVideoHandlerForTests() (*RawVideoHandler, *mp4.FakeMP4Tool, *cloud.Fa
 	mockRawVideoDAO := &rawvideodao.MockRawVideoDAO{}
 	mockRawLocationDAO := &rawlocationdao.MockRawLocatinDAO{}
 	mockRawMotionDAO := &rawmotiondao.MockRawMotionDAO{}
+	sqlInterface := database.NewFake()
+	rawFrameDAO := rawframedao.NewSQLRawFrameDAO(sqlInterface)
 
-	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeMP4Tool, mockRawVideoDAO, mockRawLocationDAO, mockRawMotionDAO, localLogger, "")
+	rawVideoHandler, err := NewRawVideoHandler(fakeSimpleStorageClient, fakeMP4Tool, mockRawVideoDAO, mockRawLocationDAO, mockRawMotionDAO, rawFrameDAO, localLogger, "")
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, fmt.Errorf("NewRawVideoHandler returns err: %v", err)
 	}

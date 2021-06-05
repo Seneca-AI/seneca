@@ -1,6 +1,9 @@
 package cloud
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // BucketName is used for specifying buckets.
 type BucketName string
@@ -8,16 +11,27 @@ type BucketName string
 const (
 	// RawVideoBucketName defines the bucket used for raw videos.
 	RawVideoBucketName BucketName = "raw_videos"
-
+	// RawVideoBucketName defines the bucket used for directories of raw frames.
 	RawFrameBucketName BucketName = "raw_frames"
 )
 
-func (bn *BucketName) String() string {
-	return string(*bn)
+var Bucketnames = []BucketName{RawVideoBucketName, RawFrameBucketName}
+
+func (bn BucketName) String() string {
+	return string(bn)
 }
 
-func (bn *BucketName) RealName(projectID string) string {
-	return fmt.Sprintf("%s-%s", projectID, string(*bn))
+func (bn BucketName) RealName(projectID string) string {
+	return fmt.Sprintf("%s-%s", projectID, string(bn))
+}
+
+func ParseBucketName(potentialBucketName string) (BucketName, error) {
+	for _, bname := range Bucketnames {
+		if strings.HasSuffix(potentialBucketName, bname.String()) {
+			return bname, nil
+		}
+	}
+	return "", fmt.Errorf("%q is not a bucket name", potentialBucketName)
 }
 
 // SimpleStorageInterface is the interface used for interacting with

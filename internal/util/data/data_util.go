@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"math"
 	st "seneca/api/type"
+	"seneca/internal/client/cloud"
 	"seneca/internal/util"
+	"strings"
 	"time"
 )
 
@@ -182,4 +184,20 @@ func DistanceMiles(lat1 *st.Latitude, long1 *st.Longitude, lat2 *st.Latitude, lo
 	dist = dist * 60 * 1.1515
 
 	return dist
+}
+
+func GCSURLToBucketNameAndFileName(url string) (cloud.BucketName, string, error) {
+	if !strings.HasPrefix(url, "gs://") {
+		return "", "", fmt.Errorf("%q is not a GCS URL", url)
+	}
+
+	url = strings.TrimPrefix(url, "gs://")
+	urlParts := strings.Split(url, "/")
+
+	bucketName, err := cloud.ParseBucketName(urlParts[0])
+	if err != nil {
+		return "", "", fmt.Errorf("%q is not a GCS URL", url)
+	}
+
+	return bucketName, strings.Join(urlParts[1:], "/"), nil
 }
