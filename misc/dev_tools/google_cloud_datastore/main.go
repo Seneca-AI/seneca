@@ -43,7 +43,7 @@ func main() {
 		log.Fatalf("Error initializing datastore service %v", err)
 	}
 
-	userID := "5756247156457472"
+	userID := "5697673499770880"
 	if err := data.DeleteAllUserDataInDB(userID, false, sqlService); err != nil {
 		log.Fatalf("DeleteAllUserDataInDB(%s, %t, _) returns err: %v", userID, false, err)
 	}

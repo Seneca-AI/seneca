@@ -18,6 +18,7 @@ import (
 	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	weatherservice "seneca/internal/client/weather/service"
 	"seneca/internal/controller/apiserver"
 	"seneca/internal/controller/runner"
 	"seneca/internal/controller/syncer"
@@ -33,6 +34,7 @@ import (
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/dataprocessor"
+	"seneca/internal/dataprocessor/algorithms"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
 	"strings"
@@ -98,7 +100,23 @@ func main() {
 	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
-	dataprocessor, err := dataprocessor.New(nil, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+
+	algoFactory, err := algorithms.NewFactory(weatherservice.NewWeatherStackService(time.Second * 10))
+	if err != nil {
+		logger.Critical(fmt.Sprintf("algorithms.NewFactory() returns err: %v", err))
+		return
+	}
+	algos := []dataprocessor.AlgorithmInterface{}
+	algoTags := []string{"00000", "00001", "00002", "00003"}
+	for _, tag := range algoTags {
+		algo, err := algoFactory.GetAlgorithm(tag)
+		if err != nil {
+			logger.Critical(fmt.Sprintf("GetAlgorithm(%q) returns err: %v", tag, err))
+		}
+		algos = append(algos, algo)
+	}
+
+	dataprocessor, err := dataprocessor.New(algos, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("dataprocessor.New() returns - err: %v", err))
 		return

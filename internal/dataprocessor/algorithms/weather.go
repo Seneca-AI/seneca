@@ -1,11 +1,11 @@
-package dataprocessor
+package algorithms
 
 import (
 	"fmt"
-	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/weather"
 	"seneca/internal/client/weather/client"
+	"seneca/internal/dataprocessor"
 	"seneca/internal/util"
 	"sort"
 	"time"
@@ -27,7 +27,7 @@ func newWeatherV0(weatherService weather.WeatherServiceInterface) *weatherV0 {
 	}
 }
 
-func (wthr *weatherV0) GenerateEvents(inputs []interface{}) ([]*st.EventInternal, error) {
+func (wthr *weatherV0) GenerateEvents(inputs map[string][]interface{}) ([]*st.EventInternal, error) {
 	return nil, nil
 }
 
@@ -148,21 +148,21 @@ type timestampAndSource struct {
 	source    *st.Source
 }
 
-func (wthr *weatherV0) GenerateDrivingConditions(inputs []interface{}) ([]*st.DrivingConditionInternal, error) {
+func (wthr *weatherV0) GenerateDrivingConditions(inputs map[string][]interface{}) ([]*st.DrivingConditionInternal, error) {
+	locationObjs := inputs[dataprocessor.RawLocationTypeString]
+	if len(locationObjs) == 0 {
+		return nil, nil
+	}
+
 	// Keyed by conditionType and severity.
 	conditionTypesMap := map[drivingConditionAndSeverity][]timestampAndSource{}
 
-	foundLocation := true
 	userID := ""
-	for _, inputObj := range inputs {
-		location, ok := inputObj.(*st.RawLocation)
+	for _, locationObj := range locationObjs {
+		location, ok := locationObj.(*st.RawLocation)
 		if !ok {
-			if foundLocation {
-				return nil, fmt.Errorf("found a %T in the same list as RawLocations", inputObj)
-			}
-			return nil, nil
+			return nil, fmt.Errorf("found a %T in map entry for %s", locationObj, dataprocessor.RawLocationTypeString)
 		}
-		foundLocation = true
 		userID = location.UserId
 
 		for _, ranTag := range location.AlgoTag {
@@ -230,162 +230,4 @@ func (wthr *weatherV0) GenerateDrivingConditions(inputs []interface{}) ([]*st.Dr
 
 func (wthr *weatherV0) Tag() string {
 	return wthr.tag
-}
-
-type decelerationV0 struct {
-	tag      string
-	rangeMap *util.RangeMap
-}
-
-func newDecelerationV0() (*decelerationV0, error) {
-	keys := []util.Range{
-		{L: -256, U: -128},
-		{L: -128, U: -64},
-		{L: -64, U: -32},
-		{L: -32, U: -16},
-		{L: -16, U: -8},
-		{L: -8, U: 9999999},
-	}
-	values := []interface{}{
-		100.0,
-		80.0,
-		50.0,
-		20.0,
-		10.0,
-		0.0,
-	}
-
-	rangeMap, err := util.NewRangeMap(keys, values)
-	if err != nil {
-		return nil, senecaerror.NewDevError(fmt.Errorf("NewRangeMap() returns err: %w", err))
-	}
-
-	return &decelerationV0{
-		tag:      "00002",
-		rangeMap: rangeMap,
-	}, nil
-}
-
-func (dec *decelerationV0) GenerateEvents(inputs []interface{}) ([]*st.EventInternal, error) {
-	if len(inputs) != 1 {
-		return nil, nil
-	}
-
-	rawMotion, ok := inputs[0].(*st.RawMotion)
-	if !ok {
-		return nil, nil
-	}
-
-	valObj, ok := dec.rangeMap.Get(int64(rawMotion.Motion.AccelerationMphS))
-	if !ok {
-		return nil, fmt.Errorf("accelerationMPHS of %f for raw motion is impossible", rawMotion.Motion.AccelerationMphS)
-	}
-	severity, ok := valObj.(float64)
-	if !ok {
-		return nil, senecaerror.NewDevError(fmt.Errorf("trying to get float64 from rangeMap even though %T was inserted", valObj))
-	}
-	if severity == 0.0 {
-		return nil, nil
-	}
-
-	return []*st.EventInternal{
-		{
-			UserId:      rawMotion.UserId,
-			EventType:   st.EventType_FAST_DECELERATION,
-			Value:       rawMotion.Motion.AccelerationMphS,
-			Severity:    severity,
-			TimestampMs: rawMotion.TimestampMs,
-			Source: &st.Source{
-				SourceId:   rawMotion.Id,
-				SourceType: st.Source_RAW_MOTION,
-			},
-			AlgoTag: dec.tag,
-		},
-	}, nil
-}
-
-func (dec *decelerationV0) GenerateDrivingConditions(inputs []interface{}) ([]*st.DrivingConditionInternal, error) {
-	return nil, nil
-}
-
-func (dec *decelerationV0) Tag() string {
-	return dec.tag
-}
-
-// First very naive implementation.
-type accelerationV0 struct {
-	tag      string
-	rangeMap *util.RangeMap
-}
-
-func newAccelerationV0() (*accelerationV0, error) {
-	keys := []util.Range{
-		{L: -9999999, U: 8},
-		{L: 8, U: 10},
-		{L: 10, U: 15},
-		{L: 15, U: 20},
-		{L: 20, U: 25},
-	}
-	values := []interface{}{
-		0.0,
-		10.0,
-		30.0,
-		70.0,
-		100.0,
-	}
-	rangeMap, err := util.NewRangeMap(keys, values)
-	if err != nil {
-		return nil, senecaerror.NewDevError(fmt.Errorf("NewRangeMap() returns err: %w", err))
-	}
-
-	return &accelerationV0{
-		tag:      "00001",
-		rangeMap: rangeMap,
-	}, nil
-}
-
-func (acc *accelerationV0) GenerateEvents(inputs []interface{}) ([]*st.EventInternal, error) {
-	if len(inputs) != 1 {
-		return nil, nil
-	}
-
-	rawMotion, ok := inputs[0].(*st.RawMotion)
-	if !ok {
-		return nil, nil
-	}
-
-	valObj, ok := acc.rangeMap.Get(int64(rawMotion.Motion.AccelerationMphS))
-	if !ok {
-		return nil, fmt.Errorf("accelerationMPHS of %f for raw motion is impossible", rawMotion.Motion.AccelerationMphS)
-	}
-	severity, ok := valObj.(float64)
-	if !ok {
-		return nil, senecaerror.NewDevError(fmt.Errorf("trying to get float64 from rangeMap even though %T was inserted", valObj))
-	}
-	if severity == 0.0 {
-		return nil, nil
-	}
-
-	return []*st.EventInternal{
-		{
-			UserId:      rawMotion.UserId,
-			EventType:   st.EventType_FAST_ACCELERATION,
-			Value:       rawMotion.Motion.AccelerationMphS,
-			Severity:    severity,
-			TimestampMs: rawMotion.TimestampMs,
-			Source: &st.Source{
-				SourceId:   rawMotion.Id,
-				SourceType: st.Source_RAW_MOTION,
-			},
-			AlgoTag: acc.tag,
-		},
-	}, nil
-}
-
-func (acc *accelerationV0) GenerateDrivingConditions(inputs []interface{}) ([]*st.DrivingConditionInternal, error) {
-	return nil, nil
-}
-
-func (acc *accelerationV0) Tag() string {
-	return acc.tag
 }

@@ -9,6 +9,7 @@ import (
 	"seneca/internal/client/database"
 	"seneca/internal/client/googledrive"
 	"seneca/internal/client/logging"
+	weatherservice "seneca/internal/client/weather/service"
 	"seneca/internal/controller/apiserver"
 	"seneca/internal/controller/runner"
 	"seneca/internal/controller/syncer"
@@ -24,6 +25,7 @@ import (
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/dataprocessor"
+	"seneca/internal/dataprocessor/algorithms"
 	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
 	"time"
@@ -80,7 +82,22 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	}
 	gDriveFactory := &googledrive.UserClientFactory{}
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, wrappedLogger)
-	dataprocessor, err := dataprocessor.New(nil, eventDAO, dcDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, wrappedLogger)
+
+	algoFactory, err := algorithms.NewFactory(weatherservice.NewWeatherStackService(time.Second * 10))
+	if err != nil {
+		return nil, fmt.Errorf("algorithms.NewFactory() returns err: %v", err)
+	}
+	algos := []dataprocessor.AlgorithmInterface{}
+	algoTags := []string{"00000", "00001", "00002", "00003"}
+	for _, tag := range algoTags {
+		algo, err := algoFactory.GetAlgorithm(tag)
+		if err != nil {
+			return nil, fmt.Errorf("GetAlgorithm(%q) returns err: %v", tag, err)
+		}
+		algos = append(algos, algo)
+	}
+
+	dataprocessor, err := dataprocessor.New(algos, eventDAO, dcDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, wrappedLogger)
 	if err != nil {
 		return nil, fmt.Errorf("dataprocessor.New() returns err: %w", err)
 	}
