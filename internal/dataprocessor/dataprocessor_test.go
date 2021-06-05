@@ -1,4 +1,4 @@
-package dataprocessor
+package dataprocessor_test
 
 import (
 	"fmt"
@@ -14,6 +14,8 @@ import (
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
 	"seneca/internal/dao/tripdao"
+	"seneca/internal/dataprocessor"
+	"seneca/internal/dataprocessor/algorithms"
 	"seneca/internal/util"
 	"sort"
 	"testing"
@@ -23,16 +25,21 @@ import (
 func TestRunForRawMotions(t *testing.T) {
 	tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger := newDataProcessorPartsForTest()
 
-	accAlgo, err := newAccelerationV0()
+	algoFactory, err := algorithms.NewFactory(nil)
 	if err != nil {
-		t.Fatalf("newAccelerationV0() returns err: %v", err)
+		t.Fatalf("algorithms.NewFactory() returns err: %v", err)
 	}
-	decAlgo, err := newDecelerationV0()
-	if err != nil {
-		t.Fatalf("newDecelerationV0() returns err: %v", err)
+	algos := []dataprocessor.AlgorithmInterface{}
+	algoTags := []string{"00000", "00001", "00002"}
+	for _, tag := range algoTags {
+		algo, err := algoFactory.GetAlgorithm(tag)
+		if err != nil {
+			t.Fatalf("GetAlgorithm(%q) returns err: %v", tag, err)
+		}
+		algos = append(algos, algo)
 	}
 
-	dp, err := New([]AlgorithmInterface{accAlgo, decAlgo}, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+	dp, err := dataprocessor.New(algos, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
 	if err != nil {
 		t.Fatalf("New() returns err: %v", err)
 	}
@@ -110,14 +117,14 @@ func TestRunForRawMotions(t *testing.T) {
 	}
 
 	// Make sure raws were updated as well.
-	unprocessedRawMotionIDs, err := rawMotionDAO.ListUnprocessedRawMotionIDs("123", AlgosVersion)
+	unprocessedRawMotionIDs, err := rawMotionDAO.ListUnprocessedRawMotionIDs("123", dataprocessor.AlgosVersion)
 	if err != nil {
 		t.Fatalf("ListUnprocessedRawMotionIDs() returns err: %v", err)
 	}
 	if len(unprocessedRawMotionIDs) != 0 {
 		t.Fatalf("Want 0 unprocessedRawMotionIDs, got %d", len(unprocessedRawMotionIDs))
 	}
-	unprocessedRawVideoIDs, err := rawVideoDAO.ListUnprocessedRawVideoIDs("123", AlgosVersion)
+	unprocessedRawVideoIDs, err := rawVideoDAO.ListUnprocessedRawVideoIDs("123", dataprocessor.AlgosVersion)
 	if err != nil {
 		t.Fatalf("ListUnprocessedRawVideoIDs() returns err: %v", err)
 	}
@@ -129,7 +136,24 @@ func TestRunForRawMotions(t *testing.T) {
 func TestRunForRawLocations(t *testing.T) {
 	tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger := newDataProcessorPartsForTest()
 	fakeWeatherService := service.NewMock()
-	dp, err := New([]AlgorithmInterface{newWeatherV0(fakeWeatherService)}, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+
+	algoFactory, err := algorithms.NewFactory(fakeWeatherService)
+	if err != nil {
+		t.Fatalf("algorithms.NewFactory() returns err: %v", err)
+	}
+
+	algos := []dataprocessor.AlgorithmInterface{}
+	algoTags := []string{"00000", "00003"}
+
+	for _, tag := range algoTags {
+		algo, err := algoFactory.GetAlgorithm(tag)
+		if err != nil {
+			t.Fatalf("GetAlgorithm(%q) returns err: %v", tag, err)
+		}
+		algos = append(algos, algo)
+	}
+
+	dp, err := dataprocessor.New(algos, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
 	if err != nil {
 		t.Fatalf("New() returns err: %v", err)
 	}
