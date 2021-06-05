@@ -1,6 +1,7 @@
 package util
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -98,4 +99,38 @@ func TestMillisecondsToDuration(t *testing.T) {
 		}
 	}
 
+}
+func TestSortStringsAlphaNumerically(t *testing.T) {
+	testCases := []struct {
+		in   []string
+		want []string
+	}{
+		{
+			in:   []string{"a/b/c/d/011.png", "a/b/c/d/001.png", "a/b/c/d/111.png"},
+			want: []string{"a/b/c/d/001.png", "a/b/c/d/011.png", "a/b/c/d/111.png"},
+		},
+	}
+
+	for _, tc := range testCases {
+		got, err := SortStringsAlphaNumerically(tc.in, func(s string) string {
+			sParts := strings.Split(s, "/")
+			lastPart := sParts[len(sParts)-1]
+			leadingZeroesTrimmed := strings.TrimLeft(lastPart, "0")
+			return strings.TrimSuffix(leadingZeroesTrimmed, ".png")
+		})
+		if err != nil {
+			t.Fatalf("SortStringsAlphaNumerically(%v) returns err: %v", tc.in, err)
+		}
+
+		if len(tc.want) != len(got) {
+			t.Fatalf("Want len(%d), got len(%d)", len(tc.want), len(got))
+		}
+
+		for i := range tc.want {
+			if tc.want[i] != got[i] {
+				t.Fatalf("Want %q at index %d, got %q", tc.want[i], i, got[i])
+			}
+		}
+
+	}
 }

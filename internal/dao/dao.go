@@ -34,6 +34,15 @@ type RawLocationDAO interface {
 	DeleteRawLocationByID(id string) error
 }
 
+type RawFrameDAO interface {
+	InsertUniqueRawFrame(rawFrame *st.RawFrame) (*st.RawFrame, error)
+	PutRawFrameByID(ctx context.Context, rawFrameID string, rawFrame *st.RawFrame) error
+	GetRawFrameByID(id string) (*st.RawFrame, error)
+	ListUnprocessedRawFramesIDs(userID string, latestVersion float64) ([]string, error)
+	ListUserRawFrameIDs(userID string) ([]string, error)
+	DeleteRawFrameByID(id string) error
+}
+
 type RawMotionDAO interface {
 	InsertUniqueRawMotion(rawMotion *st.RawMotion) (*st.RawMotion, error)
 	PutRawMotionByID(ctx context.Context, rawMotionID string, rawMotion *st.RawMotion) error

@@ -15,6 +15,7 @@ import (
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -37,6 +38,7 @@ type TestEnvironment struct {
 	RawVideoDAO         dao.RawVideoDAO
 	RawLocationDAO      dao.RawLocationDAO
 	RawMotionDAO        dao.RawMotionDAO
+	RawFrameDAO         dao.RawFrameDAO
 	TripDAO             dao.TripDAO
 	EventDAO            dao.EventDAO
 	DrivingConditionDAO dao.DrivingConditionDAO
@@ -63,6 +65,7 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, wrappedLogger, time.Second*5)
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, wrappedLogger)
+	rawFrameDAO := rawframedao.NewSQLRawFrameDAO(sqlService)
 	tripDAO := tripdao.NewSQLTripDAO(sqlService, wrappedLogger)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, wrappedLogger)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
@@ -71,7 +74,7 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	if err != nil {
 		return nil, fmt.Errorf(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 	}
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, wrappedLogger, projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, rawFrameDAO, wrappedLogger, projectID)
 	if err != nil {
 		return nil, fmt.Errorf(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 	}
@@ -94,6 +97,7 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 		RawVideoDAO:         rawVideoDAO,
 		RawLocationDAO:      rawLocationDAO,
 		RawMotionDAO:        rawMotionDAO,
+		RawFrameDAO:         rawFrameDAO,
 		TripDAO:             tripDAO,
 		EventDAO:            eventDAO,
 		DrivingConditionDAO: dcDAO,
@@ -127,8 +131,44 @@ func (te *TestEnvironment) Clean() {
 				te.Logger.Error(fmt.Sprintf("GetRawVideoByID(%s) returns err: %v", rvid, err))
 			}
 
-			if err := te.SimpleStorage.DeleteBucketFile(cloud.RawVideoBucketName, rawVideo.CloudStorageFileName); err != nil {
-				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", cloud.RawVideoBucketName, rawVideo.CloudStorageFileName, err))
+			if rawVideo.CloudStorageFileName == "" {
+				continue
+			}
+
+			bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawVideo.CloudStorageFileName)
+			if err != nil {
+				te.Logger.Error(fmt.Sprintf("GCSURLToBucketNameAndFileName(%s) returns err: %v", rawVideo.CloudStorageFileName, err))
+				continue
+			}
+
+			if err := te.SimpleStorage.DeleteBucketFile(bucketName, fileName); err != nil {
+				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", bucketName, fileName, err))
+			}
+		}
+
+		rawFrameIDs, err := te.RawFrameDAO.ListUserRawFrameIDs(uid)
+		if err != nil {
+			te.Logger.Error(fmt.Sprintf("ListUserRawFrameIDs(%s) returns err: %v", uid, err))
+		}
+
+		for _, rfid := range rawFrameIDs {
+			rawFrame, err := te.RawFrameDAO.GetRawFrameByID(rfid)
+			if err != nil {
+				te.Logger.Error(fmt.Sprintf("GetRawFrameByID(%s) returns err: %v", rfid, err))
+			}
+
+			if rawFrame.CloudStorageFileName == "" {
+				continue
+			}
+
+			bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawFrame.CloudStorageFileName)
+			if err != nil {
+				te.Logger.Error(fmt.Sprintf("GCSURLToBucketNameAndFileName(%s) returns err: %v", rawFrame.CloudStorageFileName, err))
+				continue
+			}
+
+			if err := te.SimpleStorage.DeleteBucketFile(bucketName, fileName); err != nil {
+				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", bucketName, fileName, err))
 			}
 		}
 

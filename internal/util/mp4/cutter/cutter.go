@@ -3,7 +3,9 @@ package cutter
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
@@ -18,7 +20,7 @@ const (
 	cutVideoCommand = "ffmpeg -i %s -ss %s -t %s -c copy %s"
 
 	// ffmpeg -i <intput file name> -vf fps=<frames per second> <prefix>%05.png.
-	videoToFramesCommand = "ffmpeg -i %s -vf fps=%s %s%%05d.png"
+	videoToFramesCommand = "ffmpeg -i %s -vf fps=%s %s/%%05d.png"
 )
 
 // 	CutRawVideo utilizes ffmpeg to cut the raw video mp4.
@@ -101,38 +103,39 @@ func CutRawVideo(cutVideoDur time.Duration, pathToRawVideo string, rawVideo *st.
 //
 //	Returns:
 //		[]*st.RawFrame
-//		string: path to temp directory holding the raw frames
+//		[]string: ordered filenames
 //		error
-func RawVideoToFrames(fps float64, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.RawFrame, string, error) {
+func RawVideoToFrames(fps float64, pathToRawVideo string, rawVideo *st.RawVideo) ([]*st.RawFrame, string, []string, error) {
 	rawVideoFileName, err := util.GetFileNameFromPath(pathToRawVideo)
 	if err != nil {
-		return nil, "", fmt.Errorf("error extracting pathToRawVideo %q - err: %v", pathToRawVideo, err)
+		return nil, "", nil, fmt.Errorf("error extracting pathToRawVideo %q - err: %v", pathToRawVideo, err)
 	}
 
 	rawVideoFileNameParts := strings.Split(rawVideoFileName, ".")
 	if len(rawVideoFileNameParts) < 2 {
-		return nil, "", fmt.Errorf("pathToRawVideo %q in invalid format", pathToRawVideo)
+		return nil, "", nil, fmt.Errorf("pathToRawVideo %q in invalid format", pathToRawVideo)
 	}
-	rawVideoFileNameNoSuffix := strings.Join(rawVideoFileNameParts[:len(rawVideoFileNameParts)-1], ".")
+
+	if rawVideo.Id == "" {
+		return nil, "", nil, senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no ID set", rawVideo))
+	}
 
 	if rawVideo.UserId == "" {
-		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no userID set", rawVideo))
+		return nil, "", nil, senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no userID set", rawVideo))
 	}
 
 	if rawVideo.DurationMs == 0 {
-		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no duration set", rawVideo))
+		return nil, "", nil, senecaerror.NewBadStateError(fmt.Errorf("rawVideo %v has no duration set", rawVideo))
 	}
 
 	rawFrames := []*st.RawFrame{}
-
 	rawVideoDurationSeconds := util.MillisecondsToDuration(rawVideo.DurationMs).Seconds()
-
 	for i := float64(0); i < float64(rawVideoDurationSeconds)*fps; i++ {
-		timestampMS := rawVideo.CreateTimeMs + int64(i*(1/fps))
+		timestampMS := rawVideo.CreateTimeMs + (time.Second * time.Duration(i*(1/fps))).Milliseconds()
 		rf := &st.RawFrame{
 			UserId:               rawVideo.UserId,
 			TimestampMs:          timestampMS,
-			CloudStorageFileName: fmt.Sprintf("%d.%s.png", timestampMS, rawVideo.UserId),
+			CloudStorageFileName: fmt.Sprintf("%s.%s.%d.png", rawVideo.UserId, rawVideo.Id, timestampMS),
 			Source: &st.Source{
 				SourceId:   rawVideo.Id,
 				SourceType: st.Source_RAW_VIDEO,
@@ -143,25 +146,47 @@ func RawVideoToFrames(fps float64, pathToRawVideo string, rawVideo *st.RawVideo)
 
 	// Create the temp dir for the CutVideos to be staged.
 	tempDirName := ""
-	tempDirName, err = ioutil.TempDir("", fmt.Sprintf("%s.RawFrames.*", rawVideo.UserId))
+	tempDirName, err = ioutil.TempDir("", fmt.Sprintf("RawFrames.%s*", rawVideo.Id))
 	if err != nil {
-		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("error creating default temp dir with pattern %s.CutVideos.* - err: %v", rawVideo.UserId, err))
+		return nil, "", nil, senecaerror.NewBadStateError(fmt.Errorf("error creating default temp dir with pattern RawFrames.%s* - err: %v", rawVideo.Id, err))
 	}
 
-	commandString := fmt.Sprintf(videoToFramesCommand, pathToRawVideo, decimalToFractionString(fps), fmt.Sprintf("%s/%s", tempDirName, rawVideoFileNameNoSuffix))
+	commandString := fmt.Sprintf(videoToFramesCommand, pathToRawVideo, decimalToFractionString(fps), tempDirName)
 	commandStringParts := strings.Split(commandString, " ")
 	if len(commandStringParts) != 6 {
-		return nil, "", senecaerror.NewBadStateError(fmt.Errorf("malformed command string for ffmpeg: %q", commandString))
+		return nil, "", nil, senecaerror.NewBadStateError(fmt.Errorf("malformed command string for ffmpeg: %q", commandString))
 	}
 
 	// Strangely, a first string arg is required, then the rest can come.
 	cmd := exec.Command(commandStringParts[0], commandStringParts[1:]...)
 
 	if err := cmd.Run(); err != nil {
-		return nil, "", fmt.Errorf("error executing command %q - err: %v", commandString, err)
+		return nil, "", nil, fmt.Errorf("error executing command %q - err: %v", commandString, err)
 	}
 
-	return rawFrames, tempDirName, nil
+	files, err := os.ReadDir(tempDirName)
+	if err != nil {
+		os.RemoveAll(tempDirName)
+		return nil, "", nil, fmt.Errorf("os.ReadDir(tempDir - %s) returns err: %w", tempDirName, err)
+	}
+
+	fileNames := []string{}
+	for _, f := range files {
+		fileNames = append(fileNames, path.Join(tempDirName, f.Name()))
+	}
+
+	fileNamesSorted, err := util.SortStringsAlphaNumerically(fileNames, func(s string) string {
+		sParts := strings.Split(s, "/")
+		lastPart := sParts[len(sParts)-1]
+		leadingZeroesTrimmed := strings.TrimLeft(lastPart, "0")
+		return strings.TrimSuffix(leadingZeroesTrimmed, ".png")
+	})
+	if err != nil {
+		os.RemoveAll(tempDirName)
+		return nil, "", nil, fmt.Errorf("SortStringsAlphaNumerically() returns err: %w", err)
+	}
+
+	return rawFrames, tempDirName, fileNamesSorted, nil
 }
 
 func decimalToFractionString(decimal float64) string {

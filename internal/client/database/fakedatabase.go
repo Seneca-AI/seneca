@@ -77,6 +77,12 @@ func (fs *FakeSQLDBService) GetByID(tableName constants.TableName, id string) (i
 			log.Fatalf("got object of type %T for key %q", obj, key)
 		}
 		return out, nil
+	case constants.RawFramesTable:
+		out, ok := obj.(*st.RawFrame)
+		if !ok {
+			log.Fatalf("got object of type %T for key %q", obj, key)
+		}
+		return out, nil
 	case constants.RawMotionsTable:
 		out, ok := obj.(*st.RawMotion)
 		if !ok {
@@ -158,6 +164,8 @@ func satisfiesQueryParams(tableName constants.TableName, object interface{}, que
 				return evaluateOperand(getRawVideoField(qp.FieldName, object), qp.Value, qp.Operand)
 			case constants.RawLocationsTable:
 				return evaluateOperand(getRawLocationField(qp.FieldName, object), qp.Value, qp.Operand)
+			case constants.RawFramesTable:
+				return evaluateOperand(getRawFrameField(qp.FieldName, object), qp.Value, qp.Operand)
 			case constants.RawMotionsTable:
 				return evaluateOperand(getRawMotionField(qp.FieldName, object), qp.Value, qp.Operand)
 			case constants.UsersTable:
@@ -214,6 +222,25 @@ func getRawLocationField(fieldName constants.SenecaTypeFieldName, rawLocationObj
 		return rawLocation.AlgosVersion
 	default:
 		log.Fatalf("Getting RawLocation field name %q not supported", fieldName)
+	}
+	return nil
+}
+
+func getRawFrameField(fieldName constants.SenecaTypeFieldName, rawFrameObj interface{}) interface{} {
+	rawFrame, ok := rawFrameObj.(*st.RawFrame)
+	if !ok {
+		log.Fatalf("Passed %T to getRawLocationField()", rawFrameObj)
+	}
+
+	switch fieldName {
+	case constants.TimestampFieldName:
+		return rawFrame.TimestampMs
+	case constants.UserIDFieldName:
+		return rawFrame.UserId
+	case constants.AlgosVersionFieldName:
+		return rawFrame.AlgosVersion
+	default:
+		log.Fatalf("Getting RawFrame field name %q not supported", fieldName)
 	}
 	return nil
 }

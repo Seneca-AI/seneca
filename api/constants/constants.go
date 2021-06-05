@@ -28,6 +28,7 @@ const (
 	RawVideosTable        TableName = "RawVideos"
 	RawLocationsTable     TableName = "RawLocations"
 	RawMotionsTable       TableName = "RawMotions"
+	RawFramesTable        TableName = "RawFrames"
 	EventTable            TableName = "Events"
 	DrivingConditionTable TableName = "DrivingConditions"
 	TripTable             TableName = "Trips"
@@ -37,7 +38,7 @@ func (tn TableName) String() string {
 	return string(tn)
 }
 
-var DataTableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable}
+var DataTableNames = []TableName{UsersTable, RawVideosTable, RawLocationsTable, RawMotionsTable, EventTable, DrivingConditionTable, TripTable, RawFramesTable}
 
 type SenecaTypeFieldName string
 

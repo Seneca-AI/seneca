@@ -24,6 +24,7 @@ import (
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -78,13 +79,14 @@ func main() {
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, logger, (time.Second * 5))
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, logger)
+	rawFrameDAO := rawframedao.NewSQLRawFrameDAO(sqlService)
 	userDAO := userdao.NewSQLUserDAO(sqlService)
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 		return
 	}
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, logger, projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, rawFrameDAO, logger, projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return
