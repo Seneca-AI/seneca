@@ -25,7 +25,10 @@ func main() {
 		SenecaServerHostPort: "6060",
 	}
 
-	intraSenecaClient := http.New(config)
+	intraSenecaClient, err := http.New(config)
+	if err != nil {
+		log.Fatalf("intraseneca.http.New() returns err: %v", err)
+	}
 
 	for {
 		var err error
