@@ -90,7 +90,14 @@ func checkHeartbeat(ss *st.SenecaServer) error {
 		Timeout: 5 * time.Second,
 	}
 
-	resp, err := authenticator.AuthedGet(&client, fmt.Sprintf("http://%s:%s/%s", ss.ServerExternalIp, ss.ServerPort, constants.HeartbeatEndpoint))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%s/%s", ss.ServerExternalIp, ss.ServerPort, constants.HeartbeatEndpoint), nil)
+	if err != nil {
+		return fmt.Errorf("error initializing GET request: %w", err)
+	}
+
+	req = authenticator.AddRequestAuth(req)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("error making GET request: %w", err)
 	}

@@ -1,4 +1,4 @@
-package rawlocationdao
+package rawlocationdao_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -190,7 +191,7 @@ func TestListUnprocessedRawLocationsIDs(t *testing.T) {
 
 }
 
-func newRawLocationDAOForTest() (*SQLRawLocationDAO, *database.FakeSQLDBService) {
+func newRawLocationDAOForTest() (*rawlocationdao.SQLRawLocationDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	return NewSQLRawLocationDAO(fakeSQLService), fakeSQLService
+	return rawlocationdao.NewSQLRawLocationDAO(fakeSQLService), fakeSQLService
 }

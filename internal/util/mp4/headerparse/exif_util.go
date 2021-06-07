@@ -5,8 +5,11 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/util"
+	"seneca/internal/util/data"
 	"strings"
 	"time"
+
+	"gopkg.in/ugjka/go-tz.v2/tz"
 )
 
 func stringToLatitude(latString string) (*st.Latitude, error) {
@@ -72,10 +75,6 @@ func validateData(rawVideo *st.RawVideo, locations []*st.Location, motions []*st
 		return senecaerror.NewUserError("", fmt.Errorf("no GPS data found"), "Video has no header data.")
 	}
 
-	fmt.Printf("DEBUG video create tiem: %v\n", util.MillisecondsToTime(rawVideo.CreateTimeMs))
-	fmt.Printf("DEBUG first time: %v\n", times[0])
-	fmt.Printf("DEBUG last time: %v\n", times[len(times)-1])
-
 	if times[0].Before(util.MillisecondsToTime(rawVideo.CreateTimeMs)) {
 		return senecaerror.NewDevError(fmt.Errorf("location/motion data timestamp %v is before rawVideo createTime %v", times[0], util.MillisecondsToTime(rawVideo.CreateTimeMs).In(time.UTC)))
 	}
@@ -106,4 +105,27 @@ func stringExists(key string, data map[string]interface{}) (string, bool) {
 	}
 	val, ok := valObj.(string)
 	return val, ok
+}
+
+func getTZOffset(t time.Time, location *st.Location) (time.Duration, error) {
+	latFloat64 := data.LatitudeToFloat64(location.Lat)
+	longFloat64 := data.LongitudeToFloat64(location.Long)
+
+	timeZoneIDs, err := tz.GetZone(tz.Point{Lat: latFloat64, Lon: longFloat64})
+	if err != nil {
+		return 0, fmt.Errorf("tz.GetZone(%f, %f) returns err: %w", latFloat64, longFloat64, err)
+	}
+
+	if len(timeZoneIDs) == 0 {
+		return 0, fmt.Errorf("tz.GetZone(%f, %f) returns 0 timeZoneIDs", latFloat64, longFloat64)
+	}
+
+	tzLocation, err := time.LoadLocation(timeZoneIDs[0])
+	if err != nil {
+		return 0, fmt.Errorf("time.LoadLocation(%s) returns err: %w", timeZoneIDs[0], err)
+	}
+
+	_, offset := t.In(tzLocation).Zone()
+
+	return time.Second * time.Duration(offset), nil
 }

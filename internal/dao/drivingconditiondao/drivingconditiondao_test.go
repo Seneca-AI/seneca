@@ -1,4 +1,4 @@
-package drivingconditiondao
+package drivingconditiondao_test
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
@@ -95,11 +96,11 @@ func TestCreateDrivingCondition(t *testing.T) {
 	}
 }
 
-func newDrivingConditionDAOForTest() (*SQLDrivingConditionDAO, *tripdao.SQLTripDAO, *eventdao.SQLEventDAO, *database.FakeSQLDBService) {
+func newDrivingConditionDAOForTest() (*drivingconditiondao.SQLDrivingConditionDAO, *tripdao.SQLTripDAO, *eventdao.SQLEventDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
 	eventDAO := eventdao.NewSQLEventDAO(fakeSQLService, tripDAO, logger)
 
-	return NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO), tripDAO, eventDAO, fakeSQLService
+	return drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO), tripDAO, eventDAO, fakeSQLService
 }

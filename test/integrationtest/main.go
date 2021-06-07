@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"seneca/env"
+	"seneca/internal/client/intraseneca"
 	"seneca/internal/client/logging"
 	"seneca/test/integrationtest/testenv"
 	"seneca/test/integrationtest/tests"
@@ -13,6 +14,13 @@ import (
 )
 
 const testUserEmail = "itestuser000@senecacam.com"
+
+// TODO(lucaloncar): use 'env' variables here.
+var serverConfig = &intraseneca.ServerConfig{
+	MLServerHostName: "34.136.176.46",
+	MLServerHostPort: "5000",
+	MLServerTimeout:  time.Second * 60,
+}
 
 func main() {
 	startTime := time.Now()
@@ -32,7 +40,7 @@ func main() {
 		return
 	}
 
-	testEnv, err := testenv.New(projectID, logger)
+	testEnv, err := testenv.New(projectID, serverConfig, logger)
 	if err != nil {
 		log.Fatalf("testenv.New() returns - err: %v\n", err)
 		return

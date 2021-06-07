@@ -1,4 +1,4 @@
-package tripdao
+package tripdao_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -284,8 +285,8 @@ func TestListUserTripIDsByTime(t *testing.T) {
 
 }
 
-func newTripDAOForTest() (*SQLTripDAO, *database.FakeSQLDBService) {
+func newTripDAOForTest() (*tripdao.SQLTripDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(false)
-	return NewSQLTripDAO(fakeSQLService, logger), fakeSQLService
+	return tripdao.NewSQLTripDAO(fakeSQLService, logger), fakeSQLService
 }

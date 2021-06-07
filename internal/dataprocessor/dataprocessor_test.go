@@ -3,29 +3,23 @@ package dataprocessor_test
 import (
 	"fmt"
 	st "seneca/api/type"
-	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
 	"seneca/internal/client/weather"
 	"seneca/internal/client/weather/service"
 	"seneca/internal/dao"
-	"seneca/internal/dao/drivingconditiondao"
-	"seneca/internal/dao/eventdao"
-	"seneca/internal/dao/rawlocationdao"
-	"seneca/internal/dao/rawmotiondao"
-	"seneca/internal/dao/rawvideodao"
-	"seneca/internal/dao/tripdao"
 	"seneca/internal/dataprocessor"
 	"seneca/internal/dataprocessor/algorithms"
 	"seneca/internal/util"
+	"seneca/test/testutil"
 	"sort"
 	"testing"
 	"time"
 )
 
 func TestRunForRawMotions(t *testing.T) {
-	tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger := newDataProcessorPartsForTest()
+	allDAOSet, logger := newDataProcessorPartsForTest()
 
-	algoFactory, err := algorithms.NewFactory(nil)
+	algoFactory, err := algorithms.NewFactory(nil, nil)
 	if err != nil {
 		t.Fatalf("algorithms.NewFactory() returns err: %v", err)
 	}
@@ -39,7 +33,7 @@ func TestRunForRawMotions(t *testing.T) {
 		algos = append(algos, algo)
 	}
 
-	dp, err := dataprocessor.New(algos, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+	dp, err := dataprocessor.New(algos, allDAOSet, logger)
 	if err != nil {
 		t.Fatalf("New() returns err: %v", err)
 	}
@@ -59,7 +53,7 @@ func TestRunForRawMotions(t *testing.T) {
 
 		rawMotion.TimestampMs = util.TimeToMilliseconds(time.Date(2021, 05, 05, 0, 0, acc, 0, time.UTC))
 
-		if _, err := rawMotionDAO.InsertUniqueRawMotion(rawMotion); err != nil {
+		if _, err := allDAOSet.RawMotionDAO.InsertUniqueRawMotion(rawMotion); err != nil {
 			t.Fatalf("InsertUniqueRawMotion() returns err: %v", err)
 		}
 	}
@@ -70,14 +64,14 @@ func TestRunForRawMotions(t *testing.T) {
 		CreateTimeMs: util.TimeToMilliseconds(time.Date(2021, 05, 05, 0, 0, 0, 0, time.UTC)),
 		DurationMs:   int64(time.Minute * 1),
 	}
-	if _, err := rawVideoDAO.InsertUniqueRawVideo(rawVideo); err != nil {
+	if _, err := allDAOSet.RawVideoDAO.InsertUniqueRawVideo(rawVideo); err != nil {
 		t.Fatalf("InsertUniqueRawVideo() returns err: %v", err)
 	}
 
 	dp.Run("123")
 
 	// Verify trip and events.
-	tripIDs, err := tripDAO.ListUserTripIDs("123")
+	tripIDs, err := allDAOSet.TripDAO.ListUserTripIDs("123")
 	if err != nil {
 		t.Fatalf("ListUserTripIDs() returns err: %v", err)
 	}
@@ -85,7 +79,7 @@ func TestRunForRawMotions(t *testing.T) {
 		t.Fatalf("Want 1 trip ID, got %d", len(tripIDs))
 	}
 
-	eventIDs, err := eventDAO.ListTripEventIDs("123", tripIDs[0])
+	eventIDs, err := allDAOSet.EventDAO.ListTripEventIDs("123", tripIDs[0])
 	if err != nil {
 		t.Fatalf("ListTripEventIDs() returns err: %v", err)
 	}
@@ -96,7 +90,7 @@ func TestRunForRawMotions(t *testing.T) {
 
 	events := []*st.EventInternal{}
 	for _, eid := range eventIDs {
-		event, err := eventDAO.GetEventByID("123", tripIDs[0], eid)
+		event, err := allDAOSet.EventDAO.GetEventByID("123", tripIDs[0], eid)
 		if err != nil {
 			t.Fatalf("GetEventByID() returns err: %v", err)
 		}
@@ -117,14 +111,14 @@ func TestRunForRawMotions(t *testing.T) {
 	}
 
 	// Make sure raws were updated as well.
-	unprocessedRawMotionIDs, err := rawMotionDAO.ListUnprocessedRawMotionIDs("123", dataprocessor.AlgosVersion)
+	unprocessedRawMotionIDs, err := allDAOSet.RawMotionDAO.ListUnprocessedRawMotionIDs("123", dataprocessor.AlgosVersion)
 	if err != nil {
 		t.Fatalf("ListUnprocessedRawMotionIDs() returns err: %v", err)
 	}
 	if len(unprocessedRawMotionIDs) != 0 {
 		t.Fatalf("Want 0 unprocessedRawMotionIDs, got %d", len(unprocessedRawMotionIDs))
 	}
-	unprocessedRawVideoIDs, err := rawVideoDAO.ListUnprocessedRawVideoIDs("123", dataprocessor.AlgosVersion)
+	unprocessedRawVideoIDs, err := allDAOSet.RawVideoDAO.ListUnprocessedRawVideoIDs("123", dataprocessor.AlgosVersion)
 	if err != nil {
 		t.Fatalf("ListUnprocessedRawVideoIDs() returns err: %v", err)
 	}
@@ -134,10 +128,10 @@ func TestRunForRawMotions(t *testing.T) {
 }
 
 func TestRunForRawLocations(t *testing.T) {
-	tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger := newDataProcessorPartsForTest()
+	allDAOSet, logger := newDataProcessorPartsForTest()
 	fakeWeatherService := service.NewMock()
 
-	algoFactory, err := algorithms.NewFactory(fakeWeatherService)
+	algoFactory, err := algorithms.NewFactory(fakeWeatherService, nil)
 	if err != nil {
 		t.Fatalf("algorithms.NewFactory() returns err: %v", err)
 	}
@@ -153,7 +147,7 @@ func TestRunForRawLocations(t *testing.T) {
 		algos = append(algos, algo)
 	}
 
-	dp, err := dataprocessor.New(algos, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger)
+	dp, err := dataprocessor.New(algos, allDAOSet, logger)
 	if err != nil {
 		t.Fatalf("New() returns err: %v", err)
 	}
@@ -187,7 +181,7 @@ func TestRunForRawLocations(t *testing.T) {
 			},
 			TimestampMs: util.TimeToMilliseconds(startTime.Add(time.Minute * time.Duration(i))),
 		}
-		if _, err := rawLocationDAO.InsertUniqueRawLocation(rawLocation); err != nil {
+		if _, err := allDAOSet.RawLocationDAO.InsertUniqueRawLocation(rawLocation); err != nil {
 			t.Fatalf("PutRawLocationByID() returns err: %v", err)
 		}
 	}
@@ -198,13 +192,13 @@ func TestRunForRawLocations(t *testing.T) {
 		CreateTimeMs: util.TimeToMilliseconds(startTime),
 		DurationMs:   (time.Duration(24) * time.Hour).Milliseconds(),
 	}
-	if _, err := rawVideoDAO.InsertUniqueRawVideo(rawVideo); err != nil {
+	if _, err := allDAOSet.RawVideoDAO.InsertUniqueRawVideo(rawVideo); err != nil {
 		t.Fatalf("InsertUniqueRawVideo() returns err: %v", err)
 	}
 
 	dp.Run("123")
 
-	tripIDs, err := tripDAO.ListUserTripIDs("123")
+	tripIDs, err := allDAOSet.TripDAO.ListUserTripIDs("123")
 	if err != nil {
 		t.Fatalf("ListUserTripIDs() returns err: %v", err)
 	}
@@ -212,7 +206,7 @@ func TestRunForRawLocations(t *testing.T) {
 		t.Fatalf("Want 1 tripID, got %d", len(tripIDs))
 	}
 
-	drivingConditionIDs, err := drivingConditionDAO.ListTripDrivingConditionIDs("123", tripIDs[0])
+	drivingConditionIDs, err := allDAOSet.DrivingConditionDAO.ListTripDrivingConditionIDs("123", tripIDs[0])
 	if err != nil {
 		t.Fatalf("ListTripDrivingConditionIDs() returns err: %v", err)
 	}
@@ -261,7 +255,7 @@ func TestRunForRawLocations(t *testing.T) {
 
 	gotDrivingConditions := []*st.DrivingConditionInternal{}
 	for _, dcid := range drivingConditionIDs {
-		dc, err := drivingConditionDAO.GetDrivingConditionByID("123", tripIDs[0], dcid)
+		dc, err := allDAOSet.DrivingConditionDAO.GetDrivingConditionByID("123", tripIDs[0], dcid)
 		if err != nil {
 			t.Fatalf("GetDrivingConditionByID() returns err: %v", err)
 		}
@@ -294,14 +288,7 @@ func TestRunForRawLocations(t *testing.T) {
 	}
 }
 
-func newDataProcessorPartsForTest() (dao.TripDAO, dao.EventDAO, dao.DrivingConditionDAO, dao.RawMotionDAO, dao.RawLocationDAO, dao.RawVideoDAO, logging.LoggingInterface) {
+func newDataProcessorPartsForTest() (*dao.AllDAOSet, logging.LoggingInterface) {
 	logger := logging.NewLocalLogger(false)
-	sqlInterface := database.NewFake()
-	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlInterface, logger)
-	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlInterface, logger, time.Minute)
-	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlInterface)
-	tripDAO := tripdao.NewSQLTripDAO(sqlInterface, logger)
-	eventDAO := eventdao.NewSQLEventDAO(sqlInterface, tripDAO, logger)
-	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlInterface, tripDAO, eventDAO)
-	return tripDAO, eventDAO, drivingConditionDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, logger
+	return testutil.GenerateAllDAOSetWithFakeDB(logger, 0), logger
 }

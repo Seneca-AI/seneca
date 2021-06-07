@@ -9,6 +9,17 @@ import (
 
 // TODO(lucaloncar): remove parent ID params, but enforce parent IDs upon insertion
 
+type AllDAOSet struct {
+	UserDAO             UserDAO
+	RawVideoDAO         RawVideoDAO
+	RawLocationDAO      RawLocationDAO
+	RawFrameDAO         RawFrameDAO
+	RawMotionDAO        RawMotionDAO
+	TripDAO             TripDAO
+	EventDAO            EventDAO
+	DrivingConditionDAO DrivingConditionDAO
+}
+
 type UserDAO interface {
 	InsertUniqueUser(user *st.User) (*st.User, error)
 	GetUserByID(id string) (*st.User, error)

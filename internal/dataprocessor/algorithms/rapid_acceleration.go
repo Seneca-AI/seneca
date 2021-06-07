@@ -155,7 +155,7 @@ func (acc *accelerationV0) GenerateEvents(inputs map[string][]interface{}) ([]*s
 		events = append(events,
 			&st.EventInternal{
 				UserId:      rawMotion.UserId,
-				EventType:   st.EventType_FAST_DECELERATION,
+				EventType:   st.EventType_FAST_ACCELERATION,
 				Value:       rawMotion.Motion.AccelerationMphS,
 				Severity:    severity,
 				TimestampMs: rawMotion.TimestampMs,

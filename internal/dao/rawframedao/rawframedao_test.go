@@ -1,4 +1,4 @@
-package rawframedao
+package rawframedao_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -189,7 +190,7 @@ func TestListUnprocessedRawFramesIDs(t *testing.T) {
 
 }
 
-func newRawFrameDAOForTest() (*SQLRawFrameDAO, *database.FakeSQLDBService) {
+func newRawFrameDAOForTest() (*rawframedao.SQLRawFrameDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	return NewSQLRawFrameDAO(fakeSQLService), fakeSQLService
+	return rawframedao.NewSQLRawFrameDAO(fakeSQLService), fakeSQLService
 }

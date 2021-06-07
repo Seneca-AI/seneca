@@ -83,6 +83,11 @@ func (ct *Client) ListTrips(req *st.TripListRequest) (*st.TripListResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("error reading bytes: %w", err)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("got status code %d with message %q", resp.StatusCode, string(bodyBytes))
+	}
+
 	if err := proto.UnmarshalText(string(bodyBytes), respProto); err != nil {
 		responseMessage := string(bodyBytes)
 		return nil, fmt.Errorf("error unmarshalling response: %w - string message: %q", err, responseMessage)
