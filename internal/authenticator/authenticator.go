@@ -29,3 +29,10 @@ func AuthedGet(client *http.Client, URL string) (*http.Response, error) {
 
 	return client.Do(req)
 }
+
+func AddRequestAuth(req *http.Request) *http.Request {
+	req.Header = http.Header{
+		authHeaderKey: []string{constants.SenecaAPIKey},
+	}
+	return req
+}

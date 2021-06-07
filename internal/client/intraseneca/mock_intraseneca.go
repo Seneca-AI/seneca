@@ -55,7 +55,7 @@ func (mc *MockIntraSenecaClient) ProcessObjectsInVideo(req *st.ObjectsInFrameReq
 }
 
 func (mc *MockIntraSenecaClient) InsertListTripsResponse(req *st.TripListRequest, resp *st.TripListResponse) {
-	if _, ok := mc.requestResponseMap[fmt.Sprintf("%T", req)]; ok {
+	if _, ok := mc.requestResponseMap[fmt.Sprintf("%T", req)]; !ok {
 		mc.requestResponseMap[fmt.Sprintf("%T", req)] = map[string]interface{}{}
 	}
 
@@ -63,7 +63,7 @@ func (mc *MockIntraSenecaClient) InsertListTripsResponse(req *st.TripListRequest
 }
 
 func (mc *MockIntraSenecaClient) InsertProcessObjectsInFrameResponse(req *st.ObjectsInFrameRequest, resp *st.ObjectsInFrameResponse) {
-	if _, ok := mc.requestResponseMap[fmt.Sprintf("%T", req)]; ok {
+	if _, ok := mc.requestResponseMap[fmt.Sprintf("%T", req)]; !ok {
 		mc.requestResponseMap[fmt.Sprintf("%T", req)] = map[string]interface{}{}
 	}
 
