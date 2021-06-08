@@ -51,18 +51,22 @@ func (prs *Garmin55ExifParser) getVideoCreationTime(timeString string) (int64, e
 
 func (prs *Garmin55ExifParser) parseOutGPSMetadata(rawVideo *st.RawVideo) ([]*st.Location, []*st.Motion, []time.Time, error) {
 	locations, motions, times, err := getLocationsMotionsTimes("2006:01:02 15:04:05.000Z", prs.unprocessedExifData)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("getLocationsMotionsTimes() returns err: %w", err)
+	}
 
 	if len(times) == 0 {
 		return nil, nil, nil, fmt.Errorf("got 0 times")
 	}
 
-	diff := util.MillisecondsToTime(rawVideo.CreateTimeMs).Sub(times[0])
+	tzOffset, err := getTZOffset(times[0], locations[0])
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("getTZOffset(%v, %v) returns err: %w", times[0], locations[0], err)
+	}
 
 	newTimes := []time.Time{}
 	for _, t := range times {
-		newTime := t.Add(time.Duration(diff.Hours() * -1))
-		newTime = newTime.Add(time.Hour * -5)
-
+		newTime := t.Add(tzOffset)
 		newTimes = append(newTimes, newTime)
 	}
 

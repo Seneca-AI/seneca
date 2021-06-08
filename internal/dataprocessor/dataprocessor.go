@@ -13,16 +13,17 @@ const (
 )
 
 var (
-	allAlgorithmTags      = []string{"00000", "00001", "00002", "00003"}
 	RawVideoTypeString    = fmt.Sprintf("%T", &st.RawVideo{})
 	RawLocationTypeString = fmt.Sprintf("%T", &st.RawLocation{})
 	RawMotionTypeString   = fmt.Sprintf("%T", &st.RawMotion{})
+	RawFrameTypeString    = fmt.Sprintf("%T", &st.RawFrame{})
 )
 
 type DataProcessor struct {
 	algorithms          map[string]AlgorithmInterface
 	rawMotionDAO        dao.RawMotionDAO
 	rawLocationDAO      dao.RawLocationDAO
+	rawFrameDAO         dao.RawFrameDAO
 	rawVideoDAO         dao.RawVideoDAO
 	eventDAO            dao.EventDAO
 	drivingConditionDAO dao.DrivingConditionDAO
@@ -39,22 +40,15 @@ type AlgorithmFactoryInterface interface {
 	GetAlgorithm(algoTag string) (AlgorithmInterface, error)
 }
 
-func New(
-	algorithmList []AlgorithmInterface,
-	eventDAO dao.EventDAO,
-	drivingConditionDAO dao.DrivingConditionDAO,
-	rawMotionDAO dao.RawMotionDAO,
-	rawLocationDAO dao.RawLocationDAO,
-	rawVideoDAO dao.RawVideoDAO,
-	logger logging.LoggingInterface,
-) (*DataProcessor, error) {
+func New(algorithmList []AlgorithmInterface, allDaos *dao.AllDAOSet, logger logging.LoggingInterface) (*DataProcessor, error) {
 	dp := &DataProcessor{
 		algorithms:          map[string]AlgorithmInterface{},
-		rawMotionDAO:        rawMotionDAO,
-		rawLocationDAO:      rawLocationDAO,
-		rawVideoDAO:         rawVideoDAO,
-		eventDAO:            eventDAO,
-		drivingConditionDAO: drivingConditionDAO,
+		rawMotionDAO:        allDaos.RawMotionDAO,
+		rawLocationDAO:      allDaos.RawLocationDAO,
+		rawVideoDAO:         allDaos.RawVideoDAO,
+		rawFrameDAO:         allDaos.RawFrameDAO,
+		eventDAO:            allDaos.EventDAO,
+		drivingConditionDAO: allDaos.DrivingConditionDAO,
 		logger:              logger,
 	}
 
@@ -70,6 +64,7 @@ func (dp *DataProcessor) Run(userID string) {
 		RawVideoTypeString:    {},
 		RawLocationTypeString: {},
 		RawMotionTypeString:   {},
+		RawFrameTypeString:    {},
 	}
 
 	unprocessedRawVideoIDs, err := dp.rawVideoDAO.ListUnprocessedRawVideoIDs(userID, AlgosVersion)
@@ -101,7 +96,6 @@ func (dp *DataProcessor) Run(userID string) {
 	locationIDs, err := dp.rawLocationDAO.ListUnprocessedRawLocationsIDs(userID, AlgosVersion)
 	if err != nil {
 		dp.logger.Error(fmt.Sprintf("ListUnprocessedRawLocationsIDs(%s, %f) returns err: %v", userID, AlgosVersion, err))
-		return
 	}
 
 	for _, lid := range locationIDs {
@@ -111,6 +105,20 @@ func (dp *DataProcessor) Run(userID string) {
 			continue
 		}
 		allUnprocessedData[RawLocationTypeString] = append(allUnprocessedData[RawLocationTypeString], rawLocation)
+	}
+
+	unprocessedRawFrameIDs, err := dp.rawFrameDAO.ListUnprocessedRawFramesIDs(userID, AlgosVersion)
+	if err != nil {
+		dp.logger.Error(fmt.Sprintf("ListUnprocessedRawFramesIDs(%s, %f) returns err: %v", userID, AlgosVersion, err))
+	}
+
+	for _, rfid := range unprocessedRawFrameIDs {
+		rawFrame, err := dp.rawFrameDAO.GetRawFrameByID(rfid)
+		if err != nil {
+			dp.logger.Error(fmt.Sprintf("GetRawFrameByID(%s) returns err: %v", rfid, err))
+			continue
+		}
+		allUnprocessedData[RawFrameTypeString] = append(allUnprocessedData[RawFrameTypeString], rawFrame)
 	}
 
 	allEvents := []*st.EventInternal{}
@@ -182,4 +190,6 @@ func (dp *DataProcessor) Run(userID string) {
 			dp.logger.Error(fmt.Sprintf("PutRawVideoByID(%s) returns err: %v", rawMotion.Id, err))
 		}
 	}
+
+	dp.logger.Log(fmt.Sprintf("Finished running dataprocessor on user with ID %q", userID))
 }

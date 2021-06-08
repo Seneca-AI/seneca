@@ -2,6 +2,7 @@ package algorithms
 
 import (
 	"fmt"
+	"seneca/internal/client/intraseneca"
 	"seneca/internal/client/weather"
 	"seneca/internal/dataprocessor"
 )
@@ -11,7 +12,7 @@ type AlgorithmFactory struct {
 	weatherService      weather.WeatherServiceInterface
 }
 
-func NewFactory(weatherService weather.WeatherServiceInterface) (*AlgorithmFactory, error) {
+func NewFactory(weatherService weather.WeatherServiceInterface, intraSenecaClient intraseneca.IntraSenecaInterface) (*AlgorithmFactory, error) {
 	factory := &AlgorithmFactory{
 		algorithmsCatalogue: map[string]dataprocessor.AlgorithmInterface{},
 		weatherService:      weatherService,
@@ -34,6 +35,12 @@ func NewFactory(weatherService weather.WeatherServiceInterface) (*AlgorithmFacto
 
 	weatherV0 := newWeatherV0(weatherService)
 	factory.algorithmsCatalogue[weatherV0.Tag()] = weatherV0
+
+	followingDistanceV0, err := newFollowingDistanceV0(intraSenecaClient)
+	if err != nil {
+		return nil, fmt.Errorf("newFollowingDistanceV0() returns err: %w", err)
+	}
+	factory.algorithmsCatalogue[followingDistanceV0.Tag()] = followingDistanceV0
 
 	return factory, nil
 }

@@ -8,6 +8,8 @@ import (
 	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/database"
 	"seneca/internal/client/googledrive"
+	"seneca/internal/client/intraseneca"
+	"seneca/internal/client/intraseneca/http"
 	"seneca/internal/client/logging"
 	weatherservice "seneca/internal/client/weather/service"
 	"seneca/internal/controller/apiserver"
@@ -50,7 +52,7 @@ type TestEnvironment struct {
 	APIServer           *apiserver.APIServer
 }
 
-func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, error) {
+func New(projectID string, serverConfig *intraseneca.ServerConfig, logger logging.LoggingInterface) (*TestEnvironment, error) {
 	wrappedLogger := NewErrorCounterLogWrapper(logger)
 
 	gcsc, err := gcp.NewGoogleCloudStorageClient(context.Background(), projectID, time.Second*10, time.Minute)
@@ -71,6 +73,16 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	tripDAO := tripdao.NewSQLTripDAO(sqlService, wrappedLogger)
 	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, wrappedLogger)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
+	allDAOSet := &dao.AllDAOSet{
+		UserDAO:             userDAO,
+		RawVideoDAO:         rawVideoDAO,
+		RawLocationDAO:      rawLocationDAO,
+		RawMotionDAO:        rawMotionDAO,
+		RawFrameDAO:         rawFrameDAO,
+		TripDAO:             tripDAO,
+		EventDAO:            eventDAO,
+		DrivingConditionDAO: dcDAO,
+	}
 
 	mp4Tool, err := mp4.NewMP4Tool(wrappedLogger)
 	if err != nil {
@@ -83,7 +95,12 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 	gDriveFactory := &googledrive.UserClientFactory{}
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, wrappedLogger)
 
-	algoFactory, err := algorithms.NewFactory(weatherservice.NewWeatherStackService(time.Second * 10))
+	intraSenecaClient, err := http.New(serverConfig)
+	if err != nil {
+		return nil, fmt.Errorf("intraseneca.http.New() returns err: %w", err)
+	}
+
+	algoFactory, err := algorithms.NewFactory(weatherservice.NewWeatherStackService(time.Second*10), intraSenecaClient)
 	if err != nil {
 		return nil, fmt.Errorf("algorithms.NewFactory() returns err: %v", err)
 	}
@@ -97,12 +114,12 @@ func New(projectID string, logger logging.LoggingInterface) (*TestEnvironment, e
 		algos = append(algos, algo)
 	}
 
-	dataprocessor, err := dataprocessor.New(algos, eventDAO, dcDAO, rawMotionDAO, rawLocationDAO, rawVideoDAO, wrappedLogger)
+	dataprocessor, err := dataprocessor.New(algos, allDAOSet, wrappedLogger)
 	if err != nil {
 		return nil, fmt.Errorf("dataprocessor.New() returns err: %w", err)
 	}
 	runner := runner.New(userDAO, dataprocessor, wrappedLogger)
-	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, dcDAO)
+	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, rawFrameDAO, eventDAO, dcDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	return &TestEnvironment{
@@ -138,57 +155,6 @@ func (te *TestEnvironment) Clean() {
 			te.Logger.Error(fmt.Sprintf("GetUserByID(%s) returns err: %v", uid, err))
 		}
 
-		rawVideoIDs, err := te.RawVideoDAO.ListUserRawVideoIDs(uid)
-		if err != nil {
-			te.Logger.Error(fmt.Sprintf("ListUserRawVideoIDs(%s) returns err: %v", uid, err))
-		}
-		for _, rvid := range rawVideoIDs {
-			rawVideo, err := te.RawVideoDAO.GetRawVideoByID(rvid)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("GetRawVideoByID(%s) returns err: %v", rvid, err))
-			}
-
-			if rawVideo.CloudStorageFileName == "" {
-				continue
-			}
-
-			bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawVideo.CloudStorageFileName)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("GCSURLToBucketNameAndFileName(%s) returns err: %v", rawVideo.CloudStorageFileName, err))
-				continue
-			}
-
-			if err := te.SimpleStorage.DeleteBucketFile(bucketName, fileName); err != nil {
-				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", bucketName, fileName, err))
-			}
-		}
-
-		rawFrameIDs, err := te.RawFrameDAO.ListUserRawFrameIDs(uid)
-		if err != nil {
-			te.Logger.Error(fmt.Sprintf("ListUserRawFrameIDs(%s) returns err: %v", uid, err))
-		}
-
-		for _, rfid := range rawFrameIDs {
-			rawFrame, err := te.RawFrameDAO.GetRawFrameByID(rfid)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("GetRawFrameByID(%s) returns err: %v", rfid, err))
-			}
-
-			if rawFrame.CloudStorageFileName == "" {
-				continue
-			}
-
-			bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawFrame.CloudStorageFileName)
-			if err != nil {
-				te.Logger.Error(fmt.Sprintf("GCSURLToBucketNameAndFileName(%s) returns err: %v", rawFrame.CloudStorageFileName, err))
-				continue
-			}
-
-			if err := te.SimpleStorage.DeleteBucketFile(bucketName, fileName); err != nil {
-				te.Logger.Warning(fmt.Sprintf("DeleteBucketFile(%s, %s) returns err: %v", bucketName, fileName, err))
-			}
-		}
-
 		gDrive, err := te.GDriveFactory.New(user)
 		if err != nil {
 			te.Logger.Error(fmt.Sprintf("Error initializing gdrive client for user %q", user.Id))
@@ -206,7 +172,7 @@ func (te *TestEnvironment) Clean() {
 			}
 		}
 
-		if err := data.DeleteAllUserDataInDB(uid, false, te.sqlService); err != nil {
+		if err := data.DeleteAllUserData(uid, false, te.sqlService, te.SimpleStorage, te.Logger); err != nil {
 			te.Logger.Error(fmt.Sprintf("DeleteAllUserDataInDB(%s, %t, _) returns err: %v", uid, false, err))
 		}
 	}

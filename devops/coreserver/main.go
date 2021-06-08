@@ -93,7 +93,17 @@ func (hndl *httpHandler) handleHTTPRequest(w http.ResponseWriter, r *http.Reques
 func handleIntegrationTestRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received integration test request")
 
-	resp, err := authenticator.AuthedGet(&http.Client{}, fmt.Sprintf("http://%s:%s/%s", integrationTestServerIPAddress, integrationTestServerPort, integrationTestEndpoint))
+	httpClient := http.DefaultClient
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%s/%s", integrationTestServerIPAddress, integrationTestServerPort, integrationTestEndpoint), nil)
+	if err != nil {
+		fmt.Fprintf(w, "Error initializing request to itest server: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	req = authenticator.AddRequestAuth(req)
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(w, "Error sending request to itest server: %v", err)
 		w.WriteHeader(500)

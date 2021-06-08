@@ -107,5 +107,6 @@ func (sync *Syncer) SyncUser(id string) error {
 			}
 		}
 	}
+	sync.logger.Log(fmt.Sprintf("Finished syncing user %q", user.Email))
 	return nil
 }

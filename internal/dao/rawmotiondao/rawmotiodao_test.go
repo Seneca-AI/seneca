@@ -1,4 +1,4 @@
-package rawmotiondao
+package rawmotiondao_test
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -163,8 +164,8 @@ func TestGetRawMotionByID(t *testing.T) {
 	close(sql.ErrorCalls)
 }
 
-func newRawMotionDAOForTest() (*SQLRawMotionDAO, *database.FakeSQLDBService) {
+func newRawMotionDAOForTest() (*rawmotiondao.SQLRawMotionDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(true)
-	return NewSQLRawMotionDAO(fakeSQLService, logger), fakeSQLService
+	return rawmotiondao.NewSQLRawMotionDAO(fakeSQLService, logger), fakeSQLService
 }

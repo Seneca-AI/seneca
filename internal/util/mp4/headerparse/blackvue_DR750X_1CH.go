@@ -51,19 +51,35 @@ func (prs *blackVueDR750X1CHExifParser) getVideoCreationTime(timeString string) 
 
 func (prs *blackVueDR750X1CHExifParser) parseOutGPSMetadata(rawVideo *st.RawVideo) ([]*st.Location, []*st.Motion, []time.Time, error) {
 	locations, motions, times, err := getLocationsMotionsTimes("2006:01:02 15:04:05.00Z", prs.unprocessedExifData)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("getLocationsMotionsTimes() returns err: %w", err)
+	}
 
 	if len(times) == 0 {
 		return nil, nil, nil, fmt.Errorf("got 0 times")
 	}
 
-	diff := util.MillisecondsToTime(rawVideo.CreateTimeMs).Sub(times[0])
+	tzOffset, err := getTZOffset(times[0], locations[0])
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("getTZOffset(%v, %v) returns err: %w", times[0], locations[0], err)
+	}
+
+	// For some reason it's still off an hour for BlackVue.
+	tzOffset -= time.Hour
+
+	// For some reason BlackVue is also always just a bit off in seconds.
+	rawVideoStartTime := util.MillisecondsToTime(rawVideo.CreateTimeMs)
+	firstLocationTimeTimeZoned := times[0].Add(tzOffset)
+	startTimeOffset := rawVideoStartTime.Sub(firstLocationTimeTimeZoned)
+	if startTimeOffset > time.Second*30 {
+		return nil, nil, nil, fmt.Errorf("RawVideo create time is %v, but first location data time is %v", rawVideoStartTime, firstLocationTimeTimeZoned)
+	}
 
 	newTimes := []time.Time{}
 	for _, t := range times {
-		// Adjust timezone to UTC.
-		newTime := t.Add(time.Duration(diff.Hours() * -1))
-		// TODO(lucaloncar): here, and elsewhere, use the gps coordinates to figure out time zone and adjust
-		newTime = t.Add((time.Second * 3) + (time.Hour * -5))
+		newTime := t.Add(tzOffset)
+
+		newTime = newTime.Add(startTimeOffset)
 
 		newTimes = append(newTimes, newTime)
 	}

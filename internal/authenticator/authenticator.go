@@ -18,18 +18,6 @@ func AuthorizeHTTPRequest(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func AuthedGet(client *http.Client, URL string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error constructing HTTP request: %w", err)
-	}
-	req.Header = http.Header{
-		authHeaderKey: []string{constants.SenecaAPIKey},
-	}
-
-	return client.Do(req)
-}
-
 func AddRequestAuth(req *http.Request) *http.Request {
 	req.Header = http.Header{
 		authHeaderKey: []string{constants.SenecaAPIKey},
