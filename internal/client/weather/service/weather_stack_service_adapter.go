@@ -59,7 +59,7 @@ func (wss *WeatherStackService) GetHistoricalWeather(timestamp time.Time, lat *s
 }
 
 func (wss *WeatherStackService) getHistoricalWeatherRecurse(timestamp time.Time, lat *st.Latitude, long *st.Longitude, recurse bool) ([]*weather.TimestampedWeatherCondition, error) {
-	// TODO(lucaloncar): fix this bullshit
+	// TODO(lucaloncar): fix this bs
 	// We're somehow in an infinite loop if we get here. Crash.
 	if wss.apiCalls > 1000 {
 		log.Fatalf("Made over 1000 weather API calls.  Proobably an infinite loop.")

@@ -32,7 +32,7 @@ func TestInsertUniqueUser(t *testing.T) {
 	}
 
 	// No conflict with time email.
-	alreadyExistingUser.Email = "friggin_nerd@gmail.com"
+	alreadyExistingUser.Email = "some_email@gmail.com"
 	if err := sql.Insert(constants.UsersTable, existingID, alreadyExistingUser); err != nil {
 		t.Fatalf("DeleteByID() returns err: %v", err)
 	}

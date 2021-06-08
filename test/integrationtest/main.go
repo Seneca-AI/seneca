@@ -16,11 +16,7 @@ import (
 const testUserEmail = "itestuser000@senecacam.com"
 
 // TODO(lucaloncar): use 'env' variables here.
-var serverConfig = &intraseneca.ServerConfig{
-	MLServerHostName: "34.136.176.46",
-	MLServerHostPort: "5000",
-	MLServerTimeout:  time.Second * 60,
-}
+var serverConfig = &intraseneca.ServerConfig{}
 
 func main() {
 	startTime := time.Now()
