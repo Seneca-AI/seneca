@@ -1,12 +1,11 @@
 package headerparse
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"seneca/api/constants"
 	st "seneca/api/type"
-	"seneca/internal/util"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -48,21 +47,6 @@ func parseDegrees(degreesStr string) (int32, int32, float64, error) {
 	return degrees, degreeMins, degreeSecs, nil
 }
 
-func getCreationTime(dashCamName DashCamName, timeString string) (int64, error) {
-	t, err := time.Parse(cameraDataLayouts[dashCamName].videoStartTimeLayout, timeString)
-	if err != nil {
-		return 0, fmt.Errorf("error parsing CreationTime - err: %v", err)
-	}
-	t = t.In(time.UTC).Round(time.Second)
-
-	if t.Equal(time.Unix(0, 0)) {
-		return 0, errors.New("creationTime of 0 is not allowed")
-	}
-	t = t.In(time.UTC)
-
-	return util.TimeToMilliseconds(t), nil
-}
-
 func getDurationMs(durationString string) (int64, error) {
 	durationString = strings.Replace(durationString, ":", "h", 1)
 	durationString = strings.Replace(durationString, ":", "m", 1)
@@ -84,7 +68,7 @@ type locationMotionTime struct {
 	gpsTime  time.Time
 }
 
-func getLocationMotionTime(unprocessedGPSData *unprocessedExifGPSData) (*locationMotionTime, error) {
+func getLocationMotionTime(gpsDateTimeFormat string, unprocessedGPSData *unprocessedExifGPSData) (*locationMotionTime, error) {
 	var err error
 
 	locationMotionTime := &locationMotionTime{
@@ -100,12 +84,10 @@ func getLocationMotionTime(unprocessedGPSData *unprocessedExifGPSData) (*locatio
 		return nil, fmt.Errorf("error parsing Longitude: %w", err)
 	}
 
-	for _, layout := range gpsDateTimeParseLayouts {
-		if locationMotionTime.gpsTime, err = time.Parse(layout, unprocessedGPSData.datetime); err == nil {
-			locationMotionTime.gpsTime = locationMotionTime.gpsTime.In(time.UTC).Round(time.Second)
-			break
-		}
+	if locationMotionTime.gpsTime, err = time.Parse(gpsDateTimeFormat, unprocessedGPSData.datetime); err == nil {
+		locationMotionTime.gpsTime = locationMotionTime.gpsTime.In(time.UTC).Round(time.Second)
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error parsing GPS time: %w", err)
 	}
@@ -116,8 +98,33 @@ func getLocationMotionTime(unprocessedGPSData *unprocessedExifGPSData) (*locatio
 	case "km/h":
 		locationMotionTime.motion.VelocityMph = math.Round(unprocessedGPSData.speed / constants.KilometersToMiles)
 	default:
-		return nil, fmt.Errorf("invalid spedRef %q", unprocessedGPSData.speedRef)
+		return nil, fmt.Errorf("invalid speedRef %q", unprocessedGPSData.speedRef)
 	}
 
 	return locationMotionTime, nil
+}
+
+// 	getLocationsMotionsTimes extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
+func getLocationsMotionsTimes(gpsDateTimeFormat string, unprocessedExifData *unprocessedExifData) ([]*st.Location, []*st.Motion, []time.Time, error) {
+	locationsMotionsTimes := []locationMotionTime{}
+	for _, gpsData := range unprocessedExifData.gpsData {
+		lmt, err := getLocationMotionTime(gpsDateTimeFormat, gpsData)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error extracting GPS data: %w", err)
+		}
+		locationsMotionsTimes = append(locationsMotionsTimes, *lmt)
+	}
+
+	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
+	locations := []*st.Location{}
+	motions := []*st.Motion{}
+	times := []time.Time{}
+	for _, lmt := range locationsMotionsTimes {
+		locations = append(locations, lmt.location)
+		motions = append(motions, lmt.motion)
+		times = append(times, lmt.gpsTime)
+	}
+	populateAccelerations(motions)
+
+	return locations, motions, times, nil
 }

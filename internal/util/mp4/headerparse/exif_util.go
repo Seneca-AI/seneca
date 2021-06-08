@@ -67,37 +67,20 @@ func stringToLongitude(longString string) (*st.Longitude, error) {
 	return longitude, nil
 }
 
-// adjust for time zones. we use the rawVideo as the anchor.
-func adjustTimestamps(dashCamName DashCamName, rawVideo *st.RawVideo, times []time.Time) ([]time.Time, error) {
-	if len(times) == 0 {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("no GPS data found"), "Video has no header data.")
-	}
-
-	diff := util.MillisecondsToTime(rawVideo.CreateTimeMs).Sub(times[0])
-
-	newTimes := []time.Time{}
-	for _, t := range times {
-		// Adjust timezone to UTC.
-		newTime := t.Add(time.Duration(diff.Hours() * -1))
-		// Adjust for specific camera.
-		newTime = t.Add(cameraDataLayouts[dashCamName].gpsTimeAdjustment)
-
-		newTimes = append(newTimes, newTime)
-	}
-
-	return newTimes, nil
-}
-
 func validateData(rawVideo *st.RawVideo, locations []*st.Location, motions []*st.Motion, times []time.Time) error {
 	if len(times) == 0 {
 		return senecaerror.NewUserError("", fmt.Errorf("no GPS data found"), "Video has no header data.")
 	}
 
+	fmt.Printf("DEBUG video create tiem: %v\n", util.MillisecondsToTime(rawVideo.CreateTimeMs))
+	fmt.Printf("DEBUG first time: %v\n", times[0])
+	fmt.Printf("DEBUG last time: %v\n", times[len(times)-1])
+
 	if times[0].Before(util.MillisecondsToTime(rawVideo.CreateTimeMs)) {
 		return senecaerror.NewDevError(fmt.Errorf("location/motion data timestamp %v is before rawVideo createTime %v", times[0], util.MillisecondsToTime(rawVideo.CreateTimeMs).In(time.UTC)))
 	}
 
-	if times[len(times)-1].After(util.MillisecondsToTime(rawVideo.CreateTimeMs + rawVideo.DurationMs + int64(time.Second))) {
+	if times[len(times)-1].After(util.MillisecondsToTime(rawVideo.CreateTimeMs + rawVideo.DurationMs + time.Second.Milliseconds())) {
 		return senecaerror.NewDevError(fmt.Errorf("location/motion data timestamp %v is after rawVideo endTime %v", times[0], util.MillisecondsToTime(rawVideo.CreateTimeMs+rawVideo.DurationMs).In(time.UTC)))
 	}
 

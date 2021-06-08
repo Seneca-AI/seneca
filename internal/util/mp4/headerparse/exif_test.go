@@ -41,7 +41,6 @@ func TestGetMetadataHasExpectedData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-
 			rawVideo, _, _, _, err := exifMP4Tool.ParseVideoMetadata(tc.pathToVideo)
 			if err != nil {
 				t.Errorf("parseOutRawVideoMetadata() for video %q returns err: %v", tc.pathToVideo, err)
@@ -195,7 +194,7 @@ func TestGetLocationMotionTime(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got, err := getLocationMotionTime(tc.input)
+			got, err := getLocationMotionTime("2006:01:02 15:04:05.000Z", tc.input)
 			if tc.wantErr {
 				if err == nil {
 					t.Errorf("Want err from getLocationMotionTime(%v), got nil", tc.input)

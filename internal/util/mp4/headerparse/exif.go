@@ -14,29 +14,8 @@ import (
 	"fmt"
 	st "seneca/api/type"
 	"seneca/internal/client/logging"
-	"sort"
 	"time"
 )
-
-const (
-	exifToolMetadataMainKey = "Main"
-	exifDurationKey         = "TrackDuration"
-	exifGPSLatKey           = "GPSLatitude"
-	exifGPSLongKey          = "GPSLongitude"
-	exifGPSSpeedKey         = "GPSSpeed"
-	exifGPSSpeedRefKey      = "GPSSpeedRef"
-	exifGPSSampleTimeKey    = "SampleTime"
-)
-
-type parserValues struct {
-	videoStartTimeKey string
-	// time.Parse requires the first arugment to be a string
-	// representing what the datetime 15:04 on 1/2/2006 would be.
-	videoStartTimeLayout string
-	gpsTimeKey           string
-	gpsTimeLayout        string
-	gpsTimeAdjustment    time.Duration
-}
 
 type DashCamName string
 
@@ -50,33 +29,27 @@ func (dcn DashCamName) String() string {
 }
 
 var (
-	exifGPSSpeedRefs        = []string{"mph", "km/h"}
-	gpsDateTimeParseLayouts = []string{"2006:01:02 15:04:05.000Z", "2006:01:02 15:04:05.00Z"}
-
-	cameraDataLayouts = map[DashCamName]*parserValues{
-		Garmin55: {
-			videoStartTimeKey:    "CreateDate",
-			videoStartTimeLayout: "2006:01:02 15:04:05",
-			gpsTimeKey:           "GPSDateTime",
-			gpsTimeLayout:        "2006:01:02 15:04:05.000Z",
-		},
-		BlackVueDR750X1CH: {
-			videoStartTimeKey:    "StartTime",
-			videoStartTimeLayout: "2006:01:02 15:04:05.000",
-			gpsTimeKey:           "GPSDateTime",
-			gpsTimeLayout:        "2006:01:02 15:04:05.00Z",
-			gpsTimeAdjustment:    (time.Second * 2),
-		},
-	}
+	exifGPSSpeedRefs = []string{"mph", "km/h"}
 )
 
+type exifParserInterface interface {
+	init(unprocessedExifData *unprocessedExifData)
+	parseOutRawVideoMetadata() (*st.RawVideo, error)
+	parseOutGPSMetadata(rawVideo *st.RawVideo) ([]*st.Location, []*st.Motion, []time.Time, error)
+}
+
 type ExifMP4Tool struct {
-	logger logging.LoggingInterface
+	logger  logging.LoggingInterface
+	parsers map[DashCamName]exifParserInterface
 }
 
 func NewExifMP4Tool(logger logging.LoggingInterface) *ExifMP4Tool {
 	return &ExifMP4Tool{
 		logger: logger,
+		parsers: map[DashCamName]exifParserInterface{
+			BlackVueDR750X1CH: &blackVueDR750X1CHExifParser{},
+			Garmin55:          &Garmin55ExifParser{},
+		},
 	}
 }
 
@@ -91,19 +64,17 @@ func (emt *ExifMP4Tool) ParseVideoMetadata(pathToVideo string) (*st.RawVideo, []
 		return nil, nil, nil, nil, fmt.Errorf("error extracting unprocessed data: %w", err)
 	}
 
-	rawVideo, err := parseOutRawVideoMetadata(dashCamName, unprocessedExifData)
+	parser := emt.parsers[dashCamName]
+	parser.init(unprocessedExifData)
+
+	rawVideo, err := parser.parseOutRawVideoMetadata()
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error parsing rawVideo metadata: %w", err)
 	}
 
-	locations, motions, times, err := parseOutGPSMetadata(unprocessedExifData)
+	locations, motions, times, err := parser.parseOutGPSMetadata(rawVideo)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error parsing location/motion metadata: %w", err)
-	}
-
-	times, err = adjustTimestamps(dashCamName, rawVideo, times)
-	if err != nil {
-		return nil, nil, nil, nil, err
 	}
 
 	if err := validateData(rawVideo, locations, motions, times); err != nil {
@@ -111,48 +82,4 @@ func (emt *ExifMP4Tool) ParseVideoMetadata(pathToVideo string) (*st.RawVideo, []
 	}
 
 	return rawVideo, locations, motions, times, nil
-}
-
-// parseOutRawVideoMetadata extracts *st.RawVideo metadata from the mp4 at the given path.
-func parseOutRawVideoMetadata(dashCamName DashCamName, unprocessedExifData *unprocessedExifData) (*st.RawVideo, error) {
-	rawVideo := &st.RawVideo{}
-
-	creationTimeMs, err := getCreationTime(dashCamName, unprocessedExifData.startTime)
-	if err != nil {
-		return nil, fmt.Errorf("error getting creationTimeMs: %w", err)
-	}
-	rawVideo.CreateTimeMs = creationTimeMs
-
-	durationMs, err := getDurationMs(unprocessedExifData.duration)
-	if err != nil {
-		return nil, fmt.Errorf("error getting durationMs: %w", err)
-	}
-	rawVideo.DurationMs = durationMs
-
-	return rawVideo, nil
-}
-
-// 	parseOutGPSMetadata extracts a list of st.Location, st.Motion and time.Time from the video at the given path.
-func parseOutGPSMetadata(unprocessedExifData *unprocessedExifData) ([]*st.Location, []*st.Motion, []time.Time, error) {
-	locationsMotionsTimes := []locationMotionTime{}
-	for _, gpsData := range unprocessedExifData.gpsData {
-		lmt, err := getLocationMotionTime(gpsData)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error extracting GPS data: %w", err)
-		}
-		locationsMotionsTimes = append(locationsMotionsTimes, *lmt)
-	}
-
-	sort.Slice(locationsMotionsTimes, func(i, j int) bool { return locationsMotionsTimes[i].gpsTime.Before(locationsMotionsTimes[j].gpsTime) })
-	locations := []*st.Location{}
-	motions := []*st.Motion{}
-	times := []time.Time{}
-	for _, lmt := range locationsMotionsTimes {
-		locations = append(locations, lmt.location)
-		motions = append(motions, lmt.motion)
-		times = append(times, lmt.gpsTime)
-	}
-	populateAccelerations(motions)
-
-	return locations, motions, times, nil
 }
