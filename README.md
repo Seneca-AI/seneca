@@ -18,9 +18,14 @@ Seneca.AI/seneca implements all of the infrastucture for this application, aside
 * ID008: [internal/controller/apiserver](https://github.com/Seneca-AI/seneca/tree/main/internal/controller/apiserver)
 * ID009: https://github.com/Seneca-AI/client
 
+### Data Model
+The data model is defined at https://github.com/Seneca-AI/common/tree/main/api/type
+![architecture](./docs/data_model.png)
+
 #### Some other notable points
 
 * This repo is a WIP that is no longer in progress and needs a lot of work.
+* All projects under Seneca-AI run GitHub Actions by first copying protos from the 'common' repo and compiling them within the action.
 * Integration tests, which run on pushes to staging/main can be found at [test/integrationtest](https://github.com/Seneca-AI/seneca/tree/main/test/integrationtest).  The server that runs these tests can be found at [devops/itestserver](https://github.com/Seneca-AI/seneca/tree/main/devops/itestserver).
 * When new code is pushed to main, [devops/coreserver/helpers/pusher.go](https://github.com/Seneca-AI/seneca/blob/main/devops/coreserver/helpers/pusher.go) pushes it to the server.
 * If a server isn't responding to heartbeat requests, [devops/coreserver/helpers/medic.go](https://github.com/Seneca-AI/seneca/blob/main/devops/coreserver/helpers/medic.go) will restart it.
