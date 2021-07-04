@@ -5,6 +5,37 @@ import (
 	"strings"
 )
 
+const (
+	exifToolMetadataMainKey = "Main"
+	exifDurationKey         = "TrackDuration"
+	exifGPSLatKey           = "GPSLatitude"
+	exifGPSLongKey          = "GPSLongitude"
+	exifGPSSpeedKey         = "GPSSpeed"
+	exifGPSSpeedRefKey      = "GPSSpeedRef"
+	exifGPSSampleTimeKey    = "SampleTime"
+)
+
+type parserValues struct {
+	videoStartTimeKey string
+	// time.Parse requires the first arugment to be a string
+	// representing what the datetime 15:04 on 1/2/2006 would be.
+	gpsTimeKey string
+	// gpsTimeLayout        string
+}
+
+var (
+	cameraDataLayouts = map[DashCamName]*parserValues{
+		Garmin55: {
+			videoStartTimeKey: "CreateDate",
+			gpsTimeKey:        "GPSDateTime",
+		},
+		BlackVueDR750X1CH: {
+			videoStartTimeKey: "StartTime",
+			gpsTimeKey:        "GPSDateTime",
+		},
+	}
+)
+
 type unprocessedExifGPSData struct {
 	datetime  string
 	latitude  string

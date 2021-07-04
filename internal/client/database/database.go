@@ -14,12 +14,12 @@ type SQLInterface interface {
 }
 
 type QueryParam struct {
-	FieldName string
+	FieldName constants.SenecaTypeFieldName
 	Operand   string
 	Value     interface{}
 }
 
-func GenerateTimeOffsetParams(fieldName string, createTimeMs int64, offset time.Duration) []*QueryParam {
+func GenerateTimeOffsetParams(fieldName constants.SenecaTypeFieldName, createTimeMs int64, offset time.Duration) []*QueryParam {
 	return []*QueryParam{
 		{
 			FieldName: fieldName,

@@ -16,12 +16,6 @@ import (
 	"time"
 )
 
-const (
-	userIDFieldName       = "UserId"
-	createTimeFieldName   = "CreateTimeMs"
-	algosVersionFieldName = "AlgosVersion"
-)
-
 type SQLRawVideoDAO struct {
 	sql                   database.SQLInterface
 	logger                logging.LoggingInterface
@@ -37,7 +31,7 @@ func NewSQLRawVideoDAO(sqlInterface database.SQLInterface, logger logging.Loggin
 }
 
 func (rdao *SQLRawVideoDAO) InsertUniqueRawVideo(rawVideo *st.RawVideo) (*st.RawVideo, error) {
-	params := append(database.GenerateTimeOffsetParams(createTimeFieldName, rawVideo.CreateTimeMs, rdao.createTimeQueryOffset), &database.QueryParam{FieldName: userIDFieldName, Operand: "=", Value: rawVideo.UserId})
+	params := append(database.GenerateTimeOffsetParams(constants.CreateTimeFieldName, rawVideo.CreateTimeMs, rdao.createTimeQueryOffset), &database.QueryParam{FieldName: constants.UserIDFieldName, Operand: "=", Value: rawVideo.UserId})
 
 	ids, err := rdao.sql.ListIDs(constants.RawVideosTable, params)
 	if err != nil {
@@ -78,7 +72,7 @@ func (rdao *SQLRawVideoDAO) PutRawVideoByID(ctx context.Context, rawVideoID stri
 }
 
 func (rdao *SQLRawVideoDAO) ListUnprocessedRawVideoIDs(userID string, latestVersion float64) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawVideosTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}, {FieldName: algosVersionFieldName, Operand: "<", Value: latestVersion}})
+	return rdao.sql.ListIDs(constants.RawVideosTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}, {FieldName: constants.AlgosVersionFieldName, Operand: "<", Value: latestVersion}})
 }
 
 func (rdao *SQLRawVideoDAO) GetRawVideoByID(id string) (*st.RawVideo, error) {
@@ -100,7 +94,7 @@ func (rdao *SQLRawVideoDAO) GetRawVideoByID(id string) (*st.RawVideo, error) {
 }
 
 func (rdao *SQLRawVideoDAO) ListUserRawVideoIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawVideosTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawVideosTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (rdao *SQLRawVideoDAO) DeleteRawVideoByID(id string) error {

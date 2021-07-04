@@ -1,4 +1,4 @@
-package rawvideodao
+package rawvideodao_test
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	st "seneca/api/type"
 	"seneca/internal/client/database"
 	"seneca/internal/client/logging"
+	"seneca/internal/dao/rawvideodao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -163,9 +164,9 @@ func TestGetRawVideoByID(t *testing.T) {
 	close(sql.ErrorCalls)
 }
 
-func newRawVideoDAOForTest(offset time.Duration) (*SQLRawVideoDAO, *database.FakeSQLDBService) {
+func newRawVideoDAOForTest(offset time.Duration) (*rawvideodao.SQLRawVideoDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(true)
 
-	return NewSQLRawVideoDAO(fakeSQLService, logger, offset), fakeSQLService
+	return rawvideodao.NewSQLRawVideoDAO(fakeSQLService, logger, offset), fakeSQLService
 }

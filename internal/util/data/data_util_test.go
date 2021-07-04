@@ -68,3 +68,131 @@ func TestCutRawVideoData(t *testing.T) {
 		})
 	}
 }
+
+func TestLatitudeToFloat(t *testing.T) {
+	testCases := []struct {
+		desc       string
+		lat        *st.Latitude
+		wantString string
+	}{
+		{
+			desc: "north just degrees",
+			lat: &st.Latitude{
+				Degrees:      15,
+				LatDirection: st.Latitude_NORTH,
+			},
+			wantString: "15.000000",
+		},
+		{
+			desc: "north zero",
+			lat: &st.Latitude{
+				Degrees:      0,
+				LatDirection: st.Latitude_NORTH,
+			},
+			wantString: "0.000000",
+		},
+		{
+			desc: "north degrees and minutes",
+			lat: &st.Latitude{
+				Degrees:       15,
+				DegreeMinutes: 25,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			wantString: "15.416667",
+		},
+		{
+			desc: "north degrees and seconds",
+			lat: &st.Latitude{
+				Degrees:       45,
+				DegreeSeconds: 35,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			wantString: "45.009722",
+		},
+		{
+			desc: "north degrees, minutes and seconds",
+			lat: &st.Latitude{
+				Degrees:       40,
+				DegreeMinutes: 26,
+				DegreeSeconds: 13.32,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			wantString: "40.437033",
+		},
+		{
+			desc: "north degrees, minutes and seconds no trailing zeroes",
+			lat: &st.Latitude{
+				Degrees:       15,
+				DegreeMinutes: 6,
+				DegreeSeconds: 36,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			wantString: "15.110000",
+		},
+		{
+			desc: "south",
+			lat: &st.Latitude{
+				Degrees:      15,
+				LatDirection: st.Latitude_SOUTH,
+			},
+			wantString: "-15.000000",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := LatitudeToFloat64(tc.lat)
+			if fmt.Sprintf("%f", got) != tc.wantString {
+				t.Errorf("Want %q, got %f", tc.wantString, got)
+			}
+		})
+	}
+}
+
+func TestDistanceMiles(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		lat1  *st.Latitude
+		long1 *st.Longitude
+		lat2  *st.Latitude
+		long2 *st.Longitude
+		want  float64
+	}{
+		{
+			desc: "only one test",
+			lat1: &st.Latitude{
+				Degrees:       50,
+				DegreeMinutes: 3,
+				DegreeSeconds: 59,
+				LatDirection:  st.Latitude_NORTH,
+			},
+			long1: &st.Longitude{
+				Degrees:       5,
+				DegreeMinutes: 42,
+				DegreeSeconds: 43,
+				LongDirection: st.Longitude_WEST,
+			},
+			lat2: &st.Latitude{
+				Degrees:       58,
+				DegreeMinutes: 38,
+				DegreeSeconds: 38,
+			},
+			long2: &st.Longitude{
+				Degrees:       3,
+				DegreeMinutes: 4,
+				DegreeSeconds: 12,
+				LongDirection: st.Longitude_WEST,
+			},
+			want: 602,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := DistanceMiles(tc.lat1, tc.long1, tc.lat2, tc.long2)
+			if got > tc.want+1 || got < tc.want-1 {
+				t.Errorf("Want %.45f, got %.45f", tc.want, got)
+			}
+		})
+	}
+}

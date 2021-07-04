@@ -138,6 +138,8 @@ func (gcsc *GoogleCloudStorageClient) BucketFileExists(bucketName cloud.BucketNa
 //	Returns:
 //		senecaerror.BadStateError
 func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketName, localFileNameAndPath, bucketFileName string) error {
+	defer os.Remove(localFileNameAndPath)
+
 	var err error
 	if localFileNameAndPath == "" {
 		return senecaerror.NewBadStateError(fmt.Errorf("received empty localFileName"))
@@ -162,6 +164,7 @@ func (gcsc *GoogleCloudStorageClient) WriteBucketFile(bucketName cloud.BucketNam
 	if err := wc.Close(); err != nil {
 		return senecaerror.NewBadStateError(fmt.Errorf("error closing writer: %w", err))
 	}
+
 	return nil
 }
 

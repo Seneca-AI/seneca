@@ -7,7 +7,18 @@ import (
 	"time"
 )
 
-// TODO(lucaloncar): remove parent ID params
+// TODO(lucaloncar): remove parent ID params, but enforce parent IDs upon insertion
+
+type AllDAOSet struct {
+	UserDAO             UserDAO
+	RawVideoDAO         RawVideoDAO
+	RawLocationDAO      RawLocationDAO
+	RawFrameDAO         RawFrameDAO
+	RawMotionDAO        RawMotionDAO
+	TripDAO             TripDAO
+	EventDAO            EventDAO
+	DrivingConditionDAO DrivingConditionDAO
+}
 
 type UserDAO interface {
 	InsertUniqueUser(user *st.User) (*st.User, error)
@@ -27,9 +38,20 @@ type RawVideoDAO interface {
 
 type RawLocationDAO interface {
 	InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error)
+	PutRawLocationByID(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error
 	GetRawLocationByID(id string) (*st.RawLocation, error)
+	ListUnprocessedRawLocationsIDs(userID string, latestVersion float64) ([]string, error)
 	ListUserRawLocationIDs(userID string) ([]string, error)
 	DeleteRawLocationByID(id string) error
+}
+
+type RawFrameDAO interface {
+	InsertUniqueRawFrame(rawFrame *st.RawFrame) (*st.RawFrame, error)
+	PutRawFrameByID(ctx context.Context, rawFrameID string, rawFrame *st.RawFrame) error
+	GetRawFrameByID(id string) (*st.RawFrame, error)
+	ListUnprocessedRawFramesIDs(userID string, latestVersion float64) ([]string, error)
+	ListUserRawFrameIDs(userID string) ([]string, error)
+	DeleteRawFrameByID(id string) error
 }
 
 type RawMotionDAO interface {

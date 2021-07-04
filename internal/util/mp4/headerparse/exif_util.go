@@ -5,8 +5,11 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/util"
+	"seneca/internal/util/data"
 	"strings"
 	"time"
+
+	"gopkg.in/ugjka/go-tz.v2/tz"
 )
 
 func stringToLatitude(latString string) (*st.Latitude, error) {
@@ -67,27 +70,6 @@ func stringToLongitude(longString string) (*st.Longitude, error) {
 	return longitude, nil
 }
 
-// adjust for time zones. we use the rawVideo as the anchor.
-func adjustTimestamps(dashCamName DashCamName, rawVideo *st.RawVideo, times []time.Time) ([]time.Time, error) {
-	if len(times) == 0 {
-		return nil, senecaerror.NewUserError("", fmt.Errorf("no GPS data found"), "Video has no header data.")
-	}
-
-	diff := util.MillisecondsToTime(rawVideo.CreateTimeMs).Sub(times[0])
-
-	newTimes := []time.Time{}
-	for _, t := range times {
-		// Adjust timezone to UTC.
-		newTime := t.Add(time.Duration(diff.Hours() * -1))
-		// Adjust for specific camera.
-		newTime = t.Add(cameraDataLayouts[dashCamName].gpsTimeAdjustment)
-
-		newTimes = append(newTimes, newTime)
-	}
-
-	return newTimes, nil
-}
-
 func validateData(rawVideo *st.RawVideo, locations []*st.Location, motions []*st.Motion, times []time.Time) error {
 	if len(times) == 0 {
 		return senecaerror.NewUserError("", fmt.Errorf("no GPS data found"), "Video has no header data.")
@@ -97,7 +79,7 @@ func validateData(rawVideo *st.RawVideo, locations []*st.Location, motions []*st
 		return senecaerror.NewDevError(fmt.Errorf("location/motion data timestamp %v is before rawVideo createTime %v", times[0], util.MillisecondsToTime(rawVideo.CreateTimeMs).In(time.UTC)))
 	}
 
-	if times[len(times)-1].After(util.MillisecondsToTime(rawVideo.CreateTimeMs + rawVideo.DurationMs + int64(time.Second))) {
+	if times[len(times)-1].After(util.MillisecondsToTime(rawVideo.CreateTimeMs + rawVideo.DurationMs + time.Second.Milliseconds())) {
 		return senecaerror.NewDevError(fmt.Errorf("location/motion data timestamp %v is after rawVideo endTime %v", times[0], util.MillisecondsToTime(rawVideo.CreateTimeMs+rawVideo.DurationMs).In(time.UTC)))
 	}
 
@@ -123,4 +105,27 @@ func stringExists(key string, data map[string]interface{}) (string, bool) {
 	}
 	val, ok := valObj.(string)
 	return val, ok
+}
+
+func getTZOffset(t time.Time, location *st.Location) (time.Duration, error) {
+	latFloat64 := data.LatitudeToFloat64(location.Lat)
+	longFloat64 := data.LongitudeToFloat64(location.Long)
+
+	timeZoneIDs, err := tz.GetZone(tz.Point{Lat: latFloat64, Lon: longFloat64})
+	if err != nil {
+		return 0, fmt.Errorf("tz.GetZone(%f, %f) returns err: %w", latFloat64, longFloat64, err)
+	}
+
+	if len(timeZoneIDs) == 0 {
+		return 0, fmt.Errorf("tz.GetZone(%f, %f) returns 0 timeZoneIDs", latFloat64, longFloat64)
+	}
+
+	tzLocation, err := time.LoadLocation(timeZoneIDs[0])
+	if err != nil {
+		return 0, fmt.Errorf("time.LoadLocation(%s) returns err: %w", timeZoneIDs[0], err)
+	}
+
+	_, offset := t.In(tzLocation).Zone()
+
+	return time.Second * time.Duration(offset), nil
 }

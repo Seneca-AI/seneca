@@ -1,16 +1,12 @@
 package rawlocationdao
 
 import (
+	"context"
 	"fmt"
 	"seneca/api/constants"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
-)
-
-const (
-	userIDFieldName    = "UserId"
-	timestampFieldName = "TimestampMs"
 )
 
 type SQLRawLocationDAO struct {
@@ -26,12 +22,12 @@ func NewSQLRawLocationDAO(sqlInterface database.SQLInterface) *SQLRawLocationDAO
 func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocation) (*st.RawLocation, error) {
 	ids, err := rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{
 		{
-			FieldName: userIDFieldName,
+			FieldName: constants.UserIDFieldName,
 			Operand:   "=",
 			Value:     rawLocation.UserId,
 		},
 		{
-			FieldName: timestampFieldName,
+			FieldName: constants.TimestampFieldName,
 			Operand:   "=",
 			Value:     rawLocation.TimestampMs,
 		},
@@ -52,12 +48,16 @@ func (rdao *SQLRawLocationDAO) InsertUniqueRawLocation(rawLocation *st.RawLocati
 	rawLocation.Id = newRawLocationID
 
 	// Now set the ID in the datastore object.
-	if err := rdao.sql.Insert(constants.RawLocationsTable, rawLocation.Id, rawLocation); err != nil {
+	if err := rdao.PutRawLocationByID(context.TODO(), rawLocation.Id, rawLocation); err != nil {
 		return nil, fmt.Errorf("error updating rawLocationID for rawLocation %v - err: %w", rawLocation, err)
 	}
 
 	rawLocation.Id = newRawLocationID
 	return rawLocation, nil
+}
+
+func (rdao *SQLRawLocationDAO) PutRawLocationByID(ctx context.Context, rawLocationID string, rawLocation *st.RawLocation) error {
+	return rdao.sql.Insert(constants.RawLocationsTable, rawLocationID, rawLocation)
 }
 
 func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, error) {
@@ -79,7 +79,11 @@ func (rdao *SQLRawLocationDAO) GetRawLocationByID(id string) (*st.RawLocation, e
 }
 
 func (rdao *SQLRawLocationDAO) ListUserRawLocationIDs(userID string) ([]string, error) {
-	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
+}
+
+func (rdao *SQLRawLocationDAO) ListUnprocessedRawLocationsIDs(userID string, latestVersion float64) ([]string, error) {
+	return rdao.sql.ListIDs(constants.RawLocationsTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}, {FieldName: constants.AlgosVersionFieldName, Operand: "<", Value: latestVersion}})
 }
 
 func (rdao *SQLRawLocationDAO) DeleteRawLocationByID(id string) error {

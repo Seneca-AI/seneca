@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	st "seneca/api/type"
+	"seneca/internal/client/intraseneca"
 	"seneca/internal/client/intraseneca/http"
 	"seneca/internal/util"
 	"sort"
@@ -19,7 +20,15 @@ const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 var screenWidth = 0
 
 func main() {
-	intraSenecaClient := http.New("127.0.0.1", "6060")
+	config := &intraseneca.ServerConfig{
+		SenecaServerHostName: "127.0.0.1",
+		SenecaServerHostPort: "6060",
+	}
+
+	intraSenecaClient, err := http.New(config)
+	if err != nil {
+		log.Fatalf("intraseneca.http.New() returns err: %v", err)
+	}
 
 	for {
 		var err error

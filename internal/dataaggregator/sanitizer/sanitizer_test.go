@@ -11,6 +11,7 @@ import (
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -254,10 +255,11 @@ func newSanitizerForTests() (*Sanitizer, dao.RawVideoDAO, dao.RawMotionDAO, dao.
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(fakeSQL, logger, time.Minute)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(fakeSQL, logger)
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(fakeSQL)
+	rawFrameDAO := rawframedao.NewSQLRawFrameDAO(fakeSQL)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQL, logger)
 	eventDAO := eventdao.NewSQLEventDAO(fakeSQL, tripDAO, logger)
 	dcDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQL, tripDAO, eventDAO)
-	return New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, dcDAO), rawVideoDAO, rawMotionDAO, tripDAO, eventDAO, dcDAO
+	return New(rawMotionDAO, rawLocationDAO, rawVideoDAO, rawFrameDAO, eventDAO, dcDAO), rawVideoDAO, rawMotionDAO, tripDAO, eventDAO, dcDAO
 }
 
 func drivingConditionExternalEqual(lhs *st.DrivingCondition, rhs *st.DrivingCondition) bool {

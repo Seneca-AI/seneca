@@ -12,12 +12,6 @@ import (
 	"time"
 )
 
-const (
-	userIDFieldName    = "UserId"
-	startTimeFieldName = "StartTimeMs"
-	endTimeFieldName   = "EndTimeMs"
-)
-
 type SQLTripDAO struct {
 	sql    database.SQLInterface
 	logger logging.LoggingInterface
@@ -85,18 +79,18 @@ func (tdao *SQLTripDAO) PutTripByID(ctx context.Context, tripID string, trip *st
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDs(userID string) ([]string, error) {
-	return tdao.sql.ListIDs(constants.TripTable, []*database.QueryParam{{FieldName: userIDFieldName, Operand: "=", Value: userID}})
+	return tdao.sql.ListIDs(constants.TripTable, []*database.QueryParam{{FieldName: constants.UserIDFieldName, Operand: "=", Value: userID}})
 }
 
 func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time, endTime time.Time) ([]string, error) {
 	overLappingStartQuery := []*database.QueryParam{
 		{
-			FieldName: userIDFieldName,
+			FieldName: constants.UserIDFieldName,
 			Operand:   "=",
 			Value:     userID,
 		},
 		{
-			FieldName: endTimeFieldName,
+			FieldName: constants.EndTimeFieldName,
 			Operand:   ">=",
 			Value:     util.TimeToMilliseconds(startTime),
 		},
@@ -104,12 +98,12 @@ func (tdao *SQLTripDAO) ListUserTripIDsByTime(userID string, startTime time.Time
 
 	overLappingEndQuery := []*database.QueryParam{
 		{
-			FieldName: userIDFieldName,
+			FieldName: constants.UserIDFieldName,
 			Operand:   "=",
 			Value:     userID,
 		},
 		{
-			FieldName: startTimeFieldName,
+			FieldName: constants.StartTimeFieldName,
 			Operand:   "<=",
 			Value:     util.TimeToMilliseconds(endTime),
 		},

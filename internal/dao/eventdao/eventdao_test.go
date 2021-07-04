@@ -1,4 +1,4 @@
-package eventdao
+package eventdao_test
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"seneca/internal/client/logging"
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
+	"seneca/internal/dao/eventdao"
 	"seneca/internal/dao/tripdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
@@ -141,11 +142,11 @@ func TestGetListEventByID(t *testing.T) {
 	}
 }
 
-func newEventDAOForTest() (*SQLEventDAO, dao.TripDAO, dao.DrivingConditionDAO) {
+func newEventDAOForTest() (*eventdao.SQLEventDAO, dao.TripDAO, dao.DrivingConditionDAO) {
 	fakeSQLService := database.NewFake()
 	logger := logging.NewLocalLogger(false)
 	tripDAO := tripdao.NewSQLTripDAO(fakeSQLService, logger)
-	eventDAO := NewSQLEventDAO(fakeSQLService, tripDAO, logger)
+	eventDAO := eventdao.NewSQLEventDAO(fakeSQLService, tripDAO, logger)
 	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(fakeSQLService, tripDAO, eventDAO)
 
 	return eventDAO, tripDAO, drivingConditionDAO

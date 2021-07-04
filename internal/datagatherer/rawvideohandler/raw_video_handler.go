@@ -19,6 +19,7 @@ import (
 	"seneca/internal/util"
 	"seneca/internal/util/data"
 	"seneca/internal/util/mp4"
+	"seneca/internal/util/mp4/cutter"
 	mp4util "seneca/internal/util/mp4/util"
 	"strings"
 	"time"
@@ -28,6 +29,8 @@ const (
 	mp4FormKey                       = "mp4"
 	rawVideoBucketFileNameIdentifier = "RAW_VIDEO"
 	userIDPostFormKey                = "user_id"
+	// rawVideoExtractedFramesPerSecond * ~7.5 is how long the extraction will take, at least on an M1 Mac.
+	rawVideoExtractedFramesPerSecond = 1
 )
 
 // RawVideoHandler implements all logic for handling raw video requests.
@@ -40,6 +43,7 @@ type RawVideoHandler struct {
 	rawVideoDAO    dao.RawVideoDAO
 	rawLocationDAO dao.RawLocationDAO
 	rawMotionDAO   dao.RawMotionDAO
+	rawFrameDAO    dao.RawFrameDAO
 }
 
 // NewRawVideoHandler initializes a new RawVideoHandler with the given parameters.
@@ -53,7 +57,16 @@ type RawVideoHandler struct {
 // Returns:
 //		*RawVideoHandler: the handler
 //		error
-func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, mp4ToolInterface mp4.MP4ToolInterface, rawVideoDAO dao.RawVideoDAO, rawLocationDAO dao.RawLocationDAO, rawMotionDAO dao.RawMotionDAO, logger logging.LoggingInterface, projectID string) (*RawVideoHandler, error) {
+func NewRawVideoHandler(
+	simpleStorageInterface cloud.SimpleStorageInterface,
+	mp4ToolInterface mp4.MP4ToolInterface,
+	rawVideoDAO dao.RawVideoDAO,
+	rawLocationDAO dao.RawLocationDAO,
+	rawMotionDAO dao.RawMotionDAO,
+	rawFrameDAO dao.RawFrameDAO,
+	logger logging.LoggingInterface,
+	projectID string,
+) (*RawVideoHandler, error) {
 	return &RawVideoHandler{
 		simpleStorage:  simpleStorageInterface,
 		mp4Tool:        mp4ToolInterface,
@@ -62,6 +75,7 @@ func NewRawVideoHandler(simpleStorageInterface cloud.SimpleStorageInterface, mp4
 		rawVideoDAO:    rawVideoDAO,
 		rawLocationDAO: rawLocationDAO,
 		rawMotionDAO:   rawMotionDAO,
+		rawFrameDAO:    rawFrameDAO,
 	}, nil
 }
 
@@ -99,12 +113,14 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest took %s", time.Since(startTime)))
 	}(nowTime)
 
-	cleanUp := newCleanUp(rvh.rawVideoDAO, rvh.rawLocationDAO, rvh.rawMotionDAO, rvh.logger)
+	cleanUp := newCleanUp(rvh.rawVideoDAO, rvh.rawLocationDAO, rvh.rawMotionDAO, rvh.rawFrameDAO, rvh.logger)
 	defer cleanUp.cleanUpFailure()
 
 	if req.UserId == "" {
 		return nil, senecaerror.NewUserError("", fmt.Errorf("UserID must not be \"\" in RawVideoProcessRequest"), "UserID not specified in request.")
 	}
+
+	// TODO(lucaloncar): check to see if the user actually exists
 
 	rvh.logger.Log(fmt.Sprintf("Handling RawVideoRequest for user %q", req.UserId))
 
@@ -136,23 +152,40 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 
 		return nil, fmt.Errorf("mp4Tool.ParseOutRawVideoMetadata(%s) returns - err: %w", mp4Path, err)
 	}
+	rawVideo.OriginalFileName = req.VideoName
+	rawVideo.UserId = req.UserId
 
 	if rawVideo.DurationMs > constants.MaxInputVideoDuration.Milliseconds() {
 		return nil, senecaerror.NewUserError(req.UserId, fmt.Errorf("error handling RawVideoProcessRequest - duration %v is longer than maxVideoDuration %v", util.MillisecondsToDuration(rawVideo.DurationMs), constants.MaxInputVideoDuration), fmt.Sprintf("Max video duration is %v", constants.MaxInputVideoDuration))
 	}
 
 	// Upload firestore data.
-	bucketFileName := fmt.Sprintf("%s.%d.%s.mp4", req.UserId, rawVideo.CreateTimeMs, rawVideoBucketFileNameIdentifier)
-	cleanUp.rawVideoID, err = rvh.writePartialRawVideoToGCD(req.UserId, bucketFileName, rawVideo)
+	rawVideo.CloudStorageFileName = fmt.Sprintf("gs://%s/%s", cloud.RawVideoBucketName, fmt.Sprintf("%s.%d.%s.mp4", req.UserId, rawVideo.CreateTimeMs, rawVideoBucketFileNameIdentifier))
+	rawVideo, err = rvh.rawVideoDAO.InsertUniqueRawVideo(rawVideo)
 	if err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing to datastore: %w", err)
 	}
+	cleanUp.rawVideoID = rawVideo.Id
+
+	// Extract frames.
+	rawFrames, framesDirPath, framesFilePaths, err := cutter.RawVideoToFrames(rawVideoExtractedFramesPerSecond, mp4Path, rawVideo)
+	defer os.RemoveAll(framesDirPath)
+	if err != nil {
+		cleanUp.clean = true
+		return nil, fmt.Errorf("RawVideoToFrames() returns err: %w", err)
+	}
 
 	// Upload cloud storage data.
-	if err := rvh.writeMP4ToGCS(mp4Path, bucketFileName); err != nil {
+	if err := rvh.writeMP4ToGCS(mp4Path, rawVideo); err != nil {
 		cleanUp.clean = true
 		return nil, fmt.Errorf("error writing mp4 to cloud storage: %w", err)
+	}
+
+	rawFrames, err = rvh.writeFramesToGCSAndCloudStorageFileNames(rawFrames, framesFilePaths)
+	if err != nil {
+		cleanUp.clean = true
+		return nil, fmt.Errorf("error writing frames to cloud storage: %w", err)
 	}
 
 	source := &st.Source{
@@ -188,48 +221,78 @@ func (rvh *RawVideoHandler) HandleRawVideoProcessRequest(req *st.RawVideoProcess
 		}
 	}
 
-	rvh.logger.Log(fmt.Sprintf("Successfully processed video %q for user %q", bucketFileName, req.UserId))
+	for i := range rawFrames {
+		cleanUp.rawFrameIDs = append(cleanUp.rawFrameIDs, rawFrames[i].Id)
+		if _, err := rvh.rawFrameDAO.InsertUniqueRawFrame(rawFrames[i]); err != nil {
+			cleanUp.clean = true
+			return nil, fmt.Errorf("InsertUniqueRawFrame(%v) returns err: %w", rawFrames[i], err)
+		}
+	}
+
+	rvh.logger.Log(fmt.Sprintf("Successfully processed video %q for user %q", rawVideo.CloudStorageFileName, req.UserId))
 	return &st.RawVideoProcessResponse{
 		RawVideoId: rawVideo.Id,
 	}, nil
 }
 
-func (rvh *RawVideoHandler) writePartialRawVideoToGCD(userID, bucketFileName string, rawVideo *st.RawVideo) (string, error) {
-	rawVideo.UserId = userID
-	rawVideo.CloudStorageFileName = bucketFileName
-
-	newRawVideo, err := rvh.rawVideoDAO.InsertUniqueRawVideo(rawVideo)
+func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path string, rawVideo *st.RawVideo) error {
+	bucketName, fileName, err := data.GCSURLToBucketNameAndFileName(rawVideo.CloudStorageFileName)
 	if err != nil {
-		return "", fmt.Errorf("error inserting MP4 metadata into Google Cloud Datastore - err: %w", err)
+		return fmt.Errorf("GCSURLToBucketNameAndFileName(%s) returns err: %w", rawVideo.CloudStorageFileName, err)
 	}
 
-	// TODO(lucaloncar): mark the google drive file a success
-
-	return newRawVideo.Id, nil
-}
-
-func (rvh *RawVideoHandler) writeMP4ToGCS(mp4Path, bucketFileName string) error {
-	if bucketExists, err := rvh.simpleStorage.BucketExists(cloud.RawVideoBucketName); err != nil {
-		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, cloud.RawVideoBucketName, err)
+	if bucketExists, err := rvh.simpleStorage.BucketExists(bucketName); err != nil {
+		return fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, bucketName, err)
 	} else if !bucketExists {
-		if err := rvh.simpleStorage.CreateBucket(cloud.RawVideoBucketName); err != nil {
-			return fmt.Errorf("CreateBucket(%s) returns err: %w", cloud.RawVideoBucketName, err)
+		if err := rvh.simpleStorage.CreateBucket(bucketName); err != nil {
+			return fmt.Errorf("CreateBucket(%s) returns err: %w", bucketName, err)
 		}
 	}
 
-	bucketFileExists, err := rvh.simpleStorage.BucketFileExists(cloud.RawVideoBucketName, bucketFileName)
+	bucketFileExists, err := rvh.simpleStorage.BucketFileExists(bucketName, fileName)
 	if err != nil {
-		return fmt.Errorf("error writing file to remote storage: %w", err)
+		return fmt.Errorf("error checking if file %q in bucket %q exists: %w", fileName, bucketName, err)
 	}
 	if !bucketFileExists {
-		if err := rvh.simpleStorage.WriteBucketFile(cloud.RawVideoBucketName, mp4Path, bucketFileName); err != nil {
-			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", cloud.RawVideoBucketName, bucketFileName, mp4Path, err)
+		if err := rvh.simpleStorage.WriteBucketFile(bucketName, mp4Path, fileName); err != nil {
+			return fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", bucketName, fileName, mp4Path, err)
 		}
 	} else {
-		return senecaerror.NewBadStateError(fmt.Errorf("attempting to overwrite existing file %q", bucketFileName))
+		return senecaerror.NewBadStateError(fmt.Errorf("attempting to overwrite existing file %q", fileName))
 	}
 
 	return nil
+}
+
+func (rvh *RawVideoHandler) writeFramesToGCSAndCloudStorageFileNames(rawFrames []*st.RawFrame, localFilePaths []string) ([]*st.RawFrame, error) {
+	if bucketExists, err := rvh.simpleStorage.BucketExists(cloud.RawFrameBucketName); err != nil {
+		return nil, fmt.Errorf("bucketExists(_, %s, %s) returned err: %v", rvh.projectID, cloud.RawFrameBucketName, err)
+	} else if !bucketExists {
+		if err := rvh.simpleStorage.CreateBucket(cloud.RawFrameBucketName); err != nil {
+			return nil, fmt.Errorf("CreateBucket(%s) returns err: %w", cloud.RawFrameBucketName, err)
+		}
+	}
+
+	if len(rawFrames) != len(localFilePaths) {
+		return nil, fmt.Errorf("have %d rawFrames but %d actual files", len(rawFrames), len(localFilePaths))
+	}
+
+	for i, path := range localFilePaths {
+		bucketFileExists, err := rvh.simpleStorage.BucketFileExists(cloud.RawFrameBucketName, rawFrames[i].CloudStorageFileName)
+		if err != nil {
+			return nil, fmt.Errorf("error checking if file %q in bucket %q exists: %w", rawFrames[i].CloudStorageFileName, cloud.RawFrameBucketName, err)
+		}
+		if !bucketFileExists {
+			if err := rvh.simpleStorage.WriteBucketFile(cloud.RawFrameBucketName, path, rawFrames[i].CloudStorageFileName); err != nil {
+				return nil, fmt.Errorf("writeBucketFile(%s, %s, %s) returns err: %v", cloud.RawFrameBucketName, path, rawFrames[i].CloudStorageFileName, err)
+			}
+		} else {
+			return nil, senecaerror.NewBadStateError(fmt.Errorf("attempting to overwrite existing file %q", rawFrames[i].CloudStorageFileName))
+		}
+		rawFrames[i].CloudStorageFileName = fmt.Sprintf("gs://%s/%s", cloud.RawFrameBucketName.RealName(rvh.projectID), rawFrames[i].CloudStorageFileName)
+	}
+
+	return rawFrames, nil
 }
 
 func (rvh *RawVideoHandler) convertHTTPRequestToRawVideoProcessRequest(r *http.Request) (*st.RawVideoProcessRequest, error) {
@@ -290,6 +353,7 @@ type cleanUp struct {
 	rawVideoDAO    dao.RawVideoDAO
 	rawLocationDAO dao.RawLocationDAO
 	rawMotionDAO   dao.RawMotionDAO
+	rawFrameDAO    dao.RawFrameDAO
 	logger         logging.LoggingInterface
 
 	clean      bool
@@ -297,13 +361,15 @@ type cleanUp struct {
 	// TODO(lucaloncar): also clean up s3 file so none are dangling
 	rawLocationIDs []string
 	rawMotionIDs   []string
+	rawFrameIDs    []string
 }
 
-func newCleanUp(rawVideoDAO dao.RawVideoDAO, rawLocationDAO dao.RawLocationDAO, rawMotionDAO dao.RawMotionDAO, logger logging.LoggingInterface) *cleanUp {
+func newCleanUp(rawVideoDAO dao.RawVideoDAO, rawLocationDAO dao.RawLocationDAO, rawMotionDAO dao.RawMotionDAO, rawFrameDAO dao.RawFrameDAO, logger logging.LoggingInterface) *cleanUp {
 	return &cleanUp{
 		rawVideoDAO:    rawVideoDAO,
 		rawLocationDAO: rawLocationDAO,
 		rawMotionDAO:   rawMotionDAO,
+		rawFrameDAO:    rawFrameDAO,
 		logger:         logger,
 	}
 }
@@ -325,6 +391,10 @@ func (cu *cleanUp) cleanUpFailure() {
 
 	for _, rmid := range cu.rawMotionIDs {
 		errs = append(errs, cu.rawMotionDAO.DeleteRawMotionByID(rmid))
+	}
+
+	for _, rfid := range cu.rawFrameIDs {
+		errs = append(errs, cu.rawFrameDAO.DeleteRawFrameByID(rfid))
 	}
 
 	for _, err := range errs {

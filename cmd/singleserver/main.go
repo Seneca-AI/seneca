@@ -17,13 +17,17 @@ import (
 	"seneca/internal/client/cloud/gcp"
 	"seneca/internal/client/cloud/gcp/datastore"
 	"seneca/internal/client/googledrive"
+	"seneca/internal/client/intraseneca"
+	senecahttp "seneca/internal/client/intraseneca/http"
 	"seneca/internal/client/logging"
+	weatherservice "seneca/internal/client/weather/service"
 	"seneca/internal/controller/apiserver"
 	"seneca/internal/controller/runner"
 	"seneca/internal/controller/syncer"
 	"seneca/internal/dao"
 	"seneca/internal/dao/drivingconditiondao"
 	"seneca/internal/dao/eventdao"
+	"seneca/internal/dao/rawframedao"
 	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/dao/rawmotiondao"
 	"seneca/internal/dao/rawvideodao"
@@ -32,6 +36,7 @@ import (
 	"seneca/internal/dataaggregator/sanitizer"
 	"seneca/internal/datagatherer/rawvideohandler"
 	"seneca/internal/dataprocessor"
+	"seneca/internal/dataprocessor/algorithms"
 	"seneca/internal/util"
 	"seneca/internal/util/mp4"
 	"strings"
@@ -49,22 +54,33 @@ func main() {
 		log.Fatalf("Error in ValidateEnvironmentVariables: %v", err)
 	}
 
-	ctx := context.TODO()
+	serverConfig := &intraseneca.ServerConfig{
+		MLServerHostName: "34.136.176.46",
+		MLServerHostPort: "5000",
+		MLServerTimeout:  time.Second * 60,
+	}
+
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
 		fmt.Fprintf(os.Stderr, "GOOGLE_CLOUD_PROJECT environment variable must be set.\n")
 		os.Exit(1)
 	}
 
-	logger, err := logging.NewGCPLogger(ctx, "singleserver", projectID)
+	logger, err := logging.NewGCPLogger(context.TODO(), "singleserver", projectID)
 	if err != nil {
 		fmt.Printf("logging.NewGCPLogger() returns - err: %v", err)
 		return
 	}
 
+	intraSenecaClient, err := senecahttp.New(serverConfig)
+	if err != nil {
+		logger.Critical(fmt.Sprintf("senecahttp.New() returns - err: %v", err))
+		return
+	}
+
 	logger.Log(fmt.Sprintf("Starting singleserver"))
 
-	gcsc, err := gcp.NewGoogleCloudStorageClient(ctx, projectID, time.Second*10, time.Minute)
+	gcsc, err := gcp.NewGoogleCloudStorageClient(context.TODO(), projectID, time.Second*10, time.Minute)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewGoogleCloudStorageClient() returns - err: %v", err))
 		return
@@ -75,16 +91,32 @@ func main() {
 		logger.Critical(fmt.Sprintf("datastore.New() returns - err: %v", err))
 		return
 	}
+
 	rawVideoDAO := rawvideodao.NewSQLRawVideoDAO(sqlService, logger, (time.Second * 5))
 	rawLocationDAO := rawlocationdao.NewSQLRawLocationDAO(sqlService)
 	rawMotionDAO := rawmotiondao.NewSQLRawMotionDAO(sqlService, logger)
+	rawFrameDAO := rawframedao.NewSQLRawFrameDAO(sqlService)
 	userDAO := userdao.NewSQLUserDAO(sqlService)
+	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
+	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
+	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
+	allDAOSet := &dao.AllDAOSet{
+		UserDAO:             userDAO,
+		RawVideoDAO:         rawVideoDAO,
+		RawLocationDAO:      rawLocationDAO,
+		RawMotionDAO:        rawMotionDAO,
+		RawFrameDAO:         rawFrameDAO,
+		TripDAO:             tripDAO,
+		EventDAO:            eventDAO,
+		DrivingConditionDAO: drivingConditionDAO,
+	}
+
 	mp4Tool, err := mp4.NewMP4Tool(logger)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("mp4.NewMP4Tool() returns - err: %v", err))
 		return
 	}
-	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, logger, projectID)
+	rawVideoHandler, err := rawvideohandler.NewRawVideoHandler(gcsc, mp4Tool, rawVideoDAO, rawLocationDAO, rawMotionDAO, rawFrameDAO, logger, projectID)
 	if err != nil {
 		logger.Critical(fmt.Sprintf("cloud.NewRawVideoHandler() returns - err: %v", err))
 		return
@@ -93,12 +125,28 @@ func main() {
 	gDriveFactory := &googledrive.UserClientFactory{}
 	syncer := syncer.New(rawVideoHandler, gDriveFactory, userDAO, logger)
 
-	tripDAO := tripdao.NewSQLTripDAO(sqlService, logger)
-	eventDAO := eventdao.NewSQLEventDAO(sqlService, tripDAO, logger)
-	drivingConditionDAO := drivingconditiondao.NewSQLDrivingConditionDAO(sqlService, tripDAO, eventDAO)
-	dataprocessor := dataprocessor.New(dataprocessor.GetCurrentAlgorithms(), eventDAO, drivingConditionDAO, rawMotionDAO, rawVideoDAO, logger)
+	algoFactory, err := algorithms.NewFactory(weatherservice.NewWeatherStackService(time.Second*10), intraSenecaClient)
+	if err != nil {
+		logger.Critical(fmt.Sprintf("algorithms.NewFactory() returns err: %v", err))
+		return
+	}
+	algos := []dataprocessor.AlgorithmInterface{}
+	algoTags := []string{"00000", "00001", "00002", "00003", "00004"}
+	for _, tag := range algoTags {
+		algo, err := algoFactory.GetAlgorithm(tag)
+		if err != nil {
+			logger.Critical(fmt.Sprintf("GetAlgorithm(%q) returns err: %v", tag, err))
+		}
+		algos = append(algos, algo)
+	}
+
+	dataprocessor, err := dataprocessor.New(algos, allDAOSet, logger)
+	if err != nil {
+		logger.Critical(fmt.Sprintf("dataprocessor.New() returns - err: %v", err))
+		return
+	}
 	runner := runner.New(userDAO, dataprocessor, logger)
-	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, eventDAO, drivingConditionDAO)
+	sanitizer := sanitizer.New(rawMotionDAO, rawLocationDAO, rawVideoDAO, rawFrameDAO, eventDAO, drivingConditionDAO)
 	apiserver := apiserver.New(sanitizer, tripDAO)
 
 	handler := &HTTPHandler{

@@ -12,6 +12,7 @@ type Sanitizer struct {
 	rawMotionDAO        dao.RawMotionDAO
 	rawLocationDAO      dao.RawLocationDAO
 	rawVideoDAO         dao.RawVideoDAO
+	rawFrameDAO         dao.RawFrameDAO
 	eventDAO            dao.EventDAO
 	drivingConditionDAO dao.DrivingConditionDAO
 	// Cache the URL of sources.  The source video URL will always be the same if it exists.
@@ -19,11 +20,12 @@ type Sanitizer struct {
 	videoURLCache map[string]string
 }
 
-func New(rawMotionDAO dao.RawMotionDAO, rawLocationDAO dao.RawLocationDAO, rawVideoDAO dao.RawVideoDAO, eventDAO dao.EventDAO, drivingConditionDAO dao.DrivingConditionDAO) *Sanitizer {
+func New(rawMotionDAO dao.RawMotionDAO, rawLocationDAO dao.RawLocationDAO, rawVideoDAO dao.RawVideoDAO, rawFrameDAO dao.RawFrameDAO, eventDAO dao.EventDAO, drivingConditionDAO dao.DrivingConditionDAO) *Sanitizer {
 	return &Sanitizer{
 		rawMotionDAO:        rawMotionDAO,
 		rawLocationDAO:      rawLocationDAO,
 		rawVideoDAO:         rawVideoDAO,
+		rawFrameDAO:         rawFrameDAO,
 		eventDAO:            eventDAO,
 		drivingConditionDAO: drivingConditionDAO,
 		videoURLCache:       map[string]string{},
@@ -118,6 +120,12 @@ func (san *Sanitizer) findVideoLink(source *st.Source) (string, error) {
 					return "", nil, fmt.Errorf("GetRawLocationByID(%s) returns err: %w", source.SourceId, err)
 				}
 				source = rawLocation.Source
+			case st.Source_RAW_FRAME:
+				rawFrame, err := san.rawFrameDAO.GetRawFrameByID(source.SourceId)
+				if err != nil {
+					return "", nil, fmt.Errorf("GetRawFrameByID(%s) returns err: %w", source.SourceId, err)
+				}
+				source = rawFrame.Source
 			default:
 				return "", nil, fmt.Errorf("unsupported source type %q", source.SourceType)
 			}

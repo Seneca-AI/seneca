@@ -6,6 +6,7 @@ import (
 	"os"
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -123,4 +124,62 @@ func DrivingConditionExternalToPrettyString(dc *st.DrivingCondition) string {
 	output += "}"
 
 	return output
+}
+
+func StringToInterfaceMapOrFalse(key string, mapObj map[string]interface{}) (map[string]interface{}, bool) {
+	subMapObj, ok := mapObj[key]
+	if !ok {
+		return nil, false
+	}
+	subMap, ok := subMapObj.(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	return subMap, true
+}
+
+func RemoveTrailingZeroes(in string) string {
+	for i := len(in) - 1; i > 0; i-- {
+		if in[i:i+1] == "0" || in[i:i+1] == "." {
+			in = in[:i]
+		} else {
+			break
+		}
+	}
+	return in
+}
+
+// IsDirectory checks if the file at the specified path is a directory.
+func IsDirectory(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, fmt.Errorf("%q does not exist", path)
+	}
+	return info.IsDir(), nil
+}
+
+type indexedAlphaNumericString struct {
+	index float64
+	value string
+}
+
+func SortStringsAlphaNumerically(inputs []string, trimFunc func(string) string) ([]string, error) {
+	sorted := []indexedAlphaNumericString{}
+	for _, in := range inputs {
+		trimmed := trimFunc(in)
+		idx, err := strconv.ParseFloat(trimmed, 64)
+		if err != nil {
+			return nil, fmt.Errorf("%q is not a NaN", trimmed)
+		}
+		sorted = append(sorted, indexedAlphaNumericString{index: idx, value: in})
+	}
+
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].index < sorted[j].index })
+
+	outs := []string{}
+	for _, srt := range sorted {
+		outs = append(outs, srt.value)
+	}
+
+	return outs, nil
 }

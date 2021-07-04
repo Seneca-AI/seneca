@@ -21,6 +21,7 @@ const (
 	rawVideoKind         = "RawVideo"
 	rawMotionKind        = "RawMotion"
 	rawLocationKind      = "RawLocation"
+	rawFrameKind         = "RawFrame"
 	userKind             = "User"
 )
 
@@ -49,6 +50,10 @@ var (
 		Kind: rawLocationKind,
 		Name: constants.RawLocationsTable.String(),
 	}
+	rawFrameKey = datastore.Key{
+		Kind: rawFrameKind,
+		Name: constants.RawFramesTable.String(),
+	}
 	userKey = datastore.Key{
 		Kind: userKind,
 		Name: constants.UsersTable.String(),
@@ -58,6 +63,7 @@ var (
 		constants.UsersTable:            userKey,
 		constants.RawVideosTable:        rawVideoKey,
 		constants.RawLocationsTable:     rawLocationKey,
+		constants.RawFramesTable:        rawFrameKey,
 		constants.RawMotionsTable:       rawMotionKey,
 		constants.EventTable:            eventKey,
 		constants.TripTable:             tripKey,
@@ -156,6 +162,12 @@ func (s *Service) GetByID(tableName constants.TableName, id string) (interface{}
 		return out, nil
 	case constants.RawLocationsTable:
 		out := &st.RawLocation{}
+		if err := s.get(context.TODO(), idKey, out); err != nil {
+			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
+		}
+		return out, nil
+	case constants.RawFramesTable:
+		out := &st.RawFrame{}
 		if err := s.get(context.TODO(), idKey, out); err != nil {
 			return nil, fmt.Errorf("error getting object with ID %q from table %q: %w", id, tableName, err)
 		}

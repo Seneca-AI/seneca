@@ -1,4 +1,4 @@
-package rawlocationdao
+package rawlocationdao_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"seneca/api/senecaerror"
 	st "seneca/api/type"
 	"seneca/internal/client/database"
+	"seneca/internal/dao/rawlocationdao"
 	"seneca/internal/util"
 	"seneca/test/testutil"
 	"sort"
@@ -162,7 +163,35 @@ func TestGetRawLocationByID(t *testing.T) {
 	close(sql.ErrorCalls)
 }
 
-func newRawLocationDAOForTest() (*SQLRawLocationDAO, *database.FakeSQLDBService) {
+func TestListUnprocessedRawLocationsIDs(t *testing.T) {
+	rawLocationDAO, _ := newRawLocationDAOForTest()
+
+	for i := 0; i < 10; i++ {
+		rawLocation := &st.RawLocation{
+			UserId:      "123",
+			Location:    &st.Location{},
+			TimestampMs: util.TimeToMilliseconds(time.Now().Add(time.Minute * time.Duration(i))),
+		}
+		if i%2 == 0 {
+			rawLocation.AlgosVersion = 2
+			rawLocation.AlgoTag = []string{"02"}
+		}
+		if _, err := rawLocationDAO.InsertUniqueRawLocation(rawLocation); err != nil {
+			t.Fatalf("InsertUniqueRawLocation() returns err: %v", err)
+		}
+	}
+
+	ids, err := rawLocationDAO.ListUnprocessedRawLocationsIDs("123", 2)
+	if err != nil {
+		t.Fatalf("ListUnprocessedRawLocationsIDs() returns err: %v", err)
+	}
+	if len(ids) != 5 {
+		t.Fatalf("Want 5 IDs, got %d", len(ids))
+	}
+
+}
+
+func newRawLocationDAOForTest() (*rawlocationdao.SQLRawLocationDAO, *database.FakeSQLDBService) {
 	fakeSQLService := database.NewFake()
-	return NewSQLRawLocationDAO(fakeSQLService), fakeSQLService
+	return rawlocationdao.NewSQLRawLocationDAO(fakeSQLService), fakeSQLService
 }
