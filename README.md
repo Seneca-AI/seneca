@@ -1,7 +1,7 @@
 # seneca
 
 ## About
-Seneca's mission ~is~ was to bridge the gap between data gathered on-vehicle and auto insurance companies that want to use that data to adjust risk assessments.  See how far we made it in docs/demo.mp4.
+Seneca's mission ~is~ was to bridge the gap between data gathered on-vehicle and auto insurance companies that want to use that data to adjust risk assessments.  See how far we made it [here](https://drive.google.com/file/d/1GCUXTPHJAVLlRRTtW8tI8w4Vr7t1zgP1/view?usp=sharing).
 
 Seneca.AI/seneca implements all of the infrastucture for this application, aside from Python ML models and a React client.
 
